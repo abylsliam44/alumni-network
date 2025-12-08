@@ -1,37 +1,38 @@
 # Alumni Social Network
 
-A fullstack web application connecting students, alumni, and mentors for career development.
+Полноценное full-stack приложение для студентов, выпускников и менторов AITU.
 
-## 🚀 Quick Start
+## Быстрый старт
 
 ```bash
-# Clone the repository
+# Клонируем проект
 git clone <repo-url>
 cd alumni-social-network
 
-# Copy environment file
+# Копируем env
 cp .env.example .env
 
-# Start all services
-docker-compose up --build
+# Поднимаем все сервисы (фронт + бэкенд + Postgres)
+docker-compose up -d --build
 ```
 
-## 📍 Services
+## 📍 Порты и сервисы (у меня заняты остальные порты, поэтому вы тоже испоользуйте эти пж!)
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
+| Сервис        | URL/порт                    |
+|---------------|-----------------------------|
+| Frontend      | http://localhost:3030       |
+| Backend API   | http://localhost:8010       |
+| API Docs      | http://localhost:8010/docs  |
+| Postgres      | localhost:5543 (alumni_db)  |
 
-## 🛠 Tech Stack
+## 🛠 Технологии
 
 - **Frontend**: React 18 + Vite
 - **Backend**: FastAPI (Python 3.11)
 - **Database**: PostgreSQL 16
 - **Container**: Docker Compose
 
-## 📁 Project Structure
+## 📁 Структура
 
 ```
 ├── backend/          # FastAPI backend
@@ -40,10 +41,7 @@ docker-compose up --build
 └── .env.example
 ```
 
-## 🔐 Environment Variables
+## 🔐 Переменные окружения
 
-See `.env.example` for all required configuration.
+Используйте `.env.example` как шаблон; ключи (в т.ч. `OPENAI_API_KEY`) задаются там и пробрасываются в контейнеры.
 
-## 📝 License
-
-MIT
