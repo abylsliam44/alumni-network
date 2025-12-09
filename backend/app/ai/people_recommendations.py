@@ -55,11 +55,11 @@ def _get_qdrant_client() -> QdrantClient:
 
 def _get_chat_model() -> Optional[ChatOpenAI]:
     global _chat_model
-    if _chat_model is None and settings.OPENAI_API_KEY:
+    if _chat_model is None and settings.GOOGLE_AI_API_KEY:
         _chat_model = ChatOpenAI(
             model="gpt-4o-mini",
             temperature=0.2,
-            openai_api_key=settings.OPENAI_API_KEY,
+            openai_api_key=settings.GOOGLE_AI_API_KEY,
             max_tokens=120,
         )
     return _chat_model

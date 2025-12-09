@@ -134,7 +134,7 @@ const Recommendations = () => {
     <div className="page" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div className="rec-hero">
         <div className="page-header" style={{ marginBottom: 12 }}>
-          <h1>Recommendations</h1>
+        <h1>Recommendations</h1>
           <p>
             AI-powered mentor/mentee matching based on your skills and interests. Personalized and refreshed on each visit.
           </p>

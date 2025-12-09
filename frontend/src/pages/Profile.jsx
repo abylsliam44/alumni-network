@@ -183,15 +183,15 @@ const Profile = () => {
                 </Link>
               ) : (
                 <>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      if (!mentorshipRequested) setShowMentorshipModal(true);
-                    }}
-                    disabled={mentorshipRequested}
-                  >
-                    {mentorshipRequested ? 'Request Sent' : 'Request Mentorship'}
-                  </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    if (!mentorshipRequested) setShowMentorshipModal(true);
+                  }}
+                  disabled={mentorshipRequested}
+                >
+                  {mentorshipRequested ? 'Request Sent' : 'Request Mentorship'}
+                </Button>
                   <Button variant="secondary" onClick={startConversation} style={{ marginLeft: 8 }}>
                     Message
                   </Button>

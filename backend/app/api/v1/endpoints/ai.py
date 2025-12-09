@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from openai import OpenAI, OpenAIError
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
 from app.api import deps
 from app.core.config import settings
@@ -18,13 +19,14 @@ SYSTEM_PROMPT = (
 )
 
 
-def get_client() -> OpenAI:
-    if not settings.OPENAI_API_KEY:
+def get_model():
+    if not settings.GOOGLE_AI_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="OpenAI API key not configured",
+            detail="AI key not configured",
         )
-    return OpenAI(api_key=settings.OPENAI_API_KEY)
+    genai.configure(api_key=settings.GOOGLE_AI_API_KEY)
+    return genai.GenerativeModel("gemini-1.5-flash")
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -36,19 +38,17 @@ async def chat_ai(
     """
     Simple chat endpoint constrained to AITU education questions.
     """
-    client = get_client()
+    model = get_model()
     try:
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
+        prompt = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": payload.question},
-            ],
-            temperature=0.4,
-            max_tokens=300,
-        )
-        answer = completion.choices[0].message.content
-    except OpenAIError as exc:
+        ]
+        # Gemini expects a single text prompt; join messages
+        chat_text = "\n".join([f"{m['role']}: {m['content']}" for m in prompt])
+        resp = model.generate_content(chat_text, generation_config={"temperature": 0.4, "max_output_tokens": 300})
+        answer = resp.text or ""
+    except google_exceptions.GoogleAPIError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service temporarily unavailable",
