@@ -2,10 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: alumni-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-alumni_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alumni_password}
-      POSTGRES_DB: ${POSTGRES_DB:-alumni_db}
+    env_file:
+      - .env
     ports:
       - "5543:5432"
     volumes:
@@ -23,20 +21,17 @@ services:
     container_name: alumni-backend
     ports:
       - "8010:8000"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-alumni_user}:${POSTGRES_PASSWORD:-alumni_password}@postgres:5432/${POSTGRES_DB:-alumni_db}
-      - POSTGRES_USER=${POSTGRES_USER:-alumni_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-alumni_password}
-      - POSTGRES_DB=${POSTGRES_DB:-alumni_db}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ALGORITHM=${ALGORITHM:-HS256}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - QDRANT_URL=http://qdrant:6333
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
     depends_on:
       postgres:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
@@ -51,8 +46,8 @@ services:
     container_name: alumni-frontend
     ports:
       - "3030:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8010
+    env_file:
+      - .env
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -60,6 +55,20 @@ services:
       backend:
         condition: service_healthy
 
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: alumni-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 30s
+      timeout: 5s
+      retries: 1
+
 volumes:
   postgres_data:
   backend_uploads:
+  qdrant_data:

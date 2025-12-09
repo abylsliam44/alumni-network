@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { eventsApi } from '../api/events';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import Alert from '../components/ui/Alert';
 
 const Events = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     load();
@@ -24,9 +26,9 @@ const Events = () => {
   const register = async (id) => {
     try {
       await eventsApi.register(id);
-      alert('Registered!');
+      setNotice({ type: 'success', message: 'Registered!' });
     } catch (e) {
-      alert(e.response?.data?.detail || 'Failed to register');
+      setNotice({ type: 'error', message: e.response?.data?.detail || 'Failed to register' });
     }
   };
 
@@ -36,6 +38,7 @@ const Events = () => {
         <h1>Events</h1>
         <p>Join upcoming meetups and workshops.</p>
       </div>
+      {notice && <Alert type={notice.type}>{notice.message}</Alert>}
       {loading ? (
         <div className="loading-spinner">Loading events...</div>
       ) : (

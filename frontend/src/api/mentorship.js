@@ -25,4 +25,8 @@ export const mentorshipApi = {
     const response = await api.get('/api/v1/mentorship/relationships');
     return response.data;
   },
+  becomeMentor: async (data) => {
+    const response = await api.post('/api/v1/mentorship/become', data);
+    return response.data;
+  },
 };

@@ -50,9 +50,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      await authApi.register(userData);
-      // Auto login after register? Or redirect to login?
-      // For now, let's just return true and let component handle it
+      const data = await authApi.register(userData);
+
+      if (data?.access_token) {
+        localStorage.setItem('token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh_token);
+        }
+        const current = await authApi.getCurrentUser();
+        setUser(current);
+      }
       return true;
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
@@ -68,8 +75,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const current = await authApi.getCurrentUser();
+    setUser(current);
+    return current;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 from app.models.mentorship import MentorshipStatus
 from app.schemas.profile import ProfileRead
+from typing import List
 
 class MentorshipRequestBase(BaseModel):
     message: Optional[str] = None
@@ -40,3 +41,12 @@ class MentorshipRelationshipRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class BecomeMentorRequest(BaseModel):
+    headline: Optional[str] = None
+    areas_of_help: List[str] = []
+    industries: List[str] = []
+    max_mentees: Optional[int] = None
+    availability_note: Optional[str] = None
+    consent_mentor: bool = False

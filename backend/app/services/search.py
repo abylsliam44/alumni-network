@@ -11,6 +11,7 @@ class SearchService:
         db: AsyncSession,
         query: Optional[str] = None,
         role: Optional[UserRole] = None,
+        is_mentor: Optional[bool] = None,
         skills: Optional[List[str]] = None,
         location: Optional[str] = None,
         graduation_year: Optional[int] = None,
@@ -25,6 +26,9 @@ class SearchService:
         # Role filter
         if role:
             filters.append(User.role == role)
+
+        if is_mentor is not None:
+            filters.append(User.is_mentor.is_(is_mentor))
             
         # Location filter
         if location:

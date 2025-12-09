@@ -1,4 +1,5 @@
 from typing import Any, List
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,16 +7,58 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole, UserProfile
 from app.models.mentorship import MentorshipRequest, MentorshipRelationship, MentorshipStatus
 from app.schemas.mentorship import (
     MentorshipRequestCreate,
     MentorshipRequestRead,
-    MentorshipRelationshipRead
+    MentorshipRelationshipRead,
+    BecomeMentorRequest,
 )
 from app.api.v1.endpoints.profile import get_profile_data
+from app.schemas.profile import ProfileRead
 
 router = APIRouter()
+
+@router.post("/become", response_model=ProfileRead)
+async def become_mentor(
+    payload: BecomeMentorRequest,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    Allow an ALUMNI user to opt into mentor capabilities.
+    """
+    if current_user.role != UserRole.ALUMNI:
+        raise HTTPException(status_code=403, detail="Only alumni can become mentors.")
+    if current_user.is_mentor:
+        # Already a mentor; return profile
+        return await get_profile_data(current_user, db)
+    if not payload.consent_mentor:
+        raise HTTPException(status_code=400, detail="Consent is required to become a mentor.")
+
+    # Ensure profile exists
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
+    )
+    user = result.scalars().first()
+    if user.profile is None:
+        user.profile = UserProfile(user_id=user.id)
+
+    user.is_mentor = True
+    user.profile.mentor_consent = True
+    user.profile.mentor_headline = payload.headline
+    user.profile.mentor_areas_of_help = payload.areas_of_help or []
+    user.profile.mentor_industries = payload.industries or []
+    user.profile.mentor_max_mentees = payload.max_mentees
+    user.profile.mentor_availability_note = payload.availability_note
+
+    db.add(user)
+    db.add(user.profile)
+    await db.commit()
+    await db.refresh(user)
+
+    return await get_profile_data(user, db)
 
 @router.post("/request", response_model=MentorshipRequestRead)
 async def send_mentorship_request(
@@ -28,6 +71,14 @@ async def send_mentorship_request(
     """
     if request_in.receiver_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot request mentorship from yourself")
+
+    # Ensure receiver is a mentor
+    receiver_result = await db.execute(
+        select(User).where(User.id == request_in.receiver_id)
+    )
+    receiver = receiver_result.scalars().first()
+    if not receiver or receiver.role != UserRole.ALUMNI or not receiver.is_mentor:
+        raise HTTPException(status_code=400, detail="Selected user is not available as a mentor")
 
     # Check if request already exists (PENDING)
     stmt = select(MentorshipRequest).where(
@@ -95,6 +146,9 @@ async def get_incoming_requests(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
+    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+        raise HTTPException(status_code=403, detail="Only mentors can view incoming requests")
+
     stmt = select(MentorshipRequest).where(
         MentorshipRequest.receiver_id == current_user.id,
         MentorshipRequest.status == MentorshipStatus.PENDING
@@ -159,6 +213,12 @@ async def accept_request(
         
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
+
+    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+        raise HTTPException(status_code=403, detail="Only mentors can decline requests")
+
+    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+        raise HTTPException(status_code=403, detail="Only mentors can accept requests")
         
     # Update status
     request.status = MentorshipStatus.ACCEPTED

@@ -24,9 +24,20 @@ const DirectoryFilters = ({ filters, onChange, onClear }) => {
           <option value="">All Roles</option>
           <option value="STUDENT">Student</option>
           <option value="ALUMNI">Alumni</option>
-          <option value="MENTOR">Mentor</option>
-          <option value="COMPANY_REP">Company Rep</option>
         </select>
+      </div>
+
+      <div className="filter-group">
+        <label className="form-label">Mentors</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="mentor_only"
+            checked={!!filters.mentor_only}
+            onChange={(e) => onChange({ ...filters, mentor_only: e.target.checked })}
+          />
+          <span className="text-sm text-secondary">Show mentors only</span>
+        </div>
       </div>
 
       <div className="filter-group">

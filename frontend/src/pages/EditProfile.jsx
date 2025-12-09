@@ -4,6 +4,7 @@ import { profileApi } from '../api/profile';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import Alert from '../components/ui/Alert';
 
 const EditProfile = () => {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ const EditProfile = () => {
     education: [],
     experience: []
   });
-  const [photo, setPhoto] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     loadProfile();
@@ -44,21 +45,11 @@ const EditProfile = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handlePhotoChange = (e) => {
-    if (e.target.files[0]) {
-      setPhoto(e.target.files[0]);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setNotice(null);
     try {
-      // Upload photo if selected
-      if (photo) {
-        await profileApi.uploadPhoto(photo);
-      }
-
       // Update profile
       const profileData = {
         ...formData,
@@ -69,7 +60,7 @@ const EditProfile = () => {
       navigate('/profile');
     } catch (err) {
       console.error('Failed to update profile', err);
-      alert('Failed to update profile');
+      setNotice({ type: 'error', message: 'Failed to update profile' });
     } finally {
       setLoading(false);
     }
@@ -109,13 +100,10 @@ const EditProfile = () => {
     <div className="profile-container">
       <Card className="edit-profile-card">
         <h2>Edit Profile</h2>
+        {notice && <Alert type={notice.type}>{notice.message}</Alert>}
         <form onSubmit={handleSubmit}>
           <div className="form-section">
             <h3>Basic Info</h3>
-            <div className="form-group">
-              <label className="form-label">Profile Photo</label>
-              <input type="file" onChange={handlePhotoChange} accept="image/*" />
-            </div>
             <Input label="Full Name" name="name" value={formData.name} onChange={handleChange} />
             <Input label="Headline" name="headline" value={formData.headline} onChange={handleChange} placeholder="Software Engineer at Tech Co" />
             <div className="form-group">

@@ -1,0 +1,232 @@
+from __future__ import annotations
+
+import uuid
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
+from jose import JWTError, jwt
+from sqlalchemy import select
+
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models.message import Conversation
+from app.models.user import User
+from app.schemas.auth import TokenPayload
+from app.schemas.message import MessageRead
+from app.services import messaging as messaging_service
+from app.services import connection as connection_service
+
+router = APIRouter()
+
+
+class ConnectionManager:
+    """
+    In-memory connection manager keyed by user_id.
+    """
+
+    def __init__(self) -> None:
+        self.active: dict[uuid.UUID, set[WebSocket]] = {}
+
+    async def connect(self, user_id: uuid.UUID, websocket: WebSocket) -> None:
+        await websocket.accept()
+        self.active.setdefault(user_id, set()).add(websocket)
+
+    def disconnect(self, user_id: uuid.UUID, websocket: WebSocket) -> None:
+        if user_id in self.active:
+            self.active[user_id].discard(websocket)
+            if not self.active[user_id]:
+                self.active.pop(user_id, None)
+
+    async def send_to_user(self, user_id: uuid.UUID, message: Dict[str, Any]) -> None:
+        connections = self.active.get(user_id, set())
+        for connection in list(connections):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                # Drop dead connection silently
+                self.disconnect(user_id, connection)
+
+    async def broadcast(self, user_ids: List[uuid.UUID], message: Dict[str, Any]) -> None:
+        for user_id in set(user_ids):
+            await self.send_to_user(user_id, message)
+
+
+manager = ConnectionManager()
+
+
+async def _extract_token(websocket: WebSocket) -> Optional[str]:
+    token = websocket.query_params.get("token")
+    if token:
+        return token
+    authorization = websocket.headers.get("Authorization") or websocket.headers.get("authorization")
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1]
+    return None
+
+
+async def _authenticate(websocket: WebSocket) -> User:
+    token = await _extract_token(websocket)
+    if not token:
+        await websocket.close(code=4401)
+        raise WebSocketDisconnect
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        token_data = TokenPayload(**payload)
+    except (JWTError, ValueError):
+        await websocket.close(code=4401)
+        raise WebSocketDisconnect
+
+    async with AsyncSessionLocal() as db:
+        user = await db.scalar(select(User).where(User.id == token_data.sub))
+        if not user:
+            await websocket.close(code=4403)
+            raise WebSocketDisconnect
+        return user
+
+
+async def _conversation_participants(
+    conversation_id: uuid.UUID,
+) -> list[uuid.UUID]:
+    async with AsyncSessionLocal() as db:
+        return await messaging_service.participant_ids(db, conversation_id)
+
+
+async def _validate_membership(conversation_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    async with AsyncSessionLocal() as db:
+        return await messaging_service.ensure_participant(db, conversation_id, user_id)
+
+
+async def _store_message(conversation_id: uuid.UUID, sender_id: uuid.UUID, text: str) -> MessageRead:
+    async with AsyncSessionLocal() as db:
+        exists = await db.scalar(
+            select(Conversation).where(Conversation.id == conversation_id)
+        )
+        if not exists:
+            raise ValueError("Conversation not found")
+        if not await messaging_service.ensure_participant(db, conversation_id, sender_id):
+            raise PermissionError("Not a participant")
+        message = await messaging_service.save_message(
+            db, conversation_id=conversation_id, sender_id=sender_id, text=text
+        )
+        return MessageRead.from_orm(message)
+
+
+@router.websocket("/ws/chat")
+async def chat_socket(websocket: WebSocket) -> None:
+    """
+    [MVP v1] WebSocket entry point for real-time chat events.
+    """
+    user = await _authenticate(websocket)
+    await manager.connect(user.id, websocket)
+
+    try:
+        while True:
+            payload = await websocket.receive_json()
+            event_type = payload.get("type")
+            data = payload.get("payload") or {}
+
+            if event_type == "send_message":
+                conversation_id = uuid.UUID(data.get("conversation_id"))
+                text = data.get("text")
+                if not text:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Message text is required"}})
+                    continue
+                try:
+                    participants = await _conversation_participants(conversation_id)
+                    other_id = next((pid for pid in participants if pid != user.id), None)
+                    if other_id:
+                        async with AsyncSessionLocal() as db:
+                            if not await connection_service.are_friends(db=db, user_a=user.id, user_b=other_id):
+                                await websocket.send_json({"type": "error", "payload": {"message": "Messaging allowed only between friends"}})
+                                continue
+                    message = await _store_message(conversation_id, user.id, text)
+                except PermissionError:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Not a participant"}})
+                    continue
+                except ValueError as exc:
+                    await websocket.send_json({"type": "error", "payload": {"message": str(exc)}})
+                    continue
+
+                participants = await _conversation_participants(conversation_id)
+                encoded_message = jsonable_encoder(message)
+                await manager.broadcast(
+                    participants,
+                    {
+                        "type": "new_message",
+                        "payload": {
+                            "conversation_id": str(conversation_id),
+                            "message": encoded_message,
+                        },
+                    },
+                )
+
+            elif event_type in {"typing_start", "typing_stop"}:
+                conversation_id = data.get("conversation_id")
+                if not conversation_id:
+                    continue
+                try:
+                    conversation_uuid = uuid.UUID(conversation_id)
+                except ValueError:
+                    continue
+                if not await _validate_membership(conversation_uuid, user.id):
+                    continue
+                participants = await _conversation_participants(conversation_uuid)
+                recipients = [pid for pid in participants if pid != user.id]
+                await manager.broadcast(
+                    recipients,
+                    {
+                        "type": event_type,
+                        "payload": {
+                            "conversation_id": conversation_id,
+                            "user_id": str(user.id),
+                        },
+                    },
+                )
+
+            elif event_type == "message_read":
+                conversation_id = data.get("conversation_id")
+                last_read_message_id = data.get("last_read_message_id")
+                if not (conversation_id and last_read_message_id):
+                    continue
+                try:
+                    conversation_uuid = uuid.UUID(conversation_id)
+                    last_uuid = uuid.UUID(last_read_message_id)
+                except ValueError:
+                    continue
+
+                async with AsyncSessionLocal() as db:
+                    if not await messaging_service.ensure_participant(db, conversation_uuid, user.id):
+                        continue
+                    other_id = await messaging_service.other_participant_id(db, conversation_uuid, user.id)
+                    if other_id and not await connection_service.are_friends(db, user.id, other_id):
+                        continue
+                    updated, read_at = await messaging_service.mark_messages_read_up_to(
+                        db,
+                        conversation_id=conversation_uuid,
+                        reader_id=user.id,
+                        last_read_message_id=last_uuid,
+                    )
+                if updated:
+                    participants = await _conversation_participants(conversation_uuid)
+                    recipients = [pid for pid in participants if pid != user.id]
+                    await manager.broadcast(
+                        recipients,
+                        {
+                            "type": "message_read",
+                            "payload": {
+                                "conversation_id": conversation_id,
+                                "user_id": str(user.id),
+                                "last_read_message_id": last_read_message_id,
+                                "read_at": read_at.isoformat(),
+                            },
+                        },
+                    )
+
+            else:
+                await websocket.send_json(
+                    {"type": "error", "payload": {"message": "Unsupported event type"}}
+                )
+    except WebSocketDisconnect:
+        manager.disconnect(user.id, websocket)

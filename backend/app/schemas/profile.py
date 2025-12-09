@@ -33,6 +33,7 @@ class ProfileBase(BaseModel):
     linkedin_url: Optional[str] = None
     github_url: Optional[str] = None
     website_url: Optional[str] = None
+    cover_url: Optional[str] = None
     
     education: List[EducationItem] = []
     experience: List[ExperienceItem] = []
@@ -40,6 +41,13 @@ class ProfileBase(BaseModel):
     
     graduation_year: Optional[int] = None
     availability: Optional[str] = None # "MENTORING", "JOB_SEEKING", "HIRING", "OPEN_TO_CONNECT"
+    # Mentor capability metadata
+    mentor_headline: Optional[str] = None
+    mentor_areas_of_help: List[str] = []
+    mentor_industries: List[str] = []
+    mentor_max_mentees: Optional[int] = None
+    mentor_availability_note: Optional[str] = None
+    mentor_consent: bool = False
 
 class ProfileUpdate(ProfileBase):
     name: Optional[str] = None
@@ -51,6 +59,8 @@ class ProfileRead(ProfileBase):
     email: str
     name: str
     role: str
+    is_mentor: bool = False
+    is_admin: bool = False
     photo_url: Optional[str] = None
     is_verified: bool
     

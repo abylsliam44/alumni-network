@@ -38,7 +38,7 @@ const Register = () => {
     });
 
     if (success) {
-      navigate('/login'); // Or dashboard if auto-login
+      navigate('/dashboard');
     }
   };
 
@@ -78,9 +78,8 @@ const Register = () => {
               value={formData.role}
               onChange={handleChange}
             >
-              <option value="STUDENT">Student</option>
-              <option value="ALUMNI">Alumni</option>
-              <option value="MENTOR">Mentor</option>
+              <option value="STUDENT">Student — Current AITU student</option>
+              <option value="ALUMNI">Alumni — AITU graduate / soon-to-be</option>
             </select>
           </div>
           <Input

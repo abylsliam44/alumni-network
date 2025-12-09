@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, profile, directory, mentorship, jobs, events, messages, ai
+from app.api.v1.endpoints import auth, profile, directory, mentorship, jobs, events, messages, ai, connections, recommendations
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -10,3 +10,5 @@ api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
+api_router.include_router(connections.router, prefix="/connections", tags=["connections"])
+api_router.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])

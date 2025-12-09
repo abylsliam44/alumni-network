@@ -1,42 +1,60 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
+
 from pydantic import BaseModel
 
+from app.schemas.user import UserRole
 
-class ConversationRead(BaseModel):
+
+class ConversationUser(BaseModel):
     id: UUID
-    participant1_id: UUID
-    participant2_id: UUID
-    last_message: Optional[str] = None
-    last_message_at: Optional[datetime] = None
-    unread_count: int = 0
+    name: str
+    photo_url: Optional[str] = None
+    role: UserRole
+    is_mentor: bool
 
     class Config:
-        orm_mode = True
-
-
-class MessageCreate(BaseModel):
-    recipient_id: UUID
-    content: str
-    conversation_id: Optional[UUID] = None
+        from_attributes = True
 
 
 class MessageRead(BaseModel):
     id: UUID
-    conversation_id: Optional[UUID]
+    conversation_id: UUID
     sender_id: UUID
-    recipient_id: UUID
-    content: str
+    text: str
     is_read: bool
+    read_at: Optional[datetime] = None
+    is_system: bool = False
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class ConversationSummary(BaseModel):
+    conversation_id: UUID
+    other_user: Optional[ConversationUser] = None
+    last_message: Optional[MessageRead] = None
+    unread_count: int = 0
+
+    class Config:
+        from_attributes = True
 
 
 class ConversationMessages(BaseModel):
     conversation_id: UUID
     messages: List[MessageRead]
+    has_more: bool = False
 
 
+class StartConversationRequest(BaseModel):
+    user_id: UUID
+
+
+class StartConversationResponse(ConversationSummary):
+    pass
+
+
+class MarkConversationReadRequest(BaseModel):
+    last_read_message_id: UUID

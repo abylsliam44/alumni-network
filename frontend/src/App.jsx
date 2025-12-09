@@ -8,7 +8,6 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
 import Directory from './pages/Directory';
-import Mentorship from './pages/Mentorship';
 import Feed from './pages/Feed';
 import Jobs from './pages/Jobs';
 import Events from './pages/Events';
@@ -16,6 +15,8 @@ import Messages from './pages/Messages';
 import Recommendations from './pages/Recommendations';
 import Settings from './pages/Settings';
 import AiChat from './pages/AiChat';
+import BecomeMentor from './pages/BecomeMentor';
+import Friends from './pages/Friends';
 import AppShell from './components/AppShell';
 import './App.css';
 
@@ -59,11 +60,11 @@ function App() {
             }
           />
           <Route
-            path="/mentorship"
+            path="/become-mentor"
             element={
               <ProtectedRoute>
                 <AppShell>
-                  <Mentorship />
+                  <BecomeMentor />
                 </AppShell>
               </ProtectedRoute>
             }
@@ -94,6 +95,16 @@ function App() {
               <ProtectedRoute>
                 <AppShell>
                   <Messages />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/friends"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <Friends />
                 </AppShell>
               </ProtectedRoute>
             }

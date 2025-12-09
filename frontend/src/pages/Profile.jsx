@@ -1,19 +1,34 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { profileApi } from '../api/profile';
+import { messagesApi } from '../api/messages';
 import { useAuth } from '../hooks/useAuth';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import Alert from '../components/ui/Alert';
+import Avatar from '../components/ui/Avatar';
+import SendRequestModal from '../components/mentorship/SendRequestModal';
 
-// import SendRequestModal from '../components/mentorship/SendRequestModal';
 
 const Profile = () => {
   const { userId } = useParams();
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showMentorshipModal, setShowMentorshipModal] = useState(false);
+  const [mentorshipRequested, setMentorshipRequested] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [menuType, setMenuType] = useState(null); // 'avatar' | 'cover'
+  const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+  const resolveUrl = (path) => {
+    if (!path) return null;
+    return path.startsWith('http') ? path : `${apiBase}${path}`;
+  };
 
   const isOwnProfile = !userId || (currentUser && currentUser.id === userId);
 
@@ -38,21 +53,124 @@ const Profile = () => {
     }
   };
 
+  const startConversation = async () => {
+    if (!profile?.user_id) return;
+    try {
+      const convo = await messagesApi.startConversation(profile.user_id);
+      navigate(`/messages?chat=${convo.conversation_id}`);
+    } catch (err) {
+      setNotice({
+        type: 'error',
+        message: err.response?.data?.detail || 'Unable to start conversation. You need to be friends first.',
+      });
+    }
+  };
+
   if (loading) return <div className="loading-spinner">Loading profile...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!profile) return <div>No profile found</div>;
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setNotice(null);
+      const updated = await profileApi.uploadPhoto(file);
+      setProfile(updated);
+      setNotice({ type: 'success', message: 'Avatar updated' });
+    } catch (err) {
+      setNotice({ type: 'error', message: err.response?.data?.detail || 'Failed to upload avatar' });
+    }
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setNotice(null);
+      const updated = await profileApi.uploadCover(file);
+      setProfile(updated);
+      setNotice({ type: 'success', message: 'Cover updated' });
+    } catch (err) {
+      setNotice({ type: 'error', message: err.response?.data?.detail || 'Failed to upload cover' });
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    try {
+      setNotice(null);
+      const updated = await profileApi.deletePhoto();
+      setProfile(updated);
+      setNotice({ type: 'success', message: 'Avatar removed' });
+      closeMenu();
+    } catch (err) {
+      setNotice({ type: 'error', message: err.response?.data?.detail || 'Failed to remove avatar' });
+    }
+  };
+
+  const handleDeleteCover = async () => {
+    try {
+      setNotice(null);
+      const updated = await profileApi.deleteCover();
+      setProfile(updated);
+      setNotice({ type: 'success', message: 'Cover removed' });
+      closeMenu();
+    } catch (err) {
+      setNotice({ type: 'error', message: err.response?.data?.detail || 'Failed to remove cover' });
+    }
+  };
+
+  const openImage = (type) => {
+    const url =
+      type === 'avatar'
+        ? resolveUrl(profile.photo_url)
+        : resolveUrl(profile.cover_url);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const openMenu = (type) => setMenuType(type);
+  const closeMenu = () => setMenuType(null);
+
   return (
     <div className="profile-container">
+      {notice && <Alert type={notice.type}>{notice.message}</Alert>}
       <div className="profile-header-card">
-        <div className="profile-cover"></div>
+        <div
+          className="profile-cover"
+          style={{
+            backgroundImage: profile.cover_url
+              ? `url(${resolveUrl(profile.cover_url)})`
+              : 'linear-gradient(135deg, #1f2937, #0f172a)',
+          }}
+          onClick={() => openMenu('cover')}
+        >
+          {isOwnProfile && (
+            <input
+              type="file"
+              accept="image/*"
+              ref={coverInputRef}
+              style={{ display: 'none' }}
+              onChange={handleCoverUpload}
+            />
+          )}
+        </div>
         <div className="profile-info-section">
-          <div className="profile-avatar-container">
-            <img
-              src={profile.photo_url ? `http://localhost:8000${profile.photo_url}` : 'https://via.placeholder.com/150'}
+          <div className="profile-avatar-container" onClick={() => openMenu('avatar')}>
+            <Avatar
+              src={resolveUrl(profile.photo_url)}
               alt={profile.name}
+              size="xl"
               className="profile-avatar"
             />
+            {isOwnProfile && (
+              <input
+                type="file"
+                accept="image/*"
+                ref={avatarInputRef}
+                style={{ display: 'none' }}
+                onChange={handleAvatarUpload}
+              />
+            )}
           </div>
           <div className="profile-details">
             <h1>{profile.name}</h1>
@@ -64,9 +182,20 @@ const Profile = () => {
                   <Button variant="secondary">Edit Profile</Button>
                 </Link>
               ) : (
-                <Button variant="primary" onClick={() => setShowMentorshipModal(true)}>
-                  Request Mentorship
-                </Button>
+                <>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      if (!mentorshipRequested) setShowMentorshipModal(true);
+                    }}
+                    disabled={mentorshipRequested}
+                  >
+                    {mentorshipRequested ? 'Request Sent' : 'Request Mentorship'}
+                  </Button>
+                  <Button variant="secondary" onClick={startConversation} style={{ marginLeft: 8 }}>
+                    Message
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -149,9 +278,68 @@ const Profile = () => {
           receiver={profile}
           onClose={() => setShowMentorshipModal(false)}
           onSuccess={() => {
-            alert('Request sent successfully!');
+            setNotice({ type: 'success', message: 'Request sent successfully!' });
+            setMentorshipRequested(true);
+            setShowMentorshipModal(false);
           }}
         />
+      )}
+
+      {menuType && (
+        <div className="modal-overlay" onClick={closeMenu}>
+          <div className="modal-content card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{menuType === 'avatar' ? 'Profile photo' : 'Cover image'}</h3>
+              <button className="close-btn" onClick={closeMenu}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  openImage(menuType);
+                  closeMenu();
+                }}
+                disabled={
+                  menuType === 'avatar'
+                    ? !profile.photo_url
+                    : !profile.cover_url
+                }
+              >
+                View image
+              </Button>
+              {isOwnProfile && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      if (menuType === 'avatar') {
+                        avatarInputRef.current?.click();
+                      } else {
+                        coverInputRef.current?.click();
+                      }
+                      closeMenu();
+                    }}
+                  >
+                    Change {menuType === 'avatar' ? 'avatar' : 'cover'}
+                  </Button>
+                  
+                  {((menuType === 'avatar' && profile.photo_url) || (menuType === 'cover' && profile.cover_url)) && (
+                     <Button
+                       variant="secondary" 
+                       style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                       onClick={() => {
+                         if (menuType === 'avatar') handleDeletePhoto();
+                         else handleDeleteCover();
+                       }}
+                     >
+                       Delete {menuType === 'avatar' ? 'avatar' : 'cover'}
+                     </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -7,14 +7,18 @@ export const messagesApi = {
   },
   async getConversationMessages(id) {
     const { data } = await api.get(`/api/v1/messages/conversations/${id}`);
-    return data.messages;
-  },
-  async sendMessage(payload) {
-    const { data } = await api.post('/api/v1/messages/messages', payload);
     return data;
   },
-  async markRead(id) {
-    await api.post(`/api/v1/messages/conversations/${id}/read`);
+  async startConversation(userId) {
+    const { data } = await api.post('/api/v1/messages/conversations/start', {
+      user_id: userId,
+    });
+    return data;
+  },
+  async markRead(id, lastMessageId) {
+    await api.post(`/api/v1/messages/conversations/${id}/read`, {
+      last_read_message_id: lastMessageId,
+    });
   },
 };
 

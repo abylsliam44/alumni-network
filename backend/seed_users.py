@@ -7,7 +7,7 @@ from app.core.security import get_password_hash
 
 async def seed_users():
     async with AsyncSessionLocal() as db:
-        roles = [UserRole.STUDENT, UserRole.ALUMNI, UserRole.MENTOR, UserRole.COMPANY_REP]
+        roles = [UserRole.STUDENT, UserRole.ALUMNI]
         skills_pool = ["Python", "React", "FastAPI", "Docker", "Java", "Spring", "AWS", "Machine Learning", "Data Science", "Design"]
         locations = ["New York", "San Francisco", "London", "Berlin", "Tokyo", "Remote", "Toronto"]
         
@@ -20,12 +20,14 @@ async def seed_users():
             
             role = random.choice(roles)
             name = f"User {i}"
+            is_mentor = role == UserRole.ALUMNI and random.choice([True, False])
             
             user = User(
                 email=email,
                 hashed_password=get_password_hash("password123"),
                 name=name,
                 role=role,
+                is_mentor=is_mentor,
                 is_active=True,
                 is_verified=True,
                 bio=f"Bio for {name}. Interested in {random.choice(skills_pool)}."

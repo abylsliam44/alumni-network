@@ -10,6 +10,8 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.STUDENT
     is_active: bool = True
     is_verified: bool = False
+    is_mentor: bool = False
+    is_admin: bool = False
 
 class UserCreate(UserBase):
     password: str

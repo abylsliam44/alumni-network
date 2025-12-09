@@ -16,7 +16,7 @@ const Mentorship = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -25,6 +25,10 @@ const Mentorship = () => {
         const data = await mentorshipApi.getRelationships();
         setRelationships(data);
       } else if (activeTab === 'incoming') {
+        if (!user?.is_mentor) {
+          setIncomingRequests([]);
+          return;
+        }
         const data = await mentorshipApi.getIncomingRequests();
         setIncomingRequests(data);
       } else if (activeTab === 'outgoing') {
@@ -61,11 +65,13 @@ const Mentorship = () => {
       <div className="mentorship-header mb-8">
         <h1>Mentorship</h1>
         <p className="text-secondary">Manage your mentorships and requests.</p>
-        <div className="mt-4">
-          <Link to="/directory">
-            <Button variant="primary">Find a Mentor</Button>
-          </Link>
-        </div>
+        {!user?.is_mentor && (
+          <div className="mt-4">
+            <Link to="/directory">
+              <Button variant="primary">Find a Mentor</Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="mentorship-tabs">
@@ -75,12 +81,14 @@ const Mentorship = () => {
         >
           Active Mentorships
         </button>
-        <button
-          className={`tab-button ${activeTab === 'incoming' ? 'active' : ''}`}
-          onClick={() => setActiveTab('incoming')}
-        >
-          Incoming Requests
-        </button>
+        {user?.is_mentor && (
+          <button
+            className={`tab-button ${activeTab === 'incoming' ? 'active' : ''}`}
+            onClick={() => setActiveTab('incoming')}
+          >
+            Incoming Requests
+          </button>
+        )}
         <button
           className={`tab-button ${activeTab === 'outgoing' ? 'active' : ''}`}
           onClick={() => setActiveTab('outgoing')}

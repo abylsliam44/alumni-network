@@ -23,6 +23,7 @@ class DirectoryResponse(BaseModel):
 async def list_users(
     query: Optional[str] = None,
     role: Optional[UserRole] = None,
+    is_mentor: Optional[bool] = Query(None, description="Filter mentors only"),
     skills: Optional[str] = Query(None, description="Comma separated skills"),
     location: Optional[str] = None,
     graduation_year: Optional[int] = None,
@@ -40,6 +41,7 @@ async def list_users(
         db=db,
         query=query,
         role=role,
+        is_mentor=is_mentor,
         skills=skill_list,
         location=location,
         graduation_year=graduation_year,

@@ -1,18 +1,19 @@
 import uuid
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import String, Boolean, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import String, Boolean, DateTime, Enum, ForeignKey, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 import enum
 
 class UserRole(str, enum.Enum):
+    """
+    [MVP v1] Primary identity roles for the platform. Mentor/admin
+    capabilities are represented by boolean flags on the user record.
+    """
     STUDENT = "STUDENT"
     ALUMNI = "ALUMNI"
-    MENTOR = "MENTOR"
-    ADMIN = "ADMIN"
-    COMPANY_REP = "COMPANY_REP"
 
 class User(Base):
     __tablename__ = "users"
@@ -23,9 +24,11 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.STUDENT)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.STUDENT, nullable=False)
+    is_mentor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=datetime.utcnow, nullable=True)
 
@@ -50,5 +53,13 @@ class UserProfile(Base):
     graduation_year: Mapped[Optional[int]] = mapped_column(nullable=True)
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     visibility_settings: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    # Mentor capability metadata (only applicable when user.is_mentor is True)
+    mentor_headline: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    mentor_areas_of_help: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    mentor_industries: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    mentor_max_mentees: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    mentor_availability_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mentor_consent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cover_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="profile")

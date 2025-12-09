@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.ai.people_recommendations import upsert_user_embedding
 from app.core.database import get_db
 from app.core import storage
 from app.models.user import User, UserProfile
@@ -14,18 +15,25 @@ from app.schemas.profile import ProfileRead, ProfileUpdate
 router = APIRouter()
 
 async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
+    # Reload with profile eagerly to avoid MissingGreenlet on lazy load
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == user.id)
+    )
+    user = result.scalars().first()
+
     # Ensure profile exists
     if not user.profile:
-        # Should have been created at registration, but just in case
-        result = await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))
-        profile = result.scalars().first()
-        if not profile:
-            profile = UserProfile(user_id=user.id)
-            db.add(profile)
-            await db.commit()
-            await db.refresh(profile)
+        profile = UserProfile(user_id=user.id)
+        db.add(profile)
+        await db.commit()
+        await db.refresh(profile)
         user.profile = profile
-    
+        # Reload to keep relationship in sync
+        result = await db.execute(
+            select(User).options(selectinload(User.profile)).where(User.id == user.id)
+        )
+        user = result.scalars().first()
+
     # Construct response
     profile_data = {
         "id": user.profile.id,
@@ -33,7 +41,10 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         "email": user.email,
         "name": user.name,
         "role": user.role,
+        "is_mentor": user.is_mentor,
+        "is_admin": user.is_admin,
         "photo_url": user.photo_url,
+        "cover_url": user.profile.cover_url,
         "is_verified": user.is_verified,
         "bio": user.bio,
         "education": user.profile.education or [],
@@ -43,6 +54,12 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         "graduation_year": user.profile.graduation_year,
         "linkedin_url": user.profile.linkedin_url,
         "availability": user.profile.availability,
+        "mentor_headline": user.profile.mentor_headline,
+        "mentor_areas_of_help": user.profile.mentor_areas_of_help or [],
+        "mentor_industries": user.profile.mentor_industries or [],
+        "mentor_max_mentees": user.profile.mentor_max_mentees,
+        "mentor_availability_note": user.profile.mentor_availability_note,
+        "mentor_consent": user.profile.mentor_consent,
     }
     return ProfileRead(**profile_data)
 
@@ -103,6 +120,9 @@ async def update_own_profile(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
+
+    # Keep embeddings fresh for recommendations
+    await upsert_user_embedding(user, user.profile)
     
     return await get_profile_data(user, db)
 
@@ -126,6 +146,83 @@ async def upload_photo(
     await db.refresh(current_user)
     
     # Reload with profile
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
+    )
+    user = result.scalars().first()
+    return await get_profile_data(user, db)
+
+
+@router.patch("/me/cover", response_model=ProfileRead)
+async def upload_cover(
+    file: UploadFile = File(...),
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Upload profile cover image
+    """
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(400, detail="File must be an image")
+
+    file_url = await storage.save_upload_file(file, sub_dir="covers")
+
+    # Ensure profile exists
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
+    )
+    user = result.scalars().first()
+    if user.profile is None:
+        user.profile = UserProfile(user_id=user.id)
+
+    user.profile.cover_url = file_url
+    db.add(user.profile)
+    await db.commit()
+    await db.refresh(user.profile)
+
+    # Reload user with profile to avoid lazy load
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
+    )
+    user = result.scalars().first()
+    return await get_profile_data(user, db)
+
+@router.delete("/me/photo", response_model=ProfileRead)
+async def delete_photo(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Delete profile photo
+    """
+    current_user.photo_url = None
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    
+    # Reload with profile
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
+    )
+    user = result.scalars().first()
+    return await get_profile_data(user, db)
+
+@router.delete("/me/cover", response_model=ProfileRead)
+async def delete_cover(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Delete profile cover image
+    """
+    # Ensure profile exists
+    if current_user.profile:
+        current_user.profile.cover_url = None
+        db.add(current_user.profile)
+        await db.commit()
+        await db.refresh(current_user.profile)
+
+    # Reload user with profile
     result = await db.execute(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )

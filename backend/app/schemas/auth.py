@@ -1,5 +1,7 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
+from app.models.user import UserRole
+from app.schemas.user import UserRead
 
 class Token(BaseModel):
     access_token: str
@@ -18,4 +20,22 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     name: str
-    role: Optional[str] = "STUDENT"
+    role: Optional[UserRole] = UserRole.STUDENT
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def normalize_role(cls, value):
+        if value is None:
+            return UserRole.STUDENT
+        try:
+            return UserRole(value)
+        except ValueError:
+            raise ValueError("Role must be one of STUDENT or ALUMNI")
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    user: UserRead

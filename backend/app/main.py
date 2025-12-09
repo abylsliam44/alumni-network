@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.api import ws
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -12,9 +14,11 @@ app = FastAPI(
 )
 
 # Mount static files
-import os
-os.makedirs("/app/uploads", exist_ok=True)
-app.mount("/static", StaticFiles(directory="/app/uploads"), name="static")
+upload_dir = Path(settings.UPLOAD_DIR).resolve()
+if not upload_dir.exists():
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+app.mount("/static", StaticFiles(directory=str(upload_dir)), name="static")
 
 # CORS configuration
 # Use env-provided origins when available, otherwise fall back to common local/dev hosts.
@@ -23,6 +27,8 @@ default_cors_origins = [
     "http://frontend:3000",
     "http://localhost:3030",
     "http://frontend:3030",
+    "http://0.0.0.0:3000",
+    "http://0.0.0.0:3030",
 ]
 allow_origins = settings.BACKEND_CORS_ORIGINS or default_cors_origins
 
@@ -35,6 +41,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(ws.router)
 
 
 @app.get("/api/health")

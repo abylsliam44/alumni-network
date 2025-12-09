@@ -5,10 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.ai.people_recommendations import upsert_user_embedding
 from app.core import security
 from app.core.database import get_db
-from app.models.user import User, UserProfile
-from app.schemas.auth import LoginRequest, RegisterRequest, Token
+from app.models.user import User, UserProfile, UserRole
+from app.schemas.auth import LoginRequest, RegisterRequest, AuthResponse, Token
 from app.schemas.user import UserRead
 
 router = APIRouter()
@@ -42,7 +43,7 @@ async def login(
         "refresh_token": refresh_token
     }
 
-@router.post("/register", response_model=UserRead)
+@router.post("/register", response_model=AuthResponse)
 async def register(
     user_in: RegisterRequest,
     db: AsyncSession = Depends(get_db)
@@ -59,11 +60,17 @@ async def register(
             detail="The user with this email already exists in the system",
         )
         
+    role_value = user_in.role or UserRole.STUDENT
+    if role_value not in [UserRole.STUDENT, UserRole.ALUMNI]:
+        raise HTTPException(status_code=400, detail="Invalid role. Choose STUDENT or ALUMNI.")
+
     user = User(
         email=user_in.email,
         hashed_password=security.get_password_hash(user_in.password),
         name=user_in.name,
-        role=user_in.role
+        role=role_value,
+        is_mentor=False,
+        is_admin=False,
     )
     
     # Create empty profile for user
@@ -73,8 +80,17 @@ async def register(
     db.add(profile)
     await db.commit()
     await db.refresh(user)
+    await upsert_user_embedding(user, profile)
     
-    return user
+    access_token = security.create_access_token(user.id)
+    refresh_token = security.create_refresh_token(user.id)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 @router.get("/me", response_model=UserRead)
 async def read_users_me(

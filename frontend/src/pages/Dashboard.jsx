@@ -8,16 +8,18 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1>Dashboard</h1>
+        <div>
+          <h1>Dashboard</h1>
+          <p className="text-secondary">Welcome, {user?.name} ({user?.role})</p>
+        </div>
         <div className="user-info">
-          <span>Welcome, {user?.name} ({user?.role})</span>
           <Link to="/profile">
             <Button variant="secondary">View Profile</Button>
           </Link>
           <Link to="/directory">
             <Button variant="primary">Browse Directory</Button>
           </Link>
-          <Button onClick={logout} variant="secondary">Logout</Button>
+          <Button variant="secondary" onClick={logout}>Logout</Button>
         </div>
       </header>
       <main className="dashboard-content">
@@ -31,7 +33,6 @@ const Dashboard = () => {
             <h3>Shortcuts</h3>
             <div className="pill-row">
               <Link to="/directory"><Button variant="secondary">Directory</Button></Link>
-              <Link to="/mentorship"><Button variant="secondary">Mentorship</Button></Link>
               <Link to="/jobs"><Button variant="secondary">Jobs</Button></Link>
               <Link to="/events"><Button variant="secondary">Events</Button></Link>
               <Link to="/messages"><Button variant="secondary">Messages</Button></Link>

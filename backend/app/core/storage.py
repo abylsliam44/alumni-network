@@ -3,9 +3,12 @@ import uuid
 import shutil
 from fastapi import UploadFile
 from pathlib import Path
+from app.core.config import settings
 
-UPLOAD_DIR = Path("/app/uploads")
-STATIC_URL_PREFIX = "/static/uploads"
+# Use the configured upload directory, converting to Path object
+# If it's relative, it will be relative to the CWD (where the app is run)
+UPLOAD_DIR = Path(settings.UPLOAD_DIR).resolve()
+STATIC_URL_PREFIX = "/static"
 
 def init_storage():
     if not UPLOAD_DIR.exists():
