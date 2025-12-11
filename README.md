@@ -31,14 +31,53 @@ docker compose up -d --build
 docker compose exec backend alembic upgrade head
 ```
 
+## Прод-стэк на отдельном файле
+Используем `.env.prod` (уже в .gitignore) и `docker-compose.prod.yml`:
+```bash
+# Запуск prod-стэка на дроплете/сервере
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# Миграции в prod-стэке
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
+```
+Главные переменные в `.env.prod`: `DATABASE_URL` с хостом `postgres`, `SECRET_KEY`, `OPENAI_API_KEY`, `BACKEND_CORS_ORIGINS`, `VITE_API_URL` (указывает на публичный backend `8010`), `POSTGRES_*`.
+
+## Деплой на один DigitalOcean droplet (Docker Compose)
+1. Подготовить код и конфиг:
+   ```bash
+   git clone <repo-url>
+   cd alumni-social-network
+   cp .env.example .env
+   ```
+2. Заполнить ключевые переменные (минимум):
+   - `DATABASE_URL=postgresql+psycopg2://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>` (хост именно `postgres`, не `localhost`).
+   - `SECRET_KEY=<случайная_строка>` (обязателен).
+   - `OPENAI_API_KEY=<ключ>` (если нужны AI-рекомендации).
+   - `BACKEND_CORS_ORIGINS=http://<ваш-домен-или-ip>:3030` (можно перечислением через запятую).
+   - `VITE_API_URL=http://<ваш-домен-или-ip>:8010` (URL API, который увидит браузер).
+3. Запустить стэк:
+   ```bash
+   docker compose up -d --build
+   ```
+4. Применить миграции:
+   ```bash
+   docker compose exec backend alembic upgrade head
+   ```
+
+### Что важно для безопасности
+- По умолчанию наружу публикуются только `8010` (backend API) и `3030` (frontend). Postgres и Qdrant остаются внутри сети Compose — откройте их наружу только при явной необходимости.
+- Настройте firewall на дроплете: разрешите вход только на нужные порты (обычно 80/443 с прокси или 3030/8010, если без прокси).
+- Храните `SECRET_KEY`, `POSTGRES_PASSWORD`, `OPENAI_API_KEY` в `.env`, не коммитьте их в репозиторий.
+- При смене домена не забудьте обновить `BACKEND_CORS_ORIGINS` и `VITE_API_URL`, затем пересобрать `frontend`.
+
 ## Порты и сервисы
 | Сервис      | URL/порт                   |
 |-------------|----------------------------|
 | Frontend    | http://localhost:3030      |
 | Backend API | http://localhost:8010      |
 | API Docs    | http://localhost:8010/docs |
-| Postgres    | localhost:5543 (alumni_db) |
-| Qdrant      | http://localhost:6333      |
+| Postgres    | внутренняя сеть docker-compose (`postgres:5432`) |
+| Qdrant      | внутренняя сеть docker-compose (`qdrant:6333`) |
 
 ## Полезные команды
 - Логи backend: `docker compose logs -f backend`
