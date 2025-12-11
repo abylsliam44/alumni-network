@@ -17,7 +17,7 @@ from uuid import UUID
 
 from langchain_core.runnables import RunnableLambda, RunnableSequence
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from sqlalchemy import select
@@ -31,6 +31,9 @@ COLLECTION_NAME = "users"
 _embedding_model = None
 _qdrant_client: Optional[QdrantClient] = None
 _chat_model: Optional[ChatOpenAI] = None
+MIN_PROFILE_COMPLETENESS = 0.35
+VECTOR_SEARCH_LIMIT = 60
+MAX_RETURNED_ITEMS = 20
 
 
 def _get_embedding_model():
@@ -55,14 +58,110 @@ def _get_qdrant_client() -> QdrantClient:
 
 def _get_chat_model() -> Optional[ChatOpenAI]:
     global _chat_model
-    if _chat_model is None and settings.GOOGLE_AI_API_KEY:
-        _chat_model = ChatOpenAI(
-            model="gpt-4o-mini",
-            temperature=0.2,
-            openai_api_key=settings.GOOGLE_AI_API_KEY,
-            max_tokens=120,
-        )
+    if _chat_model:
+        return _chat_model
+
+    if not settings.OPENAI_API_KEY:
+        return None
+
+    _chat_model = ChatOpenAI(
+        model="gpt-4o-mini",
+        openai_api_key=settings.OPENAI_API_KEY,
+        temperature=0.25,
+        max_tokens=200,
+    )
     return _chat_model
+
+
+def _as_list(value: Any) -> List[Any]:
+    if isinstance(value, list):
+        return [v for v in value if v not in (None, "")]
+    if isinstance(value, dict):
+        return [v for v in value.values() if v not in (None, "")]
+    return []
+
+
+def _coerce_education_strings(education: Any) -> List[str]:
+    entries = []
+    edu_items = []
+    if isinstance(education, list):
+        edu_items = education
+    elif isinstance(education, dict):
+        edu_items = [education]
+    for edu in edu_items:
+        school = edu.get("school") or edu.get("university") or edu.get("institution") or ""
+        degree = edu.get("degree") or edu.get("field_of_study") or edu.get("program") or ""
+        year = edu.get("year") or edu.get("graduation_year") or ""
+        parts = [p for p in [degree, school, f"year {year}" if year else ""] if p]
+        if parts:
+            entries.append(", ".join(parts))
+    return entries
+
+
+def _coerce_experience_strings(experience: Any) -> List[str]:
+    entries = []
+    if isinstance(experience, list):
+        for exp in experience:
+            role = exp.get("title") or exp.get("role") or exp.get("position") or ""
+            company = exp.get("company") or exp.get("organization") or ""
+            years = exp.get("years") or exp.get("duration") or ""
+            pieces = [p for p in [role, company, years] if p]
+            if pieces:
+                entries.append(" at ".join(pieces[:2]) if len(pieces) >= 2 else pieces[0])
+    elif isinstance(experience, dict):
+        # Some legacy profiles keep a single experience dict
+        role = experience.get("title") or experience.get("role") or ""
+        company = experience.get("company") or ""
+        if role or company:
+            text = " ".join(
+                [part for part in [role, "at" if role and company else "", company] if part]
+            )
+            entries.append(text)
+    return entries
+
+
+def _collect_interests(profile: UserProfile) -> List[str]:
+    items = []
+    if profile.mentor_areas_of_help:
+        items.extend(_as_list(profile.mentor_areas_of_help))
+    if isinstance(profile.career_interests, list):
+        items.extend([v for v in profile.career_interests if v])
+    elif isinstance(profile.career_interests, dict):
+        items.extend([v for v in profile.career_interests.values() if v])
+    return list({v for v in items if v})
+
+
+def _profile_completeness(profile: UserProfile) -> float:
+    signals = [
+        _as_list(profile.skills),
+        _as_list(profile.mentor_industries),
+        _as_list(profile.mentor_areas_of_help),
+        _collect_interests(profile),
+        _coerce_experience_strings(profile.experience),
+        _coerce_education_strings(profile.education),
+        [profile.mentor_headline] if profile.mentor_headline else [],
+        [profile.location] if profile.location else [],
+        [profile.graduation_year] if profile.graduation_year else [],
+    ]
+    filled = sum(1 for s in signals if s)
+    return round(filled / len(signals), 3) if signals else 0.0
+
+
+def _profile_has_minimal_signal(profile: UserProfile) -> bool:
+    if not profile:
+        return False
+    return _profile_completeness(profile) >= MIN_PROFILE_COMPLETENESS
+
+
+def _merged_interests_from_payload(payload: Dict[str, Any]) -> List[str]:
+    interests = []
+    for key in ("career_interests", "mentor_areas_of_help"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            interests.extend([v for v in value if v])
+        elif isinstance(value, dict):
+            interests.extend([v for v in value.values() if v])
+    return list({v for v in interests if v})
 
 
 async def _embed_text(text: str) -> List[float]:
@@ -87,22 +186,26 @@ def _ensure_collection(client: QdrantClient, vector_size: int) -> None:
 
 
 def build_user_interest_text(user: User, profile: UserProfile) -> str:
-    skills = ", ".join(profile.skills or [])
-    industries = ", ".join(profile.mentor_industries or [])
-    areas = ", ".join(profile.mentor_areas_of_help or [])
-    education = ""
-    if profile.education:
-        edu = profile.education[0]
-        degree = edu.get("degree") or edu.get("field_of_study") or ""
-        education = f"studied {degree} at {edu.get('school','')}"
+    skills = ", ".join(_as_list(profile.skills))
+    industries = ", ".join(_as_list(profile.mentor_industries))
+    areas = ", ".join(_as_list(profile.mentor_areas_of_help))
+    interests = ", ".join(_collect_interests(profile))
+    experiences = "; ".join(_coerce_experience_strings(profile.experience)[:3])
+    education = "; ".join(_coerce_education_strings(profile.education)[:2])
+    availability = profile.availability or profile.mentor_availability_note
     role_label = "Mentor" if user.is_mentor else user.role.value.title()
     parts = [
         f"{user.name} is a {role_label} from Astana IT University.",
-        education,
+        f"Bio: {user.bio}" if getattr(user, "bio", None) else "",
+        f"Education: {education}" if education else "",
+        f"Experience: {experiences}" if experiences else "",
         f"Key skills: {skills}" if skills else "",
         f"Industries: {industries}" if industries else "",
         f"Can help with: {areas}" if areas else "",
-        f"Availability: {profile.availability}" if profile.availability else "",
+        f"Interests: {interests}" if interests else "",
+        f"Availability: {availability}" if availability else "",
+        f"Location: {profile.location}" if profile.location else "",
+        f"Graduation year: {profile.graduation_year}" if profile.graduation_year else "",
     ]
     text = ". ".join([p for p in parts if p]).strip()
     return text or f"{user.name} is part of the alumni community."
@@ -110,36 +213,44 @@ def build_user_interest_text(user: User, profile: UserProfile) -> str:
 
 def _metadata_from_profile(user: User, profile: UserProfile) -> Dict[str, Any]:
     available_for_mentorship = bool(user.is_mentor and profile.mentor_consent)
-    career_interests = []
-    if profile.mentor_areas_of_help:
-        career_interests.extend(profile.mentor_areas_of_help)
-    if isinstance(profile.career_interests, list):
-        career_interests.extend(profile.career_interests)
-    elif isinstance(profile.career_interests, dict):
-        career_interests.extend(profile.career_interests.values())
+    career_interests = _collect_interests(profile)
+    education_entries = _coerce_education_strings(profile.education)
+    experience_entries = _coerce_experience_strings(profile.experience)
+    completeness = _profile_completeness(profile)
 
     metadata: Dict[str, Any] = {
         "id": str(user.id),
         "role": user.role.value,
         "is_mentor": user.is_mentor,
         "available_for_mentorship": available_for_mentorship,
-        "skills": profile.skills or [],
-        "industries": profile.mentor_industries or [],
+        "skills": _as_list(profile.skills),
+        "skills_count": len(_as_list(profile.skills)),
+        "industries": _as_list(profile.mentor_industries),
         "career_interests": career_interests,
+        "mentor_areas_of_help": _as_list(profile.mentor_areas_of_help),
+        "career_focus": career_interests,
         "graduation_year": profile.graduation_year,
         "location": profile.location,
         "name": user.name,
         "photo_url": user.photo_url,
         "mentor_headline": profile.mentor_headline,
         "mentor_availability_note": profile.mentor_availability_note,
+        "education": education_entries,
+        "experience": experience_entries,
+        "profile_completeness": completeness,
+        "bio": getattr(user, "bio", None),
     }
     return metadata
 
 
-async def upsert_user_embedding(user: User, profile: UserProfile) -> Optional[List[float]]:
-    if not profile:
+async def upsert_user_embedding(
+    user: User, profile: UserProfile, summary_text: Optional[str] = None
+) -> Optional[List[float]]:
+    if not profile or not _profile_has_minimal_signal(profile):
         return None
-    text = build_user_interest_text(user, profile)
+    text = summary_text or build_user_interest_text(user, profile)
+    if not text:
+        return None
     vector = await _embed_text(text)
     metadata = _metadata_from_profile(user, profile)
     client = _get_qdrant_client()
@@ -162,18 +273,22 @@ async def upsert_user_embedding(user: User, profile: UserProfile) -> Optional[Li
 
 
 def _match_score(similarity: float) -> int:
-    if similarity < 0.65:
+    # Allow low-signal profiles to still surface results; scale 0..1 to 0..100
+    if similarity is None:
         return 0
-    return int(round(((similarity - 0.65) / 0.35) * 100))
+    return int(round(max(0.0, min(1.0, similarity)) * 100))
 
 
 def _shared_lists(a: List[str], b: List[str]) -> List[str]:
     return list({x for x in a or [] if x in (b or [])})
 
 
-async def _enrich_reasons_with_llm(items: List[Dict[str, Any]], current: Dict[str, Any]) -> List[Dict[str, Any]]:
+async def _enrich_reasons_with_llm(
+    items: List[Dict[str, Any]], current: Dict[str, Any], profile_summary: str = ""
+) -> List[Dict[str, Any]]:
     """
-    Optional single-shot LLM summarization to make reason_short crisper.
+    Optional single-shot LLM summarization to make reason_short crisper using RAG-style
+    context (profile summaries + vector-store payloads).
     Executes once per request; falls back silently on failure.
     """
     if not items:
@@ -187,43 +302,50 @@ async def _enrich_reasons_with_llm(items: List[Dict[str, Any]], current: Dict[st
             (
                 "system",
                 (
-                    "You are an assistant for an alumni mentorship platform that generates a single, "
-                    "crisp rationale for each candidate using ONLY the structured data provided. "
+                    "You generate concise mentorship/job fit rationales for an alumni network. "
+                    "Use ONLY the provided facts; do not invent any details. "
                     "Rules:\n"
-                    "- Use shared skills and shared interests as the primary evidence; mention at most 2–3 items total.\n"
-                    "- Never invent employers, titles, locations, or skills beyond what is listed.\n"
-                    "- Keep it one sentence, 12–22 words, confident and positive.\n"
-                    "- Avoid fluff (e.g., 'highly recommended'); be factual and specific.\n"
-                    "- Respond in English only."
+                    "- Start with overlap of skills/interests; mention experience/industry if relevant.\n"
+                    "- Add availability or location only if explicitly listed.\n"
+                    "- One sentence per candidate, 12–24 words, confident and specific.\n"
+                    "- Never add companies/titles/skills not present in the candidate context."
                 ),
             ),
             (
                 "user",
                 (
-                    "Current user skills: {skills}\n"
-                    "Current user interests: {interests}\n"
-                    "Candidates:\n"
+                    "Current user summary: {current_summary}\n"
+                    "Current user interests: {current_interests}\n"
+                    "Candidates (one per line):\n"
                     "{candidates}\n"
-                    "Return one line per candidate in the same order, without numbering."
+                    "Return one line per candidate in the same order, no numbering."
                 ),
             ),
         ]
     )
 
-    candidates_block = "\n".join(
-        [
-            f"- name: {it.get('name')}, skills: {', '.join(it.get('shared_skills', []) or [])}, "
-            f"interests: {', '.join(it.get('shared_interests', []) or [])}"
-            for it in items
-        ]
-    )
+    def _candidate_line(it: Dict[str, Any]) -> str:
+        return (
+            f"- name: {it.get('name')}, role: {it.get('role')}, "
+            f"skills: {', '.join(it.get('shared_skills', []) or [])}, "
+            f"interests: {', '.join(it.get('shared_interests', []) or [])}, "
+            f"industries: {', '.join(it.get('industries', []) or [])}, "
+            f"experience: {', '.join(it.get('experience', [])[:2] or [])}, "
+            f"education: {', '.join(it.get('education', [])[:1] or [])}, "
+            f"availability: {it.get('mentor_availability_note') or ''}, "
+            f"location: {it.get('location') or ''}"
+        )
+
+    candidates_block = "\n".join([_candidate_line(it) for it in items])
 
     try:
         chain = prompt | chat
         resp = await chain.ainvoke(
             {
-                "skills": ", ".join(current.get("skills", [])),
-                "interests": ", ".join(current.get("career_interests", [])),
+                "current_summary": profile_summary or "AITU community member",
+                "current_interests": ", ".join(
+                    current.get("career_focus") or current.get("career_interests") or []
+                ),
                 "candidates": candidates_block,
             }
         )
@@ -250,10 +372,121 @@ async def _fetch_user_with_profile(db: AsyncSession, user_id: UUID) -> Tuple[Use
     return user, user.profile
 
 
+async def _fallback_recommendations(
+    ctx: Dict[str, Any], reason_seed: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Deterministic overlap-based matching used when Qdrant/embeddings are unavailable.
+    """
+    db: AsyncSession = ctx["db"]
+    user: User = ctx["user"]
+    profile: UserProfile = ctx["profile"]
+
+    result = await db.execute(select(User).options(selectinload(User.profile)))
+    candidates = result.scalars().all()
+
+    target_roles = ["ALUMNI", "STUDENT"]
+    if user.role == UserRole.STUDENT:
+        target_roles = ["ALUMNI"]
+    elif user.is_mentor:
+        target_roles = ["STUDENT"]
+
+    items: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        if candidate.id == user.id or not candidate.profile:
+            continue
+        if not _profile_has_minimal_signal(candidate.profile):
+            continue
+        if candidate.role.value not in target_roles:
+            continue
+        if user.role == UserRole.STUDENT and not (
+            candidate.is_mentor and candidate.profile.mentor_consent
+        ):
+            continue
+
+        candidate_meta = _metadata_from_profile(candidate, candidate.profile)
+        shared_skills = _shared_lists(profile.skills or [], candidate.profile.skills or [])
+        shared_interests = _shared_lists(
+            reason_seed.get("career_focus", reason_seed.get("career_interests", [])),
+            candidate_meta.get("career_focus", candidate_meta.get("career_interests", [])),
+        )
+
+        if not shared_skills and not shared_interests:
+            continue
+
+        base_score = len(shared_skills) * 25 + len(shared_interests) * 20
+        if candidate.profile.mentor_consent:
+            base_score += 8
+        match_score = min(100, max(10, base_score))
+
+        reason_parts = []
+        if shared_skills:
+            reason_parts.append(f"Shared skills: {', '.join(shared_skills[:3])}")
+        if shared_interests:
+            reason_parts.append(f"Interests overlap: {', '.join(shared_interests[:2])}")
+        reason = " | ".join(reason_parts)
+
+        items.append(
+            {
+                "target_user_id": str(candidate.id),
+                "name": candidate.name,
+                "photo_url": candidate.photo_url,
+                "role": candidate.role.value,
+                "available_for_mentorship": bool(
+                    candidate.is_mentor and candidate.profile.mentor_consent
+                ),
+                "match_score": match_score,
+                "shared_skills": shared_skills,
+                "shared_interests": shared_interests,
+                "reason_short": reason or "Profile overlap detected.",
+                "graduation_year": candidate.profile.graduation_year,
+                "location": candidate.profile.location,
+                "mentor_headline": candidate.profile.mentor_headline,
+                "mentor_availability_note": candidate.profile.mentor_availability_note,
+                "industries": candidate.profile.mentor_industries or [],
+                "mentor_areas_of_help": candidate.profile.mentor_areas_of_help or [],
+                "career_interests": candidate_meta.get("career_focus", []),
+                "profile_completeness": candidate_meta.get("profile_completeness", 0.0),
+                "experience": candidate_meta.get("experience", []),
+                "education": candidate_meta.get("education", []),
+            }
+        )
+
+    items = sorted(items, key=lambda x: x["match_score"], reverse=True)[:MAX_RETURNED_ITEMS]
+    return await _enrich_reasons_with_llm(
+        items, reason_seed, ctx.get("profile_summary", "")
+    )
+
+
+async def _bootstrap_embeddings_if_empty(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    If Qdrant is empty (fresh deploy), backfill embeddings once so that
+    vector search is actually used instead of always falling back.
+    """
+    try:
+        client = _get_qdrant_client()
+        count = client.count(collection_name=COLLECTION_NAME, exact=False).count
+        if count and count > 0:
+            return ctx
+    except Exception:
+        # If Qdrant is unavailable, leave context untouched
+        return ctx
+
+    db: AsyncSession = ctx["db"]
+    result = await db.execute(select(User).options(selectinload(User.profile)))
+    users = result.scalars().all()
+    for user in users:
+        if user.profile and _profile_has_minimal_signal(user.profile):
+            await upsert_user_embedding(user, user.profile)
+    return ctx
+
+
 async def _ensure_query_vector(ctx: Dict[str, Any]) -> Dict[str, Any]:
     user: User = ctx["user"]
     profile: UserProfile = ctx["profile"]
-    vector = await upsert_user_embedding(user, profile)
+    summary = build_user_interest_text(user, profile)
+    ctx["profile_summary"] = summary
+    vector = await upsert_user_embedding(user, profile, summary_text=summary)
     ctx["query_vector"] = vector
     ctx["metadata"] = _metadata_from_profile(user, profile)
     return ctx
@@ -263,9 +496,14 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
     vector = ctx.get("query_vector")
     user: User = ctx["user"]
     profile: UserProfile = ctx["profile"]
+    current_metadata = ctx.get("metadata", {})
+    current_interests = _merged_interests_from_payload(current_metadata)
+
+    # Make sure vector store is populated at least once
+    ctx = await _bootstrap_embeddings_if_empty(ctx)
 
     if not vector:
-        ctx["items"] = []
+        ctx["items"] = await _fallback_recommendations(ctx, current_metadata)
         return ctx
 
     client = _get_qdrant_client()
@@ -281,6 +519,12 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
             match=qmodels.MatchAny(any=target_roles),
         )
     ]
+    filters.append(
+        qmodels.FieldCondition(
+            key="profile_completeness",
+            range=qmodels.Range(gte=MIN_PROFILE_COMPLETENESS),
+        )
+    )
     if user.role == UserRole.STUDENT:
         filters.append(
             qmodels.FieldCondition(
@@ -301,12 +545,12 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
             collection_name=COLLECTION_NAME,
             query_vector=vector,
             query_filter=search_filter,
-            limit=50,
+            limit=VECTOR_SEARCH_LIMIT,
             with_payload=True,
             with_vectors=False,
         )
     except Exception:
-        ctx["items"] = []
+        ctx["items"] = await _fallback_recommendations(ctx, current_metadata)
         return ctx
 
     items = []
@@ -315,10 +559,24 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
         target_id = payload.get("id") or res.id
         if str(target_id) == str(user.id):
             continue
+        completeness = payload.get("profile_completeness")
+        if completeness is None:
+            # Older payloads might not have this field; infer a conservative value
+            inferred_signal = any(
+                [
+                    payload.get("skills"),
+                    payload.get("career_interests"),
+                    payload.get("mentor_areas_of_help"),
+                    payload.get("experience"),
+                ]
+            )
+            completeness = 0.4 if inferred_signal else 0.0
+        if completeness < MIN_PROFILE_COMPLETENESS:
+            continue
         shared_skills = _shared_lists(profile.skills or [], payload.get("skills", []))
         shared_interests = _shared_lists(
-            _metadata_from_profile(user, profile).get("career_interests", []),
-            payload.get("career_interests", []),
+            current_interests,
+            _merged_interests_from_payload(payload),
         )
         reason_parts = []
         if shared_skills:
@@ -341,12 +599,26 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
                 "location": payload.get("location"),
                 "mentor_headline": payload.get("mentor_headline"),
                 "mentor_availability_note": payload.get("mentor_availability_note"),
+                "industries": payload.get("industries", []),
+                "career_interests": payload.get("career_focus")
+                or payload.get("career_interests", []),
+                "mentor_areas_of_help": payload.get("mentor_areas_of_help", []),
+                "profile_completeness": completeness,
+                "experience": payload.get("experience", []),
+                "education": payload.get("education", []),
             }
         )
 
-    items = sorted(items, key=lambda x: x["match_score"], reverse=True)[:20]
+    items = sorted(items, key=lambda x: x["match_score"], reverse=True)[:MAX_RETURNED_ITEMS]
     # Optional LLM polish for reasons
-    items = await _enrich_reasons_with_llm(items, ctx.get("metadata", {}))
+    items = await _enrich_reasons_with_llm(
+        items, current_metadata, ctx.get("profile_summary", "")
+    )
+
+    # If vector search is too sparse, supplement with deterministic matches
+    if not items:
+        items = await _fallback_recommendations(ctx, current_metadata)
+
     ctx["items"] = items
     return ctx
 
@@ -360,7 +632,7 @@ async def run_people_recommendations_agent(
 
     async def load_context(_: Dict[str, Any]) -> Dict[str, Any]:
         user, profile = await _fetch_user_with_profile(db, current_user_id)
-        return {"user": user, "profile": profile}
+        return {"user": user, "profile": profile, "db": db}
 
     agent = RunnableSequence(
         RunnableLambda(load_context),

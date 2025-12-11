@@ -15,6 +15,7 @@ const Directory = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [connections, setConnections] = useState({});
   const [requesting, setRequesting] = useState({});
+  const [filtersVisible, setFiltersVisible] = useState(true);
 
   const [filters, setFilters] = useState({
     query: '',
@@ -78,7 +79,7 @@ const Directory = () => {
   };
 
   const handleFilterChange = (newFilters) => {
-    setFilters({ ...newFilters, page: 1 }); // Reset to page 1 on filter change
+    setFilters({ ...newFilters, page: 1 });
   };
 
   const handleSearchChange = (query) => {
@@ -109,7 +110,6 @@ const Directory = () => {
   const handleAddFriend = async (targetId) => {
     if (requesting[targetId]) return;
     setRequesting((prev) => ({ ...prev, [targetId]: true }));
-    // Optimistic update
     setConnections((prev) => ({
       ...prev,
       [targetId]: {
@@ -131,7 +131,6 @@ const Directory = () => {
       fetchConnections();
     } catch (err) {
       console.error('Failed to send request', err);
-      // rollback
       setConnections((prev) => {
         const copy = { ...prev };
         delete copy[targetId];
@@ -147,10 +146,8 @@ const Directory = () => {
   };
 
   const handleRespond = async (connectionId, status) => {
-    // Find target user by connectionId
     const targetEntry = Object.entries(connections).find(([, v]) => v.id === connectionId);
     const targetId = targetEntry ? targetEntry[0] : null;
-    // Optimistic update
     if (targetId) {
       setConnections((prev) => ({
         ...prev,
@@ -166,90 +163,113 @@ const Directory = () => {
       fetchConnections();
     } catch (err) {
       console.error('Failed to respond to request', err);
-      // rollback: refetch
       fetchConnections();
     }
   };
 
+  const activeFiltersCount = [
+    filters.role,
+    filters.skills,
+    filters.location,
+    filters.graduation_year,
+    filters.mentor_only
+  ].filter(Boolean).length;
+
   return (
-    <div className="page directory-page">
-      <div className="page-header">
-        <div>
-          <h1>Alumni Directory</h1>
-          <p className="text-secondary">Connect with alumni, students, and mentors.</p>
-        </div>
-        <div className="directory-search-bar elevated">
-          <SearchInput
-            value={filters.query}
-            onChange={handleSearchChange}
-            placeholder="Search by name, bio, or keywords..."
-          />
-        </div>
-      </div>
-
-      <div className="directory-content">
-        <aside className="directory-sidebar">
-          <DirectoryFilters
-            filters={filters}
-            onChange={handleFilterChange}
-            onClear={handleClearFilters}
-          />
-        </aside>
-
-        <main className="directory-main">
-          {loading ? (
-            <div className="loading-spinner">Loading directory...</div>
-          ) : (
-            <>
-              <div className="results-count">
-                Found {total} members
-              </div>
-
-              {users.length > 0 ? (
-                <div className="users-grid">
-                  {users.map(user => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      isSelf={currentUser?.id === user.user_id}
-                      status={
-                        connectionStatus[user.user_id]
-                          ? connectionStatus[user.user_id].status === 'ACCEPTED'
-                            ? 'friends'
-                            : connectionStatus[user.user_id].direction === 'out'
-                              ? 'pending_out'
-                              : 'pending_in'
-                          : 'none'
-                      }
-                      addLoading={requesting[user.user_id]}
-                      onAddFriend={() => handleAddFriend(user.user_id)}
-                      onAccept={() => {
-                        const c = connectionStatus[user.user_id];
-                        if (c) handleRespond(c.id, 'ACCEPTED');
-                      }}
-                      onDecline={() => {
-                        const c = connectionStatus[user.user_id];
-                        if (c) handleRespond(c.id, 'DECLINED');
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="no-results">
-                  <p>No members found matching your criteria.</p>
-                  <button onClick={handleClearFilters} className="btn-link">Clear filters</button>
-                </div>
+    <div className="dir-page">
+      {/* Header Section */}
+      <header className="dir-header">
+        <div className="dir-header-content">
+          <div className="dir-title-block">
+            <h1 className="dir-title">Directory</h1>
+            <p className="dir-subtitle">
+              {total} members available to connect
+            </p>
+          </div>
+          
+          <div className="dir-header-actions">
+            <SearchInput
+              value={filters.query}
+              onChange={handleSearchChange}
+              placeholder="Search members..."
+            />
+            <button 
+              className={`dir-filter-toggle ${filtersVisible ? 'active' : ''}`}
+              onClick={() => setFiltersVisible(!filtersVisible)}
+            >
+              Filters
+              {activeFiltersCount > 0 && (
+                <span className="dir-filter-badge">{activeFiltersCount}</span>
               )}
+            </button>
+          </div>
+        </div>
+      </header>
 
-              <Pagination
-                currentPage={filters.page}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
-            </>
-          )}
-        </main>
+      {/* Filters Panel - Collapsible */}
+      <div className={`dir-filters-wrapper ${filtersVisible ? 'visible' : ''}`}>
+        <DirectoryFilters
+          filters={filters}
+          onChange={handleFilterChange}
+          onClear={handleClearFilters}
+        />
       </div>
+
+      {/* Main Content */}
+      <main className="dir-main">
+        {loading ? (
+          <div className="dir-loading">
+            <div className="dir-loading-bar"></div>
+            <span>Loading members...</span>
+          </div>
+        ) : users.length > 0 ? (
+          <>
+            <div className="dir-grid">
+              {users.map((user, index) => (
+                <UserCard
+                  key={user.id}
+                  user={user}
+                  index={index}
+                  isSelf={currentUser?.id === user.user_id}
+                  status={
+                    connectionStatus[user.user_id]
+                      ? connectionStatus[user.user_id].status === 'ACCEPTED'
+                        ? 'friends'
+                        : connectionStatus[user.user_id].direction === 'out'
+                          ? 'pending_out'
+                          : 'pending_in'
+                      : 'none'
+                  }
+                  addLoading={requesting[user.user_id]}
+                  onAddFriend={() => handleAddFriend(user.user_id)}
+                  onAccept={() => {
+                    const c = connectionStatus[user.user_id];
+                    if (c) handleRespond(c.id, 'ACCEPTED');
+                  }}
+                  onDecline={() => {
+                    const c = connectionStatus[user.user_id];
+                    if (c) handleRespond(c.id, 'DECLINED');
+                  }}
+                />
+              ))}
+            </div>
+
+            <Pagination
+              currentPage={filters.page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </>
+        ) : (
+          <div className="dir-empty">
+            <h3>No members found</h3>
+            <p>Try adjusting your search or filters</p>
+            <button onClick={handleClearFilters} className="dir-clear-btn">
+              Clear all filters
+            </button>
+          </div>
+        )}
+      </main>
     </div>
   );
 };

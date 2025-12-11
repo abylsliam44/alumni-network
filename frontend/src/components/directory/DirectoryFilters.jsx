@@ -1,74 +1,85 @@
-import Input from '../ui/Input';
-import Button from '../ui/Button';
-
 const DirectoryFilters = ({ filters, onChange, onClear }) => {
   const handleChange = (e) => {
-    onChange({ ...filters, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    onChange({ 
+      ...filters, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
   };
 
+  const hasActiveFilters = filters.role || filters.skills || filters.location || filters.graduation_year || filters.mentor_only;
+
   return (
-    <div className="filters-card card">
-      <div className="filters-header">
-        <h3>Filters</h3>
-        <button onClick={onClear} className="clear-filters-btn">Clear all</button>
-      </div>
-
-      <div className="filter-group">
-        <label className="form-label">Role</label>
-        <select
-          name="role"
-          value={filters.role || ''}
-          onChange={handleChange}
-          className="form-input"
-        >
-          <option value="">All Roles</option>
-          <option value="STUDENT">Student</option>
-          <option value="ALUMNI">Alumni</option>
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="form-label">Mentors</label>
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="mentor_only"
-            checked={!!filters.mentor_only}
-            onChange={(e) => onChange({ ...filters, mentor_only: e.target.checked })}
-          />
-          <span className="text-sm text-secondary">Show mentors only</span>
+    <div className="dfilters">
+      <div className="dfilters-row">
+        <div className="dfilter-group">
+          <label className="dfilter-label">Role</label>
+          <select
+            name="role"
+            value={filters.role || ''}
+            onChange={handleChange}
+            className="dfilter-select"
+          >
+            <option value="">All</option>
+            <option value="STUDENT">Student</option>
+            <option value="ALUMNI">Alumni</option>
+          </select>
         </div>
-      </div>
 
-      <div className="filter-group">
-        <Input
-          label="Skills"
-          name="skills"
-          value={filters.skills || ''}
-          onChange={handleChange}
-          placeholder="e.g. React, Python"
-        />
-      </div>
+        <div className="dfilter-group">
+          <label className="dfilter-label">Skills</label>
+          <input
+            type="text"
+            name="skills"
+            value={filters.skills || ''}
+            onChange={handleChange}
+            placeholder="React, Python..."
+            className="dfilter-input"
+          />
+        </div>
 
-      <div className="filter-group">
-        <Input
-          label="Location"
-          name="location"
-          value={filters.location || ''}
-          onChange={handleChange}
-          placeholder="City or Country"
-        />
-      </div>
+        <div className="dfilter-group">
+          <label className="dfilter-label">Location</label>
+          <input
+            type="text"
+            name="location"
+            value={filters.location || ''}
+            onChange={handleChange}
+            placeholder="City or Country"
+            className="dfilter-input"
+          />
+        </div>
 
-      <div className="filter-group">
-        <Input
-          label="Graduation Year"
-          name="graduation_year"
-          type="number"
-          value={filters.graduation_year || ''}
-          onChange={handleChange}
-          placeholder="YYYY"
-        />
+        <div className="dfilter-group">
+          <label className="dfilter-label">Graduation</label>
+          <input
+            type="number"
+            name="graduation_year"
+            value={filters.graduation_year || ''}
+            onChange={handleChange}
+            placeholder="Year"
+            className="dfilter-input dfilter-input-sm"
+          />
+        </div>
+
+        <div className="dfilter-group dfilter-group-checkbox">
+          <label className="dfilter-checkbox">
+            <input
+              type="checkbox"
+              name="mentor_only"
+              checked={!!filters.mentor_only}
+              onChange={handleChange}
+            />
+            <span className="dfilter-checkbox-box"></span>
+            <span className="dfilter-checkbox-text">Mentors only</span>
+          </label>
+        </div>
+
+        {hasActiveFilters && (
+          <button onClick={onClear} className="dfilter-clear">
+            Clear all
+          </button>
+        )}
       </div>
     </div>
   );

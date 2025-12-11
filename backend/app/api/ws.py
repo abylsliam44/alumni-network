@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
@@ -23,20 +24,38 @@ router = APIRouter()
 class ConnectionManager:
     """
     In-memory connection manager keyed by user_id.
+    Tracks active WebSocket connections and user presence.
     """
 
     def __init__(self) -> None:
         self.active: dict[uuid.UUID, set[WebSocket]] = {}
+        self.last_seen: dict[uuid.UUID, datetime] = {}
 
-    async def connect(self, user_id: uuid.UUID, websocket: WebSocket) -> None:
+    def is_online(self, user_id: uuid.UUID) -> bool:
+        """Check if a user is currently online."""
+        return user_id in self.active and len(self.active[user_id]) > 0
+
+    def get_online_users(self) -> Set[uuid.UUID]:
+        """Get set of all online user IDs."""
+        return {uid for uid, sockets in self.active.items() if sockets}
+
+    async def connect(self, user_id: uuid.UUID, websocket: WebSocket) -> bool:
+        """Connect a user. Returns True if this is a new connection (was offline)."""
         await websocket.accept()
+        was_offline = not self.is_online(user_id)
         self.active.setdefault(user_id, set()).add(websocket)
+        self.last_seen[user_id] = datetime.utcnow()
+        return was_offline
 
-    def disconnect(self, user_id: uuid.UUID, websocket: WebSocket) -> None:
+    def disconnect(self, user_id: uuid.UUID, websocket: WebSocket) -> bool:
+        """Disconnect a user. Returns True if user is now offline."""
         if user_id in self.active:
             self.active[user_id].discard(websocket)
             if not self.active[user_id]:
                 self.active.pop(user_id, None)
+                self.last_seen[user_id] = datetime.utcnow()
+                return True
+        return False
 
     async def send_to_user(self, user_id: uuid.UUID, message: Dict[str, Any]) -> None:
         connections = self.active.get(user_id, set())
@@ -50,6 +69,18 @@ class ConnectionManager:
     async def broadcast(self, user_ids: List[uuid.UUID], message: Dict[str, Any]) -> None:
         for user_id in set(user_ids):
             await self.send_to_user(user_id, message)
+
+    async def broadcast_presence(self, user_id: uuid.UUID, is_online: bool, to_user_ids: List[uuid.UUID]) -> None:
+        """Broadcast presence change to specified users."""
+        message = {
+            "type": "presence",
+            "payload": {
+                "user_id": str(user_id),
+                "is_online": is_online,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        }
+        await self.broadcast(to_user_ids, message)
 
 
 manager = ConnectionManager()
@@ -119,7 +150,20 @@ async def chat_socket(websocket: WebSocket) -> None:
     [MVP v1] WebSocket entry point for real-time chat events.
     """
     user = await _authenticate(websocket)
-    await manager.connect(user.id, websocket)
+    was_offline = await manager.connect(user.id, websocket)
+
+    # Notify friends that user is online
+    if was_offline:
+        async with AsyncSessionLocal() as db:
+            friend_ids = await connection_service.friend_ids_for_user(db, user.id)
+            await manager.broadcast_presence(user.id, True, friend_ids)
+            
+            # Send current online friends to this user
+            online_friends = [str(fid) for fid in friend_ids if manager.is_online(fid)]
+            await websocket.send_json({
+                "type": "online_users",
+                "payload": {"user_ids": online_friends}
+            })
 
     try:
         while True:
@@ -224,9 +268,29 @@ async def chat_socket(websocket: WebSocket) -> None:
                         },
                     )
 
+            elif event_type == "ping":
+                # Keep-alive ping
+                await websocket.send_json({"type": "pong"})
+
+            elif event_type == "get_online_users":
+                # Get list of online friends
+                async with AsyncSessionLocal() as db:
+                    friend_ids = await connection_service.friend_ids_for_user(db, user.id)
+                    online_friends = [str(fid) for fid in friend_ids if manager.is_online(fid)]
+                    await websocket.send_json({
+                        "type": "online_users",
+                        "payload": {"user_ids": online_friends}
+                    })
+
             else:
                 await websocket.send_json(
                     {"type": "error", "payload": {"message": "Unsupported event type"}}
                 )
     except WebSocketDisconnect:
-        manager.disconnect(user.id, websocket)
+        is_now_offline = manager.disconnect(user.id, websocket)
+        
+        # Notify friends that user is offline
+        if is_now_offline:
+            async with AsyncSessionLocal() as db:
+                friend_ids = await connection_service.friend_ids_for_user(db, user.id)
+                await manager.broadcast_presence(user.id, False, friend_ids)

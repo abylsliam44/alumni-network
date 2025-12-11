@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.connection import Connection, ConnectionStatus
 from app.models.user import User
+from app.services import notification as notification_service
 
 
 async def are_friends(db: AsyncSession, user_a: uuid.UUID, user_b: uuid.UUID) -> bool:
@@ -47,6 +48,9 @@ async def create_request(
     if existing:
         return existing
 
+    # Get requester info for notification
+    requester = await db.scalar(select(User).where(User.id == requester_id))
+
     connection = Connection(
         requester_id=requester_id,
         recipient_id=recipient_id,
@@ -55,6 +59,16 @@ async def create_request(
     db.add(connection)
     await db.commit()
     await db.refresh(connection)
+    
+    # Create notification for the recipient
+    if requester:
+        await notification_service.create_friend_request_notification(
+            db=db,
+            recipient_id=recipient_id,
+            requester=requester,
+            connection_id=connection.id,
+        )
+    
     return connection
 
 
@@ -74,6 +88,16 @@ async def respond_request(
     connection.status = status
     await db.commit()
     await db.refresh(connection)
+    
+    # Create notification for the requester if accepted
+    if status == ConnectionStatus.ACCEPTED and connection.recipient:
+        await notification_service.create_friend_accepted_notification(
+            db=db,
+            requester_id=connection.requester_id,
+            accepter=connection.recipient,
+            connection_id=connection.id,
+        )
+    
     return connection
 
 

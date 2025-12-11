@@ -80,7 +80,13 @@ async def register(
     db.add(profile)
     await db.commit()
     await db.refresh(user)
-    await upsert_user_embedding(user, profile)
+    # Ensure profile attributes are loaded before embedding and never block signup
+    try:
+        await db.refresh(profile)
+        await upsert_user_embedding(user, profile)
+    except Exception:
+        # Vector store/embedding failures should not prevent registration
+        pass
     
     access_token = security.create_access_token(user.id)
     refresh_token = security.create_refresh_token(user.id)

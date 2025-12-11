@@ -11,10 +11,12 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead }) =>
   const getWsUrl = () => {
     const token = localStorage.getItem('token');
     if (!token) return null;
-    const base =
-      import.meta.env.VITE_WS_URL ||
-      (import.meta.env.VITE_API_URL || window.location.origin).replace('http', 'ws');
-    const sanitizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    const httpBase =
+      import.meta.env.VITE_API_URL ||
+      window.location.origin ||
+      'http://localhost:8010';
+    const wsBase = (import.meta.env.VITE_WS_URL || httpBase).replace(/^http/, 'ws');
+    const sanitizedBase = wsBase.endsWith('/') ? wsBase.slice(0, -1) : wsBase;
     return `${sanitizedBase}/ws/chat?token=${token}`;
   };
 

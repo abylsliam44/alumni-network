@@ -30,7 +30,9 @@ default_cors_origins = [
     "http://0.0.0.0:3000",
     "http://0.0.0.0:3030",
 ]
-allow_origins = settings.BACKEND_CORS_ORIGINS or default_cors_origins
+# Normalize env-provided origins and fall back to defaults when empty/blank
+env_origins = [origin for origin in settings.BACKEND_CORS_ORIGINS if origin]
+allow_origins = env_origins or default_cors_origins
 
 app.add_middleware(
     CORSMiddleware,

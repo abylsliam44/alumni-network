@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  // Default to host-exposed backend port from docker-compose (8010).
+  // Can be overridden via VITE_API_URL for other environments.
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8010',
   headers: {
     'Content-Type': 'application/json',
   },

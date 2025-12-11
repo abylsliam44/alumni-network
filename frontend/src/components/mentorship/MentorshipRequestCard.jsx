@@ -1,6 +1,9 @@
 import Button from '../ui/Button';
 import { Link } from 'react-router-dom';
 
+const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const resolveUrl = (path) => (path ? (path.startsWith('http') ? path : `${apiBase}${path}`) : null);
+
 const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {
   const otherUser = type === 'incoming' ? request.sender : request.receiver;
 
@@ -9,7 +12,7 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {
       <div className="mentorship-card-header">
         <div className="flex items-center gap-3">
           <img
-            src={otherUser?.photo_url ? `http://localhost:8000${otherUser.photo_url}` : 'https://via.placeholder.com/50'}
+            src={resolveUrl(otherUser?.photo_url) || 'https://via.placeholder.com/50'}
             alt={otherUser?.name}
             className="w-12 h-12 rounded-full object-cover"
           />

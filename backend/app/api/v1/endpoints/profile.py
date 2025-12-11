@@ -33,7 +33,7 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
             select(User).options(selectinload(User.profile)).where(User.id == user.id)
         )
         user = result.scalars().first()
-
+    
     # Construct response
     profile_data = {
         "id": user.profile.id,

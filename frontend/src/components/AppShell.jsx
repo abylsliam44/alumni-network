@@ -1,5 +1,6 @@
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import NotificationDropdown from './NotificationDropdown';
 import Logo from '../../images/aitu-logo__2.png';
 
 const AppShell = ({ children }) => {
@@ -34,16 +35,13 @@ const AppShell = ({ children }) => {
   return (
     <div className="app-shell">
       <aside className="shell-sidebar">
-        <div className="shell-logo brand-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Link to="/dashboard" className="brand-home" style={{ display: 'inline-flex' }}>
-            <img
-              src={Logo}
-              alt="Alumni Network"
-              style={{ maxWidth: '100px', height: 'auto' }}
-            />
-          </Link>
-          <span style={{ fontWeight: 700, color: '#111', textDecoration: 'none' }}>Alumni Network</span>
-        </div>
+        <Link to="/dashboard" className="shell-brand">
+          <img src={Logo} alt="AITU" className="shell-brand-logo" />
+          <div className="shell-brand-text">
+            <span className="shell-brand-name">Alumni</span>
+            <span className="shell-brand-name">Network</span>
+          </div>
+        </Link>
         <nav className="shell-nav">
           {primaryNav.map((item) => (
             <NavLink
@@ -58,6 +56,7 @@ const AppShell = ({ children }) => {
           ))}
         </nav>
         <div className="shell-nav secondary">
+          <NotificationDropdown />
           {secondaryNav.map((item) => (
             <NavLink
               key={item.to}
@@ -71,7 +70,9 @@ const AppShell = ({ children }) => {
         </div>
       </aside>
       <main className="shell-main">
-        <div className="shell-content">{children}</div>
+        <div className="shell-content">
+          <div className="page">{children}</div>
+        </div>
       </main>
     </div>
   );

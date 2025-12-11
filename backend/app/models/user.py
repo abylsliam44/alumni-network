@@ -34,9 +34,7 @@ class User(Base):
 
     # Relationships
     profile: Mapped["UserProfile"] = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    
-    # We'll add other relationships as we define other models to avoid circular imports issues
-    # or use string references which we are doing.
+    notifications: Mapped[List["Notification"]] = relationship("Notification", back_populates="user", foreign_keys="[Notification.user_id]", cascade="all, delete-orphan")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"

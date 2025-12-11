@@ -2,25 +2,39 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { messagesApi } from '../api/messages';
 import { connectionsApi } from '../api/connections';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
 import { useAuth } from '../hooks/useAuth';
 import { useChatSocket } from '../hooks/useChatSocket';
 
-const getInitials = (name = '') => {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
+const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const resolveUrl = (path) => {
+  if (!path) return null;
+  return path.startsWith('http') ? path : `${apiBase}${path}`;
 };
+
+const dicebear = (name = 'User') =>
+  `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
 
 const formatTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric',
+    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+  });
 };
 
 const timeLabel = (value) => {
@@ -30,6 +44,90 @@ const timeLabel = (value) => {
   const isToday = date.toDateString() === today.toDateString();
   return isToday ? 'Today' : date.toLocaleDateString();
 };
+
+// Icons
+const SearchIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"/>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"/>
+    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+  </svg>
+);
+
+const PhoneIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+  </svg>
+);
+
+const VideoIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="23 7 16 12 23 17 23 7"/>
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+  </svg>
+);
+
+const MoreIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="1"/>
+    <circle cx="19" cy="12" r="1"/>
+    <circle cx="5" cy="12" r="1"/>
+  </svg>
+);
+
+const SmileIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+    <line x1="9" y1="9" x2="9.01" y2="9"/>
+    <line x1="15" y1="9" x2="15.01" y2="9"/>
+  </svg>
+);
+
+const PaperclipIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+  </svg>
+);
+
+const ArrowLeftIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12"/>
+    <polyline points="12 19 5 12 12 5"/>
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const MessageCircleIcon = () => (
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
+const CheckCheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="18 6 9 17 4 12"/>
+    <polyline points="22 10 13 21 11 19"/>
+  </svg>
+);
 
 const Messages = () => {
   const { user } = useAuth();
@@ -48,8 +146,18 @@ const Messages = () => {
   const sendEventRef = useRef(() => {});
   const [friendIds, setFriendIds] = useState([]);
   const [friends, setFriends] = useState([]);
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const currentMessages = messagesById[activeId]?.messages || [];
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentMessages]);
 
   const handleNewMessage = useCallback(
     ({ conversation_id, message }) => {
@@ -296,6 +404,9 @@ const Messages = () => {
     });
     setDraft('');
     sendEvent('typing_stop', { conversation_id: activeId });
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '48px';
+    }
   };
 
   const handleDraftChange = (value) => {
@@ -309,210 +420,373 @@ const Messages = () => {
     }, 1200);
   };
 
+  const handleTextareaChange = (e) => {
+    handleDraftChange(e.target.value);
+    // Auto-resize textarea
+    e.target.style.height = '48px';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+  };
+
   const showTyping = typingState[activeId];
-  const lastOutgoing = [...currentMessages].reverse().find((m) => m.sender_id === user?.id);
   const activeConversation = conversations.find((c) => c.conversation_id === activeId);
   const otherUser = activeConversation?.other_user;
+  const otherUserAvatar = resolveUrl(otherUser?.photo_url) || dicebear(otherUser?.name);
   const canMessage = otherUser ? friendIds.includes(otherUser.id) : false;
 
+  // Group messages by date
+  const groupedMessages = useMemo(() => {
+    const groups = [];
+    let currentDate = null;
+    
+    currentMessages.forEach((msg) => {
+      const msgDate = formatDate(msg.created_at);
+      if (msgDate !== currentDate) {
+        currentDate = msgDate;
+        groups.push({ type: 'date', date: msgDate });
+      }
+      groups.push({ type: 'message', data: msg });
+    });
+    
+    return groups;
+  }, [currentMessages]);
+
   return (
-    <div className="page messages-page light">
-      <div className="page-header messages-header">
-        <div className="header-text">
-          <h1>Messages</h1>
-          <p>Stay connected with mentors, students, and alumni.</p>
-        </div>
-        <div className="ws-status" title={socketStatus === 'connected' ? 'Connected' : 'Connecting'}>
-          <span className={`status-dot ${socketStatus === 'connected' ? 'online' : 'offline'}`} />
-        </div>
-      </div>
-
-      <div className={`messages-grid ${mobileView === 'list' ? 'show-list' : 'show-chat'}`}>
-        <Card className="convo-panel">
-          <div className="convo-header">
-            <Input
-              placeholder="Search by name"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+    <div className="msg-page">
+      {/* Sidebar - Conversations List */}
+      <aside className={`msg-sidebar ${mobileView === 'chat' ? 'msg-sidebar-hidden' : ''}`}>
+        <div className="msg-sidebar-header">
+          <h1 className="msg-title">Messages</h1>
+          <div className="msg-connection-status">
+            <span className={`msg-status-indicator ${socketStatus === 'connected' ? 'online' : ''}`} />
           </div>
-          <div className="convo-scroll">
-            {loadingConvos ? (
-              <div className="skeleton-list">
-                {[...Array(4)].map((_, idx) => (
-                  <div key={idx} className="skeleton-line" />
-                ))}
-              </div>
-            ) : filteredConversations.length ? (
-              filteredConversations.map((c) => {
-                const isActive = c.conversation_id === activeId;
-                const other = c.other_user;
-                return (
-                  <button
-                    key={c.conversation_id}
-                    className={`convo-item ${isActive ? 'active' : ''}`}
-                    onClick={() => openConversation(c)}
-                  >
-                    <div className="convo-avatar">{getInitials(other?.name || 'C')}</div>
-                    <div className="convo-body">
-                      <div className="convo-top">
-                        <div className="convo-name">{other?.name || 'Conversation'}</div>
-                        <div className="convo-meta">
-                          {c.last_message?.created_at && formatTime(c.last_message.created_at)}
-                          {c.unread_count > 0 && <span className="pill unread">{c.unread_count}</span>}
-                        </div>
-                      </div>
-                      <div className="convo-role">
+        </div>
+        
+        {/* Search */}
+        <div className="msg-search-wrapper">
+          <div className="msg-search-icon">
+            <SearchIcon />
+          </div>
+          <input
+            type="text"
+            className="msg-search-input"
+            placeholder="Search conversations..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        
+        {/* Conversations List */}
+        <div className="msg-conversations">
+          {loadingConvos ? (
+            <div className="msg-skeleton-list">
+              {[...Array(5)].map((_, idx) => (
+                <div key={idx} className="msg-skeleton-item">
+                  <div className="msg-skeleton-avatar" />
+                  <div className="msg-skeleton-content">
+                    <div className="msg-skeleton-name" />
+                    <div className="msg-skeleton-text" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredConversations.length ? (
+            filteredConversations.map((c) => {
+              const isActive = c.conversation_id === activeId;
+              const other = c.other_user;
+              const avatarSrc = resolveUrl(other?.photo_url) || dicebear(other?.name);
+              const hasUnread = c.unread_count > 0;
+              
+              return (
+                <button
+                  key={c.conversation_id || other?.id}
+                  className={`msg-convo-item ${isActive ? 'active' : ''} ${hasUnread ? 'unread' : ''}`}
+                  onClick={() => openConversation(c)}
+                >
+                  <div className="msg-convo-avatar-wrapper">
+                    <img
+                      src={avatarSrc}
+                      alt={other?.name || 'User'}
+                      className="msg-convo-avatar"
+                      onError={(e) => {
+                        e.target.src = dicebear(other?.name);
+                      }}
+                    />
+                    {/* Online indicator - can be connected to real status later */}
+                    <span className="msg-online-dot" />
+                  </div>
+                  
+                  <div className="msg-convo-content">
+                    <div className="msg-convo-header">
+                      <span className="msg-convo-name">{other?.name || 'Conversation'}</span>
+                      <span className="msg-convo-time">
+                        {c.last_message?.created_at && formatTime(c.last_message.created_at)}
+                      </span>
+                    </div>
+                    <div className="msg-convo-preview">
+                      <span className="msg-convo-role">
                         {other?.is_mentor ? 'Mentor' : other?.role || 'Member'}
-                      </div>
-                      <div className="convo-snippet">
-                        {c.last_message?.text || 'Start the conversation'}
-                      </div>
+                      </span>
+                      <span className="msg-convo-separator">•</span>
+                      <span className="msg-convo-last-msg">
+                        {c.last_message?.text || 'Start a conversation'}
+                      </span>
                     </div>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="empty-state">
-                <p>You have no conversations yet.</p>
-                <span>Find a mentor or connect with alumni to start chatting.</span>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="chat-panel">
-          {activeId ? (
-            <>
-              <div className="chat-header">
-                <div>
-                  <div className="chat-title">
-                    {conversations.find((c) => c.conversation_id === activeId)?.other_user?.name ||
-                      'Conversation'}
                   </div>
-                  <div className="chat-subtitle">
-                    {conversations.find((c) => c.conversation_id === activeId)?.other_user?.role ||
-                      'Alumni Network'}
-                  </div>
-                </div>
-                <div className="chat-actions">
-                  {mobileView === 'chat' && (
-                    <Button variant="secondary" onClick={() => setMobileView('list')}>
-                      Back
-                    </Button>
+                  
+                  {hasUnread && (
+                    <span className="msg-unread-badge">{c.unread_count}</span>
                   )}
-                </div>
-              </div>
-
-              <div className="chat-body">
-                {loadingMessages ? (
-                  <div className="skeleton-list">
-                    {[...Array(5)].map((_, idx) => (
-                      <div key={idx} className="skeleton-bubble" />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <div className="message-list">
-                      {currentMessages.map((msg, idx) => {
-                        const prev = currentMessages[idx - 1];
-                        const showDivider =
-                          !prev || timeLabel(prev.created_at) !== timeLabel(msg.created_at);
-                        const isOwn = msg.sender_id === user?.id;
-                        return (
-                          <div key={msg.id || idx} className="message-row">
-                            {showDivider && <div className="date-divider">{timeLabel(msg.created_at)}</div>}
-                            <div className={`bubble ${isOwn ? 'outgoing' : 'incoming'}`}>
-                              <div className="bubble-text">{msg.text}</div>
-                              <div className="bubble-meta">
-                                <span>{formatTime(msg.created_at)}</span>
-                                {isOwn && msg.is_read && <span className="seen-tag">Seen</span>}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {showTyping && (
-                      <div className="typing-indicator">
-                        <span className="dot" />
-                        <span className="dot" />
-                        <span className="dot" />
-                        <span>Typing...</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="chat-composer">
-                <textarea
-                  rows={1}
-                  maxLength={500}
-                  value={draft}
-                  placeholder="Type your message…"
-                  onChange={(e) => handleDraftChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  disabled={!canMessage}
-                />
-                <Button variant="primary" onClick={handleSend} disabled={!draft.trim() || !canMessage}>
-                  Send
-                </Button>
-              </div>
-              {!canMessage && (
-                <div className="read-receipt">Messaging is available only for friends. Send a friend request first.</div>
-              )}
-              {lastOutgoing?.is_read && canMessage && <div className="read-receipt">Seen by recipient</div>}
-            </>
+                </button>
+              );
+            })
           ) : (
-            <div className="empty-chat">
-              <h3>Select a conversation</h3>
-              <p>Choose a chat to view messages or start a new one.</p>
+            <div className="msg-empty-conversations">
+              <div className="msg-empty-icon">
+                <MessageCircleIcon />
+              </div>
+              <h3>No conversations yet</h3>
+              <p>Connect with mentors and alumni to start messaging</p>
             </div>
           )}
-        </Card>
+        </div>
+      </aside>
 
-        {activeId && (
-          <Card className="info-panel">
-            <div className="info-avatar">{getInitials(otherUser?.name || 'C')}</div>
-            <div className="info-name">{otherUser?.name || 'Conversation'}</div>
-            <div className="info-role">{otherUser?.is_mentor ? 'Mentor' : otherUser?.role || 'Member'}</div>
-            <div className="info-actions">
-              <Button
-                variant="primary"
-                onClick={() => {
-                  if (otherUser?.id) navigate(`/profile/${otherUser.id}`);
-                }}
+      {/* Main Chat Area */}
+      <main className={`msg-main ${mobileView === 'list' ? 'msg-main-hidden' : ''}`}>
+        {activeId && otherUser ? (
+          <>
+            {/* Chat Header */}
+            <header className="msg-chat-header">
+              <button 
+                className="msg-back-btn"
+                onClick={() => setMobileView('list')}
               >
-                View profile
-              </Button>
-              <Button variant="secondary">Add note</Button>
-            </div>
-            <div className="info-meta">
-              <div className="info-row">
-                <span className="label">Status</span>
-                <span className="value">Active</span>
+                <ArrowLeftIcon />
+              </button>
+              
+              <div 
+                className="msg-chat-user"
+                onClick={() => navigate(`/profile/${otherUser.id}`)}
+              >
+                <div className="msg-chat-avatar-wrapper">
+                  <img
+                    src={otherUserAvatar}
+                    alt={otherUser.name}
+                    className="msg-chat-avatar"
+                  />
+                  <span className="msg-online-dot" />
+                </div>
+                <div className="msg-chat-user-info">
+                  <span className="msg-chat-user-name">{otherUser.name}</span>
+                  <span className="msg-chat-user-status">
+                    {showTyping ? 'Typing...' : (otherUser.is_mentor ? 'Mentor' : otherUser.role || 'Member')}
+                  </span>
+                </div>
               </div>
-              <div className="info-row">
-                <span className="label">Last message</span>
-                <span className="value">
-                  {activeConversation?.last_message?.created_at
-                    ? timeLabel(activeConversation.last_message.created_at)
-                    : '—'}
-                </span>
+              
+              <div className="msg-chat-actions">
+                <button className="msg-action-btn" title="Voice call">
+                  <PhoneIcon />
+                </button>
+                <button className="msg-action-btn" title="Video call">
+                  <VideoIcon />
+                </button>
+                <button className="msg-action-btn" title="More options">
+                  <MoreIcon />
+                </button>
               </div>
+            </header>
+
+            {/* Messages Area */}
+            <div className="msg-messages-area">
+              {loadingMessages ? (
+                <div className="msg-loading-messages">
+                  <div className="msg-loader" />
+                  <span>Loading messages...</span>
+                </div>
+              ) : (
+                <div className="msg-messages-list">
+                  {groupedMessages.map((item, idx) => {
+                    if (item.type === 'date') {
+                      return (
+                        <div key={`date-${idx}`} className="msg-date-divider">
+                          <span>{item.date}</span>
+                        </div>
+                      );
+                    }
+                    
+                    const msg = item.data;
+                    const isOwn = msg.sender_id === user?.id;
+                    
+                    return (
+                      <div 
+                        key={msg.id || idx} 
+                        className={`msg-bubble-wrapper ${isOwn ? 'outgoing' : 'incoming'}`}
+                      >
+                        {!isOwn && (
+                          <img
+                            src={otherUserAvatar}
+                            alt=""
+                            className="msg-bubble-avatar"
+                          />
+                        )}
+                        <div className={`msg-bubble ${isOwn ? 'outgoing' : 'incoming'}`}>
+                          <p className="msg-bubble-text">{msg.text}</p>
+                          <div className="msg-bubble-meta">
+                            <span className="msg-bubble-time">{formatTime(msg.created_at)}</span>
+                            {isOwn && (
+                              <span className="msg-bubble-status">
+                                {msg.is_read ? <CheckCheckIcon /> : <CheckIcon />}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {showTyping && (
+                    <div className="msg-bubble-wrapper incoming">
+                      <img
+                        src={otherUserAvatar}
+                        alt=""
+                        className="msg-bubble-avatar"
+                      />
+                      <div className="msg-typing-indicator">
+                        <span className="msg-typing-dot" />
+                        <span className="msg-typing-dot" />
+                        <span className="msg-typing-dot" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
             </div>
-          </Card>
+
+            {/* Message Composer */}
+            <footer className="msg-composer">
+              {!canMessage ? (
+                <div className="msg-not-friends">
+                  <UserIcon />
+                  <span>You need to be friends to send messages</span>
+                  <button 
+                    className="msg-add-friend-btn"
+                    onClick={() => navigate(`/profile/${otherUser.id}`)}
+                  >
+                    View Profile
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="msg-composer-actions">
+                    <button className="msg-composer-btn" title="Add attachment">
+                      <PaperclipIcon />
+                    </button>
+                  </div>
+                  
+                  <div className="msg-composer-input-wrapper">
+                    <textarea
+                      ref={textareaRef}
+                      className="msg-composer-input"
+                      placeholder="Type a message..."
+                      value={draft}
+                      onChange={handleTextareaChange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      rows={1}
+                    />
+                    <button className="msg-emoji-btn" title="Add emoji">
+                      <SmileIcon />
+                    </button>
+                  </div>
+                  
+                  <button 
+                    className={`msg-send-btn ${draft.trim() ? 'active' : ''}`}
+                    onClick={handleSend}
+                    disabled={!draft.trim()}
+                  >
+                    <SendIcon />
+                  </button>
+                </>
+              )}
+            </footer>
+          </>
+        ) : (
+          <div className="msg-empty-chat">
+            <div className="msg-empty-chat-icon">
+              <MessageCircleIcon />
+            </div>
+            <h2>Select a conversation</h2>
+            <p>Choose from your existing conversations or start a new one</p>
+          </div>
         )}
-      </div>
+      </main>
+
+      {/* Right Panel - User Info */}
+      {activeId && otherUser && (
+        <aside className="msg-info-panel">
+          <div className="msg-info-header">
+            <img
+              src={otherUserAvatar}
+              alt={otherUser.name}
+              className="msg-info-avatar"
+            />
+            <h3 className="msg-info-name">{otherUser.name}</h3>
+            <span className="msg-info-role">
+              {otherUser.is_mentor ? 'Mentor' : otherUser.role || 'Member'}
+            </span>
+            
+            <div className="msg-info-actions">
+              <button 
+                className="msg-info-btn primary"
+                onClick={() => navigate(`/profile/${otherUser.id}`)}
+              >
+                View Profile
+              </button>
+              <button className="msg-info-btn secondary">
+                Add Note
+              </button>
+            </div>
+          </div>
+          
+          <div className="msg-info-section">
+            <h4>Chat Info</h4>
+            <div className="msg-info-item">
+              <span className="msg-info-label">Status</span>
+              <span className="msg-info-value">
+                <span className="msg-status-badge online">Active</span>
+              </span>
+            </div>
+            <div className="msg-info-item">
+              <span className="msg-info-label">Last message</span>
+              <span className="msg-info-value">
+                {activeConversation?.last_message?.created_at
+                  ? formatDate(activeConversation.last_message.created_at)
+                  : '—'}
+              </span>
+            </div>
+            <div className="msg-info-item">
+              <span className="msg-info-label">Messages</span>
+              <span className="msg-info-value">{currentMessages.length}</span>
+            </div>
+          </div>
+          
+          <div className="msg-info-section">
+            <h4>Shared Media</h4>
+            <div className="msg-shared-media-empty">
+              <span>No shared media yet</span>
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
   );
 };
 
 export default Messages;
-
