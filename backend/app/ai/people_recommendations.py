@@ -272,11 +272,40 @@ async def upsert_user_embedding(
     return vector
 
 
-def _match_score(similarity: float) -> int:
-    # Allow low-signal profiles to still surface results; scale 0..1 to 0..100
-    if similarity is None:
-        return 0
-    return int(round(max(0.0, min(1.0, similarity)) * 100))
+def _composite_match_score(
+    similarity: Optional[float],
+    shared_skills: List[str],
+    shared_interests: List[str],
+    payload: Dict[str, Any],
+    current_profile: UserProfile,
+) -> int:
+    """
+    Heuristic score combining vector similarity + structured overlaps.
+    Tuned to spread scores so non-trivial overlaps surface >33%.
+    """
+    score = 0.0
+    if similarity is not None:
+        score += max(0.0, min(1.0, similarity)) * 60  # dominant factor
+
+    # Overlaps
+    score += min(3, len(shared_skills)) * 10  # up to +30
+    score += min(3, len(shared_interests)) * 8  # up to +24
+
+    # Location proximity
+    loc_a = (current_profile.location or "").strip().lower()
+    loc_b = (payload.get("location") or "").strip().lower()
+    if loc_a and loc_b and loc_a == loc_b:
+        score += 6
+
+    # Mentor availability
+    if payload.get("available_for_mentorship"):
+        score += 6
+
+    # Profile quality bonus
+    completeness = payload.get("profile_completeness") or 0.0
+    score += min(10.0, max(0.0, completeness * 10.0))
+
+    return int(round(min(100.0, score)))
 
 
 def _shared_lists(a: List[str], b: List[str]) -> List[str]:
@@ -414,10 +443,13 @@ async def _fallback_recommendations(
         if not shared_skills and not shared_interests:
             continue
 
-        base_score = len(shared_skills) * 25 + len(shared_interests) * 20
-        if candidate.profile.mentor_consent:
-            base_score += 8
-        match_score = min(100, max(10, base_score))
+        match_score = _composite_match_score(
+            similarity=0.4,  # modest base for deterministic path
+            shared_skills=shared_skills,
+            shared_interests=shared_interests,
+            payload=candidate_meta,
+            current_profile=profile,
+        )
 
         reason_parts = []
         if shared_skills:
@@ -591,7 +623,13 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
                 "photo_url": payload.get("photo_url"),
                 "role": payload.get("role"),
                 "available_for_mentorship": payload.get("available_for_mentorship", False),
-                "match_score": _match_score(res.score or 0),
+                "match_score": _composite_match_score(
+                    similarity=res.score or 0,
+                    shared_skills=shared_skills,
+                    shared_interests=shared_interests,
+                    payload=payload,
+                    current_profile=profile,
+                ),
                 "shared_skills": shared_skills,
                 "shared_interests": shared_interests,
                 "reason_short": reason,

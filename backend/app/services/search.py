@@ -76,6 +76,8 @@ class SearchService:
         total_result = await db.execute(count_stmt)
         total = total_result.scalar() or 0
         
+        # Order newest first so freshly added users are visible
+        stmt = stmt.order_by(User.created_at.desc())
         # Pagination
         stmt = stmt.offset((page - 1) * limit).limit(limit)
         

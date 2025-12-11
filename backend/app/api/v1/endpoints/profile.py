@@ -14,6 +14,39 @@ from app.schemas.profile import ProfileRead, ProfileUpdate
 
 router = APIRouter()
 
+def _normalize_experience(raw_exp):
+    """
+    Cast legacy/seed experience entries into the expected schema shape.
+    """
+    normalized = []
+    for item in raw_exp or []:
+        if not isinstance(item, dict):
+            continue
+        position = item.get("position") or item.get("title") or item.get("role") or ""
+        company = item.get("company") or item.get("organization") or ""
+        location = item.get("location")
+        start_date = item.get("start_date") or item.get("years")
+        end_date = item.get("end_date")
+        description = item.get("description")
+        current = item.get("current", False)
+
+        # Skip completely empty rows
+        if not (position or company):
+            continue
+
+        normalized.append(
+            {
+                "position": position,
+                "company": company,
+                "location": location,
+                "start_date": start_date,
+                "end_date": end_date,
+                "description": description,
+                "current": current,
+            }
+        )
+    return normalized
+
 async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
     # Reload with profile eagerly to avoid MissingGreenlet on lazy load
     result = await db.execute(
@@ -48,7 +81,7 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         "is_verified": user.is_verified,
         "bio": user.bio,
         "education": user.profile.education or [],
-        "experience": user.profile.experience or [],
+        "experience": _normalize_experience(user.profile.experience),
         "skills": user.profile.skills or [],
         "location": user.profile.location,
         "graduation_year": user.profile.graduation_year,

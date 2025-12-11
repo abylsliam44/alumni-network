@@ -3227,9 +3227,9 @@ body {
 }
 
 .notif-panel {
-  position: absolute;
-  left: calc(100% + 12px);
-  bottom: 0;
+  position: fixed;
+  right: 16px;
+  top: 72px;
   width: 360px;
   max-height: 480px;
   background: var(--bg-primary);
@@ -3237,7 +3237,7 @@ body {
   border-radius: 12px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  z-index: 1000;
+  z-index: 1500;
   animation: notifSlideIn 0.2s ease;
 }
 
@@ -3248,7 +3248,7 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
