@@ -5784,6 +5784,28 @@ button:focus-visible {
   border-radius: 50%;
 }
 
+.msg-status-badge.offline {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.msg-status-badge.offline::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #94a3b8;
+  border-radius: 50%;
+}
+
+/* Chat header status variations */
+.msg-chat-user-status.online {
+  color: #22c55e;
+}
+
+.msg-chat-user-status.offline {
+  color: #94a3b8;
+}
+
 .msg-shared-media-empty {
   padding: 24px;
   background: #f8fafc;

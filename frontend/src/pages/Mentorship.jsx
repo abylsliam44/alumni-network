@@ -60,6 +60,15 @@ const Mentorship = () => {
     }
   };
 
+  const handleCancel = async (requestId) => {
+    try {
+      await mentorshipApi.cancelRequest(requestId);
+      fetchData(); // Refresh list
+    } catch (err) {
+      console.error('Failed to cancel request', err);
+    }
+  };
+
   return (
     <div className="mentorship-container">
       <div className="mentorship-header mb-8">
@@ -144,6 +153,7 @@ const Mentorship = () => {
                       key={req.id}
                       request={req}
                       type="outgoing"
+                      onCancel={handleCancel}
                     />
                   ))
                 ) : (

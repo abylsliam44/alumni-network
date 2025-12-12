@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => (path ? (path.startsWith('http') ? path : `${apiBase}${path}`) : null);
 
-const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {
+const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel }) => {
   const otherUser = type === 'incoming' ? request.sender : request.receiver;
 
   return (
@@ -22,7 +22,7 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {
                 {otherUser?.name}
               </Link>
             </h4>
-            <p className="text-sm text-gray-500 m-0">{otherUser?.headline || otherUser?.role}</p>
+            <p className="text-sm text-secondary m-0">{otherUser?.headline || otherUser?.role}</p>
           </div>
         </div>
         <span className={`status-badge status-${request.status.toLowerCase()}`}>
@@ -31,11 +31,11 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {
       </div>
 
       <div className="mentorship-card-body mt-4">
-        <p className="text-gray-700 text-sm mb-2 font-medium">Message:</p>
-        <p className="text-gray-600 text-sm bg-gray-50 p-3 rounded border border-gray-100">
+        <p className="text-secondary text-sm mb-2 font-medium">Message:</p>
+        <p className="text-secondary text-sm bg-secondary p-3 rounded border">
           {request.message || "No message provided."}
         </p>
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="text-xs text-secondary mt-2">
           Sent on {new Date(request.created_at).toLocaleDateString()}
         </p>
       </div>
@@ -50,8 +50,17 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {
           </Button>
         </div>
       )}
+
+      {type === 'outgoing' && request.status === 'PENDING' && onCancel && (
+        <div className="mentorship-card-actions mt-4 flex gap-2 justify-end">
+          <Button variant="secondary" size="sm" onClick={() => onCancel(request.id)}>
+            Cancel Request
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
 
 export default MentorshipRequestCard;
+

@@ -17,6 +17,7 @@ from app.schemas.mentorship import (
 )
 from app.api.v1.endpoints.profile import get_profile_data
 from app.schemas.profile import ProfileRead
+from app.services import notification as notification_service
 
 router = APIRouter()
 
@@ -139,6 +140,14 @@ async def send_mentorship_request(
     response.sender = sender_profile
     response.receiver = receiver_profile
     
+    # Create notification for the mentor
+    await notification_service.create_mentorship_request_notification(
+        db=db,
+        mentor_id=request.receiver_id,
+        requester=current_user,
+        request_id=request.id,
+    )
+    
     return response
 
 @router.get("/requests/incoming", response_model=List[MentorshipRequestRead])
@@ -215,9 +224,6 @@ async def accept_request(
         raise HTTPException(status_code=400, detail="Request is not pending")
 
     if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
-        raise HTTPException(status_code=403, detail="Only mentors can decline requests")
-
-    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
         raise HTTPException(status_code=403, detail="Only mentors can accept requests")
         
     # Update status
@@ -239,6 +245,15 @@ async def accept_request(
     db.add(request)
     await db.commit()
     await db.refresh(request)
+    await db.refresh(relationship)
+    
+    # Create notification for the mentee
+    await notification_service.create_mentorship_accepted_notification(
+        db=db,
+        mentee_id=request.sender_id,
+        mentor=current_user,
+        relationship_id=relationship.id,
+    )
     
     return request
 
@@ -260,8 +275,38 @@ async def decline_request(
         
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
+
+    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+        raise HTTPException(status_code=403, detail="Only mentors can decline requests")
         
     request.status = MentorshipStatus.DECLINED
+    db.add(request)
+    await db.commit()
+    await db.refresh(request)
+    
+    return request
+
+@router.put("/requests/{request_id}/cancel", response_model=MentorshipRequestRead)
+async def cancel_request(
+    request_id: str,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Cancel an outgoing mentorship request (only by the sender)."""
+    stmt = select(MentorshipRequest).where(MentorshipRequest.id == request_id)
+    result = await db.execute(stmt)
+    request = result.scalars().first()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    if request.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized - only the sender can cancel")
+        
+    if request.status != MentorshipStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+        
+    request.status = MentorshipStatus.CANCELLED
     db.add(request)
     await db.commit()
     await db.refresh(request)

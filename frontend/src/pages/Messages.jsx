@@ -146,6 +146,7 @@ const Messages = () => {
   const sendEventRef = useRef(() => { });
   const [friendIds, setFriendIds] = useState([]);
   const [friends, setFriends] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -246,10 +247,38 @@ const Messages = () => {
     [user?.id]
   );
 
+  // Handle presence updates (user goes online/offline)
+  const handlePresenceEvent = useCallback(
+    ({ user_id, is_online }) => {
+      if (!user_id) return;
+      setOnlineUsers((prev) => {
+        const newSet = new Set(prev);
+        if (is_online) {
+          newSet.add(user_id);
+        } else {
+          newSet.delete(user_id);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
+
+  // Handle initial list of online friends when connecting
+  const handleOnlineUsers = useCallback(
+    ({ user_ids }) => {
+      if (!user_ids) return;
+      setOnlineUsers(new Set(user_ids));
+    },
+    []
+  );
+
   const { status: socketStatus, sendEvent } = useChatSocket({
     onNewMessage: handleNewMessage,
     onTypingEvent: handleTypingEvent,
     onMessageRead: handleMessageRead,
+    onPresenceEvent: handlePresenceEvent,
+    onOnlineUsers: handleOnlineUsers,
   });
 
   useEffect(() => {
@@ -432,6 +461,7 @@ const Messages = () => {
   const otherUser = activeConversation?.other_user;
   const otherUserAvatar = resolveUrl(otherUser?.photo_url) || dicebear(otherUser?.name);
   const canMessage = otherUser ? friendIds.includes(otherUser.id) : false;
+  const isOtherUserOnline = otherUser ? onlineUsers.has(otherUser.id) : false;
 
   // Group messages by date
   const groupedMessages = useMemo(() => {
@@ -511,8 +541,8 @@ const Messages = () => {
                         e.target.src = dicebear(other?.name);
                       }}
                     />
-                    {/* Online indicator - can be connected to real status later */}
-                    <span className="msg-online-dot" />
+                    {/* Online indicator - connected to WebSocket presence */}
+                    {onlineUsers.has(other?.id) && <span className="msg-online-dot" />}
                   </div>
 
                   <div className="msg-convo-content">
@@ -574,12 +604,12 @@ const Messages = () => {
                     alt={otherUser.name}
                     className="msg-chat-avatar"
                   />
-                  <span className="msg-online-dot" />
+                  {isOtherUserOnline && <span className="msg-online-dot" />}
                 </div>
                 <div className="msg-chat-user-info">
                   <span className="msg-chat-user-name">{otherUser.name}</span>
-                  <span className="msg-chat-user-status">
-                    {showTyping ? 'Typing...' : (otherUser.is_mentor ? 'Mentor' : otherUser.role || 'Member')}
+                  <span className={`msg-chat-user-status ${isOtherUserOnline ? 'online' : 'offline'}`}>
+                    {showTyping ? 'Typing...' : (isOtherUserOnline ? 'Active now' : 'Offline')}
                   </span>
                 </div>
               </div>
@@ -760,7 +790,9 @@ const Messages = () => {
             <div className="msg-info-item">
               <span className="msg-info-label">Status</span>
               <span className="msg-info-value">
-                <span className="msg-status-badge online">Active</span>
+                <span className={`msg-status-badge ${isOtherUserOnline ? 'online' : 'offline'}`}>
+                  {isOtherUserOnline ? 'Active' : 'Offline'}
+                </span>
               </span>
             </div>
             <div className="msg-info-item">

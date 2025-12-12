@@ -1,13 +1,25 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
+import { messagesApi } from '../../api/messages';
 
 const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => (path ? (path.startsWith('http') ? path : `${apiBase}${path}`) : null);
 
 const MentorshipRelationshipCard = ({ relationship, currentUserId }) => {
+  const navigate = useNavigate();
   const isMentor = relationship.mentor_id === currentUserId;
   const otherUser = isMentor ? relationship.mentee : relationship.mentor;
   const roleLabel = isMentor ? 'Mentee' : 'Mentor';
+
+  const handleMessage = async () => {
+    if (!otherUser?.user_id) return;
+    try {
+      const convo = await messagesApi.startConversation(otherUser.user_id);
+      navigate(`/messages?chat=${convo.conversation_id}`);
+    } catch (err) {
+      console.error('Failed to start conversation', err);
+    }
+  };
 
   return (
     <div className="mentorship-card card">
@@ -24,7 +36,7 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId }) => {
                 {otherUser?.name}
               </Link>
             </h4>
-            <p className="text-sm text-gray-500 m-0">{roleLabel} • {otherUser?.headline || otherUser?.role}</p>
+            <p className="text-sm text-secondary m-0">{roleLabel} • {otherUser?.headline || otherUser?.role}</p>
           </div>
         </div>
         <span className="status-badge status-active">Active</span>
@@ -33,19 +45,19 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId }) => {
       <div className="mentorship-card-body mt-4">
         {relationship.goals && (
           <>
-            <p className="text-gray-700 text-sm mb-2 font-medium">Goals:</p>
-            <p className="text-gray-600 text-sm bg-gray-50 p-3 rounded border border-gray-100">
+            <p className="text-secondary text-sm mb-2 font-medium">Goals:</p>
+            <p className="text-secondary text-sm bg-secondary p-3 rounded border">
               {relationship.goals}
             </p>
           </>
         )}
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="text-xs text-secondary mt-2">
           Started on {new Date(relationship.created_at).toLocaleDateString()}
         </p>
       </div>
 
       <div className="mentorship-card-actions mt-4 flex gap-2 justify-end">
-        <Button variant="secondary" size="sm">
+        <Button variant="secondary" size="sm" onClick={handleMessage}>
           Message
         </Button>
       </div>
@@ -54,3 +66,4 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId }) => {
 };
 
 export default MentorshipRelationshipCard;
+

@@ -78,6 +78,42 @@ async def create_friend_accepted_notification(
     )
 
 
+async def create_mentorship_request_notification(
+    db: AsyncSession,
+    mentor_id: uuid.UUID,
+    requester: User,
+    request_id: uuid.UUID,
+) -> Notification:
+    """Create a notification when a mentorship request is received."""
+    return await create_notification(
+        db=db,
+        user_id=mentor_id,
+        notification_type=NotificationType.MENTORSHIP_REQUEST,
+        title="New Mentorship Request",
+        message=f"{requester.name} sent you a mentorship request",
+        actor_id=requester.id,
+        reference_id=request_id,
+    )
+
+
+async def create_mentorship_accepted_notification(
+    db: AsyncSession,
+    mentee_id: uuid.UUID,
+    mentor: User,
+    relationship_id: uuid.UUID,
+) -> Notification:
+    """Create a notification when a mentorship request is accepted."""
+    return await create_notification(
+        db=db,
+        user_id=mentee_id,
+        notification_type=NotificationType.MENTORSHIP_ACCEPTED,
+        title="Mentorship Request Accepted",
+        message=f"{mentor.name} accepted your mentorship request",
+        actor_id=mentor.id,
+        reference_id=relationship_id,
+    )
+
+
 async def get_user_notifications(
     db: AsyncSession,
     user_id: uuid.UUID,

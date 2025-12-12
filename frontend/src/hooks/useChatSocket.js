@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * [MVP v1] Lightweight WebSocket manager for chat events.
+ * Supports: new_message, typing, message_read, presence, online_users
  */
-export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead }) => {
+export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPresenceEvent, onOnlineUsers }) => {
   const [status, setStatus] = useState('disconnected');
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
@@ -38,12 +39,18 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead }) =>
           onTypingEvent({ ...data.payload, type: data.type });
         } else if (data.type === 'message_read' && onMessageRead) {
           onMessageRead(data.payload);
+        } else if (data.type === 'presence' && onPresenceEvent) {
+          // Handle user going online/offline
+          onPresenceEvent(data.payload);
+        } else if (data.type === 'online_users' && onOnlineUsers) {
+          // Handle initial list of online friends
+          onOnlineUsers(data.payload);
         }
       } catch (err) {
         console.error('Failed to parse WS message', err);
       }
     },
-    [onMessageRead, onNewMessage, onTypingEvent]
+    [onMessageRead, onNewMessage, onTypingEvent, onPresenceEvent, onOnlineUsers]
   );
 
   const connect = useCallback(() => {

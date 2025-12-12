@@ -29,4 +29,8 @@ export const mentorshipApi = {
     const response = await api.post('/api/v1/mentorship/become', data);
     return response.data;
   },
+  cancelRequest: async (requestId) => {
+    const response = await api.put(`/api/v1/mentorship/requests/${requestId}/cancel`);
+    return response.data;
+  },
 };
