@@ -55,7 +55,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8010}
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: alumni-frontend
     ports:
       - "3030:80"
