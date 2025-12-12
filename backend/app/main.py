@@ -10,7 +10,9 @@ from app.api import ws
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    # Handle X-Forwarded-Proto from nginx for correct redirect URLs
+    root_path="" if not os.getenv("ROOT_PATH") else os.getenv("ROOT_PATH"),
 )
 
 # Mount static files
