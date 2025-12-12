@@ -10,8 +10,8 @@ const UserCard = ({
   onDecline,
   isSelf = false,
 }) => {
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
-  
+  const apiBase = import.meta.env.VITE_API_URL || '';
+
   const resolveUrl = (path) => {
     if (!path) return null;
     return path.startsWith('http') ? path : `${apiBase}${path}`;
@@ -29,7 +29,7 @@ const UserCard = ({
 
   const renderStatus = () => {
     if (isSelf) return null;
-    
+
     if (status === 'friends') {
       return <span className="ucard-status ucard-status-connected">Connected</span>;
     }
@@ -44,7 +44,7 @@ const UserCard = ({
 
   const renderActions = () => {
     if (isSelf) return null;
-    
+
     if (status === 'friends') {
       return (
         <Link to={`/profile/${user.user_id}`} className="ucard-btn ucard-btn-secondary">
@@ -52,7 +52,7 @@ const UserCard = ({
         </Link>
       );
     }
-    
+
     if (status === 'pending_in') {
       return (
         <div className="ucard-actions-row">
@@ -65,7 +65,7 @@ const UserCard = ({
         </div>
       );
     }
-    
+
     if (status === 'pending_out') {
       return (
         <Link to={`/profile/${user.user_id}`} className="ucard-btn ucard-btn-secondary">
@@ -73,12 +73,12 @@ const UserCard = ({
         </Link>
       );
     }
-    
+
     return (
       <div className="ucard-actions-row">
-        <button 
-          className="ucard-btn ucard-btn-primary" 
-          onClick={onAddFriend} 
+        <button
+          className="ucard-btn ucard-btn-primary"
+          onClick={onAddFriend}
           disabled={addLoading}
         >
           {addLoading ? 'Sending...' : 'Connect'}
@@ -93,7 +93,7 @@ const UserCard = ({
   const photoUrl = resolveUrl(user.photo_url);
 
   return (
-    <article 
+    <article
       className="ucard"
       style={{ animationDelay: `${index * 50}ms` }}
     >
@@ -113,7 +113,7 @@ const UserCard = ({
         <p className="ucard-headline">
           {user.mentor_headline || user.headline || user.role}
         </p>
-        
+
         {user.location && (
           <p className="ucard-location">{user.location}</p>
         )}

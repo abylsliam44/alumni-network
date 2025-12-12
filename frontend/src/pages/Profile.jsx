@@ -21,7 +21,7 @@ const Profile = () => {
   const [menuType, setMenuType] = useState(null);
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+  const apiBase = import.meta.env.VITE_API_URL || '';
 
   const resolveUrl = (path) => {
     if (!path) return null;

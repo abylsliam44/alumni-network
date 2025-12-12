@@ -5,7 +5,7 @@ import { connectionsApi } from '../api/connections';
 import { useAuth } from '../hooks/useAuth';
 import { useChatSocket } from '../hooks/useChatSocket';
 
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => {
   if (!path) return null;
   return path.startsWith('http') ? path : `${apiBase}${path}`;
@@ -26,12 +26,12 @@ const formatDate = (value) => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   if (date.toDateString() === today.toDateString()) return 'Today';
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
     day: 'numeric',
     year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
   });
@@ -48,84 +48,84 @@ const timeLabel = (value) => {
 // Icons
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"/>
-    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
 const SendIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13"/>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 );
 
 const PhoneIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
 
 const VideoIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="23 7 16 12 23 17 23 7"/>
-    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+    <polygon points="23 7 16 12 23 17 23 7" />
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
   </svg>
 );
 
 const MoreIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="1"/>
-    <circle cx="19" cy="12" r="1"/>
-    <circle cx="5" cy="12" r="1"/>
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
   </svg>
 );
 
 const SmileIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-    <line x1="9" y1="9" x2="9.01" y2="9"/>
-    <line x1="15" y1="9" x2="15.01" y2="9"/>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
   </svg>
 );
 
 const PaperclipIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
 
 const ArrowLeftIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="19" y1="12" x2="5" y2="12"/>
-    <polyline points="12 19 5 12 12 5"/>
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
   </svg>
 );
 
 const UserIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-    <circle cx="12" cy="7" r="4"/>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
 const MessageCircleIcon = () => (
   <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
 
 const CheckIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
+    <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
 const CheckCheckIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="18 6 9 17 4 12"/>
-    <polyline points="22 10 13 21 11 19"/>
+    <polyline points="18 6 9 17 4 12" />
+    <polyline points="22 10 13 21 11 19" />
   </svg>
 );
 
@@ -143,7 +143,7 @@ const Messages = () => {
   const [search, setSearch] = useState('');
   const [mobileView, setMobileView] = useState('list');
   const typingTimeout = useRef(null);
-  const sendEventRef = useRef(() => {});
+  const sendEventRef = useRef(() => { });
   const [friendIds, setFriendIds] = useState([]);
   const [friends, setFriends] = useState([]);
   const messagesEndRef = useRef(null);
@@ -178,13 +178,13 @@ const Messages = () => {
         const updated = prev.map((c) =>
           c.conversation_id === conversation_id
             ? {
-                ...c,
-                last_message: message,
-                unread_count:
-                  activeId === conversation_id || message.sender_id === user?.id
-                    ? 0
-                    : (c.unread_count || 0) + 1,
-              }
+              ...c,
+              last_message: message,
+              unread_count:
+                activeId === conversation_id || message.sender_id === user?.id
+                  ? 0
+                  : (c.unread_count || 0) + 1,
+            }
             : c
         );
 
@@ -205,7 +205,7 @@ const Messages = () => {
       });
 
       if (conversation_id === activeId && message.sender_id !== user?.id) {
-        messagesApi.markRead(conversation_id, message.id).catch(() => {});
+        messagesApi.markRead(conversation_id, message.id).catch(() => { });
         sendEventRef.current('message_read', {
           conversation_id,
           last_read_message_id: message.id,
@@ -437,7 +437,7 @@ const Messages = () => {
   const groupedMessages = useMemo(() => {
     const groups = [];
     let currentDate = null;
-    
+
     currentMessages.forEach((msg) => {
       const msgDate = formatDate(msg.created_at);
       if (msgDate !== currentDate) {
@@ -446,7 +446,7 @@ const Messages = () => {
       }
       groups.push({ type: 'message', data: msg });
     });
-    
+
     return groups;
   }, [currentMessages]);
 
@@ -460,7 +460,7 @@ const Messages = () => {
             <span className={`msg-status-indicator ${socketStatus === 'connected' ? 'online' : ''}`} />
           </div>
         </div>
-        
+
         {/* Search */}
         <div className="msg-search-wrapper">
           <div className="msg-search-icon">
@@ -474,7 +474,7 @@ const Messages = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
+
         {/* Conversations List */}
         <div className="msg-conversations">
           {loadingConvos ? (
@@ -495,7 +495,7 @@ const Messages = () => {
               const other = c.other_user;
               const avatarSrc = resolveUrl(other?.photo_url) || dicebear(other?.name);
               const hasUnread = c.unread_count > 0;
-              
+
               return (
                 <button
                   key={c.conversation_id || other?.id}
@@ -514,7 +514,7 @@ const Messages = () => {
                     {/* Online indicator - can be connected to real status later */}
                     <span className="msg-online-dot" />
                   </div>
-                  
+
                   <div className="msg-convo-content">
                     <div className="msg-convo-header">
                       <span className="msg-convo-name">{other?.name || 'Conversation'}</span>
@@ -532,7 +532,7 @@ const Messages = () => {
                       </span>
                     </div>
                   </div>
-                  
+
                   {hasUnread && (
                     <span className="msg-unread-badge">{c.unread_count}</span>
                   )}
@@ -557,14 +557,14 @@ const Messages = () => {
           <>
             {/* Chat Header */}
             <header className="msg-chat-header">
-              <button 
+              <button
                 className="msg-back-btn"
                 onClick={() => setMobileView('list')}
               >
                 <ArrowLeftIcon />
               </button>
-              
-              <div 
+
+              <div
                 className="msg-chat-user"
                 onClick={() => navigate(`/profile/${otherUser.id}`)}
               >
@@ -583,7 +583,7 @@ const Messages = () => {
                   </span>
                 </div>
               </div>
-              
+
               <div className="msg-chat-actions">
                 <button className="msg-action-btn" title="Voice call">
                   <PhoneIcon />
@@ -614,13 +614,13 @@ const Messages = () => {
                         </div>
                       );
                     }
-                    
+
                     const msg = item.data;
                     const isOwn = msg.sender_id === user?.id;
-                    
+
                     return (
-                      <div 
-                        key={msg.id || idx} 
+                      <div
+                        key={msg.id || idx}
                         className={`msg-bubble-wrapper ${isOwn ? 'outgoing' : 'incoming'}`}
                       >
                         {!isOwn && (
@@ -644,7 +644,7 @@ const Messages = () => {
                       </div>
                     );
                   })}
-                  
+
                   {showTyping && (
                     <div className="msg-bubble-wrapper incoming">
                       <img
@@ -659,7 +659,7 @@ const Messages = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   <div ref={messagesEndRef} />
                 </div>
               )}
@@ -671,7 +671,7 @@ const Messages = () => {
                 <div className="msg-not-friends">
                   <UserIcon />
                   <span>You need to be friends to send messages</span>
-                  <button 
+                  <button
                     className="msg-add-friend-btn"
                     onClick={() => navigate(`/profile/${otherUser.id}`)}
                   >
@@ -685,7 +685,7 @@ const Messages = () => {
                       <PaperclipIcon />
                     </button>
                   </div>
-                  
+
                   <div className="msg-composer-input-wrapper">
                     <textarea
                       ref={textareaRef}
@@ -705,8 +705,8 @@ const Messages = () => {
                       <SmileIcon />
                     </button>
                   </div>
-                  
-                  <button 
+
+                  <button
                     className={`msg-send-btn ${draft.trim() ? 'active' : ''}`}
                     onClick={handleSend}
                     disabled={!draft.trim()}
@@ -741,9 +741,9 @@ const Messages = () => {
             <span className="msg-info-role">
               {otherUser.is_mentor ? 'Mentor' : otherUser.role || 'Member'}
             </span>
-            
+
             <div className="msg-info-actions">
-              <button 
+              <button
                 className="msg-info-btn primary"
                 onClick={() => navigate(`/profile/${otherUser.id}`)}
               >
@@ -754,7 +754,7 @@ const Messages = () => {
               </button>
             </div>
           </div>
-          
+
           <div className="msg-info-section">
             <h4>Chat Info</h4>
             <div className="msg-info-item">
@@ -776,7 +776,7 @@ const Messages = () => {
               <span className="msg-info-value">{currentMessages.length}</span>
             </div>
           </div>
-          
+
           <div className="msg-info-section">
             <h4>Shared Media</h4>
             <div className="msg-shared-media-empty">

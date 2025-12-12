@@ -1,7 +1,7 @@
 import Button from '../ui/Button';
 import { Link } from 'react-router-dom';
 
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => (path ? (path.startsWith('http') ? path : `${apiBase}${path}`) : null);
 
 const MentorshipRequestCard = ({ request, type, onAccept, onDecline }) => {

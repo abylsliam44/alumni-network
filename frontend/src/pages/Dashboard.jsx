@@ -9,7 +9,7 @@ import { messagesApi } from '../api/messages';
 import { recommendationsApi } from '../api/recommendations';
 import { profileApi } from '../api/profile';
 
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => {
   if (!path) return null;
   return path.startsWith('http') ? path : `${apiBase}${path}`;

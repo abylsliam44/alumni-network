@@ -14,7 +14,7 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead }) =>
     const httpBase =
       import.meta.env.VITE_API_URL ||
       window.location.origin ||
-      'http://localhost:8010';
+      window.location.origin;
     // Convert http(s):// to ws(s)://
     const base = import.meta.env.VITE_WS_URL || httpBase;
     const wsBase = base.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');

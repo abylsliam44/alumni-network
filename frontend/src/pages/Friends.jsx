@@ -20,7 +20,7 @@ const Friends = () => {
   const [activeTab, setActiveTab] = useState('friends');
   const [responding, setResponding] = useState({});
   const navigate = useNavigate();
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+  const apiBase = import.meta.env.VITE_API_URL || '';
 
   const resolveUrl = (path) => {
     if (!path) return null;

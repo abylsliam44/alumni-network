@@ -55,7 +55,7 @@ const EditProfile = () => {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+    const baseUrl = import.meta.env.VITE_API_URL || '';
     return `${baseUrl}${url}`;
   };
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import Button from '../ui/Button';
 
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => (path ? (path.startsWith('http') ? path : `${apiBase}${path}`) : null);
 
 const MentorshipRelationshipCard = ({ relationship, currentUserId }) => {
