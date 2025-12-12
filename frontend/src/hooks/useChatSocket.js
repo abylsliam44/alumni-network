@@ -15,7 +15,9 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead }) =>
       import.meta.env.VITE_API_URL ||
       window.location.origin ||
       'http://localhost:8010';
-    const wsBase = (import.meta.env.VITE_WS_URL || httpBase).replace(/^http/, 'ws');
+    // Convert http(s):// to ws(s)://
+    const base = import.meta.env.VITE_WS_URL || httpBase;
+    const wsBase = base.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
     const sanitizedBase = wsBase.endsWith('/') ? wsBase.slice(0, -1) : wsBase;
     return `${sanitizedBase}/ws/chat?token=${token}`;
   };
