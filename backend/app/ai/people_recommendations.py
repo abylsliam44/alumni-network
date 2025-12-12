@@ -10,6 +10,10 @@ Implements an autonomous LangChain runnable pipeline that:
 - returns scored matches with shared skills/interests and a short reason
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -48,11 +52,17 @@ def _get_embedding_model():
 def _get_qdrant_client() -> QdrantClient:
     global _qdrant_client
     if _qdrant_client is None:
-        _qdrant_client = QdrantClient(
-            url=settings.QDRANT_URL,
-            api_key=settings.QDRANT_API_KEY,
-            timeout=10.0,
-        )
+        logger.info(f"Initializing Qdrant client with URL: {settings.QDRANT_URL}")
+        try:
+            _qdrant_client = QdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=settings.QDRANT_API_KEY,
+                timeout=10.0,
+            )
+            logger.info("Qdrant client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Qdrant client: {e}")
+            raise
     return _qdrant_client
 
 
@@ -175,14 +185,21 @@ def _ensure_collection(client: QdrantClient, vector_size: int) -> None:
     try:
         has = client.get_collection(COLLECTION_NAME)
         if has:
+            logger.debug(f"Collection '{COLLECTION_NAME}' already exists")
             return
-    except Exception:
-        # Collection not found
-        pass
-    client.recreate_collection(
-        collection_name=COLLECTION_NAME,
-        vectors_config=qmodels.VectorParams(size=vector_size, distance=qmodels.Distance.COSINE),
-    )
+    except Exception as e:
+        logger.info(f"Collection '{COLLECTION_NAME}' not found, will create. Error: {e}")
+    
+    logger.info(f"Creating collection '{COLLECTION_NAME}' with vector_size={vector_size}")
+    try:
+        client.recreate_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=qmodels.VectorParams(size=vector_size, distance=qmodels.Distance.COSINE),
+        )
+        logger.info(f"Collection '{COLLECTION_NAME}' created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create collection '{COLLECTION_NAME}': {e}")
+        raise
 
 
 def build_user_interest_text(user: User, profile: UserProfile) -> str:
@@ -246,15 +263,42 @@ def _metadata_from_profile(user: User, profile: UserProfile) -> Dict[str, Any]:
 async def upsert_user_embedding(
     user: User, profile: UserProfile, summary_text: Optional[str] = None
 ) -> Optional[List[float]]:
-    if not profile or not _profile_has_minimal_signal(profile):
+    logger.debug(f"upsert_user_embedding called for user_id={user.id}")
+    
+    if not profile:
+        logger.warning(f"User {user.id} has no profile, skipping embedding")
         return None
+    
+    completeness = _profile_completeness(profile)
+    if not _profile_has_minimal_signal(profile):
+        logger.warning(
+            f"User {user.id} profile completeness {completeness:.2f} < {MIN_PROFILE_COMPLETENESS}, skipping embedding"
+        )
+        return None
+    
     text = summary_text or build_user_interest_text(user, profile)
     if not text:
+        logger.warning(f"User {user.id} has empty profile text, skipping embedding")
         return None
-    vector = await _embed_text(text)
+    
+    logger.info(f"Generating embedding for user {user.id} (completeness={completeness:.2f})")
+    
+    try:
+        vector = await _embed_text(text)
+        logger.debug(f"Generated vector of size {len(vector)} for user {user.id}")
+    except Exception as e:
+        logger.error(f"Failed to generate embedding for user {user.id}: {e}", exc_info=True)
+        return None
+    
     metadata = _metadata_from_profile(user, profile)
-    client = _get_qdrant_client()
-    _ensure_collection(client, len(vector))
+    
+    try:
+        client = _get_qdrant_client()
+        _ensure_collection(client, len(vector))
+    except Exception as e:
+        logger.error(f"Failed to get Qdrant client or ensure collection: {e}", exc_info=True)
+        return None
+    
     try:
         client.upsert(
             collection_name=COLLECTION_NAME,
@@ -266,9 +310,11 @@ async def upsert_user_embedding(
                 )
             ],
         )
-    except Exception:
-        # Do not fail the main request if vector store is unavailable
+        logger.info(f"Successfully upserted embedding for user {user.id}")
+    except Exception as e:
+        logger.error(f"Failed to upsert embedding for user {user.id}: {e}", exc_info=True)
         return None
+    
     return vector
 
 
@@ -495,21 +541,45 @@ async def _bootstrap_embeddings_if_empty(ctx: Dict[str, Any]) -> Dict[str, Any]:
     If Qdrant is empty (fresh deploy), backfill embeddings once so that
     vector search is actually used instead of always falling back.
     """
+    logger.info("Checking if Qdrant collection needs bootstrapping...")
+    
     try:
         client = _get_qdrant_client()
         count = client.count(collection_name=COLLECTION_NAME, exact=False).count
+        logger.info(f"Qdrant collection '{COLLECTION_NAME}' has {count} vectors")
         if count and count > 0:
             return ctx
-    except Exception:
-        # If Qdrant is unavailable, leave context untouched
+    except Exception as e:
+        logger.error(f"Failed to check Qdrant collection count: {e}", exc_info=True)
         return ctx
 
+    logger.info("Qdrant collection is empty, bootstrapping embeddings for all users...")
+    
     db: AsyncSession = ctx["db"]
     result = await db.execute(select(User).options(selectinload(User.profile)))
     users = result.scalars().all()
+    
+    logger.info(f"Found {len(users)} users to process for bootstrapping")
+    
+    processed = 0
+    skipped = 0
+    failed = 0
+    
     for user in users:
         if user.profile and _profile_has_minimal_signal(user.profile):
-            await upsert_user_embedding(user, user.profile)
+            try:
+                result = await upsert_user_embedding(user, user.profile)
+                if result:
+                    processed += 1
+                else:
+                    skipped += 1
+            except Exception as e:
+                logger.error(f"Failed to upsert embedding for user {user.id}: {e}")
+                failed += 1
+        else:
+            skipped += 1
+    
+    logger.info(f"Bootstrap complete: processed={processed}, skipped={skipped}, failed={failed}")
     return ctx
 
 
@@ -525,16 +595,21 @@ async def _ensure_query_vector(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    logger.info("Starting _vector_search...")
+    
     vector = ctx.get("query_vector")
     user: User = ctx["user"]
     profile: UserProfile = ctx["profile"]
     current_metadata = ctx.get("metadata", {})
     current_interests = _merged_interests_from_payload(current_metadata)
 
+    logger.debug(f"User {user.id} has query_vector: {vector is not None}")
+
     # Make sure vector store is populated at least once
     ctx = await _bootstrap_embeddings_if_empty(ctx)
 
     if not vector:
+        logger.warning(f"No query vector for user {user.id}, falling back to deterministic recommendations")
         ctx["items"] = await _fallback_recommendations(ctx, current_metadata)
         return ctx
 
@@ -573,6 +648,7 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     try:
+        logger.info(f"Executing vector search for user {user.id} with limit={VECTOR_SEARCH_LIMIT}")
         results = client.search(
             collection_name=COLLECTION_NAME,
             query_vector=vector,
@@ -581,7 +657,9 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
             with_payload=True,
             with_vectors=False,
         )
-    except Exception:
+        logger.info(f"Vector search returned {len(results)} results")
+    except Exception as e:
+        logger.error(f"Vector search failed for user {user.id}: {e}", exc_info=True)
         ctx["items"] = await _fallback_recommendations(ctx, current_metadata)
         return ctx
 
@@ -667,9 +745,12 @@ async def run_people_recommendations_agent(
     """
     Executes an autonomous LangChain runnable pipeline to produce recommendations.
     """
+    logger.info(f"=== Starting recommendations agent for user {current_user_id} ===")
 
     async def load_context(_: Dict[str, Any]) -> Dict[str, Any]:
+        logger.debug(f"Loading context for user {current_user_id}")
         user, profile = await _fetch_user_with_profile(db, current_user_id)
+        logger.debug(f"Loaded user {user.id} with profile completeness: {_profile_completeness(profile):.2f}")
         return {"user": user, "profile": profile, "db": db}
 
     agent = RunnableSequence(
@@ -677,11 +758,18 @@ async def run_people_recommendations_agent(
         RunnableLambda(_ensure_query_vector),
         RunnableLambda(_vector_search),
     )
-    result = await agent.ainvoke({})
+    
+    try:
+        result = await agent.ainvoke({})
+        items = result.get("items", [])
+        logger.info(f"=== Recommendations agent completed for user {current_user_id}: {len(items)} items ===")
+    except Exception as e:
+        logger.error(f"=== Recommendations agent FAILED for user {current_user_id}: {e} ===", exc_info=True)
+        raise
 
     return {
         "user_id": str(current_user_id),
         "generated_at": datetime.utcnow().isoformat(),
-        "items": result.get("items", []),
+        "items": items,
     }
 
