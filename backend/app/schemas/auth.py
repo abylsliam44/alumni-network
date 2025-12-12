@@ -33,6 +33,11 @@ class RegisterRequest(BaseModel):
         except ValueError:
             raise ValueError("Role must be one of STUDENT or ALUMNI")
 
+    @field_validator("password")
+    def validate_password(cls, v):
+        from app.core.security import validate_password_strength
+        return validate_password_strength(v)
+
 
 class AuthResponse(BaseModel):
     access_token: str

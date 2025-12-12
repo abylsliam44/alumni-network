@@ -140,7 +140,7 @@ const Profile = () => {
     const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
     const years = Math.floor(months / 12);
     const remainingMonths = months % 12;
-    
+
     if (years > 0 && remainingMonths > 0) {
       return `${years} yr ${remainingMonths} mo`;
     } else if (years > 0) {
@@ -157,7 +157,7 @@ const Profile = () => {
   return (
     <div className="linkedin-profile-container">
       {notice && <Alert type={notice.type}>{notice.message}</Alert>}
-      
+
       {/* Main Profile Card */}
       <div className="linkedin-profile-card">
         {/* Cover Image */}
@@ -174,8 +174,8 @@ const Profile = () => {
             <>
               <button className="linkedin-cover-edit-btn" onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
                 </svg>
               </button>
               <input type="file" accept="image/*" ref={coverInputRef} style={{ display: 'none' }} onChange={handleCoverUpload} />
@@ -195,11 +195,11 @@ const Profile = () => {
                 className="linkedin-avatar"
               />
             </div>
-              {isOwnProfile && (
+            {isOwnProfile && (
               <button className="linkedin-avatar-edit-btn" onClick={(e) => { e.stopPropagation(); avatarInputRef.current?.click(); }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
                 </svg>
               </button>
             )}
@@ -213,8 +213,8 @@ const Profile = () => {
                 <h1 className="linkedin-name">{profile.name}</h1>
                 {profile.is_verified && (
                   <span className="linkedin-verified-badge" title="Verified">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#0a66c2">
-                      <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[#0a66c2]">
+                      <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
                     </svg>
                   </span>
                 )}
@@ -224,8 +224,8 @@ const Profile = () => {
                 {profile.location && (
                   <>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
                     </svg>
                     {profile.location}
                   </>
@@ -234,20 +234,20 @@ const Profile = () => {
                 {profile.graduation_year && (
                   <>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                      <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                      <path d="M6 12v5c3 3 9 3 12 0v-5" />
                     </svg>
                     Class of {profile.graduation_year}
                   </>
                 )}
               </p>
-              
+
               {/* Contact & Social Links */}
               <div className="linkedin-contact-row">
                 {profile.linkedin_url && (
                   <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="linkedin-social-link">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                     </svg>
                     LinkedIn
                   </a>
@@ -255,22 +255,22 @@ const Profile = () => {
                 {profile.email && (
                   <a href={`mailto:${profile.email}`} className="linkedin-social-link">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                      <polyline points="22,6 12,13 2,6"/>
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                      <polyline points="22,6 12,13 2,6" />
                     </svg>
                     Contact info
                   </a>
-              )}
-            </div>
+                )}
+              </div>
             </div>
 
             {/* Actions */}
             <div className="linkedin-profile-actions">
               {isOwnProfile ? (
                 <>
-                <Link to="/profile/edit">
+                  <Link to="/profile/edit">
                     <Button variant="primary" className="linkedin-btn-primary">Edit profile</Button>
-                </Link>
+                  </Link>
                   <Button variant="secondary" className="linkedin-btn-secondary">Add section</Button>
                 </>
               ) : (
@@ -290,9 +290,9 @@ const Profile = () => {
                   </Button>
                   <Button variant="secondary" className="linkedin-btn-more">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="12" cy="12" r="2"/>
-                      <circle cx="19" cy="12" r="2"/>
-                      <circle cx="5" cy="12" r="2"/>
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="19" cy="12" r="2" />
+                      <circle cx="5" cy="12" r="2" />
                     </svg>
                   </Button>
                 </>
@@ -308,8 +308,8 @@ const Profile = () => {
           <h2 className="linkedin-section-title">Analytics</h2>
           <p className="linkedin-analytics-subtitle">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
             Private to you
           </p>
@@ -340,8 +340,8 @@ const Profile = () => {
           {isOwnProfile && (
             <Link to="/profile/edit" className="linkedin-edit-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </Link>
           )}
@@ -362,20 +362,20 @@ const Profile = () => {
           {isOwnProfile && (
             <Link to="/profile/edit" className="linkedin-edit-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </Link>
           )}
         </div>
-            {profile.experience && profile.experience.length > 0 ? (
+        {profile.experience && profile.experience.length > 0 ? (
           <div className="linkedin-experience-list">
-                {profile.experience.map((exp, index) => (
+            {profile.experience.map((exp, index) => (
               <div key={index} className="linkedin-experience-item">
                 <div className="linkedin-exp-logo">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="1.5">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                   </svg>
                 </div>
                 <div className="linkedin-exp-details">
@@ -389,14 +389,14 @@ const Profile = () => {
                   {exp.location && <p className="linkedin-exp-location">{exp.location}</p>}
                   {exp.description && <p className="linkedin-exp-description">{exp.description}</p>}
                 </div>
-                  </div>
-                ))}
               </div>
-            ) : (
+            ))}
+          </div>
+        ) : (
           <p className="linkedin-empty-text">
             {isOwnProfile ? 'Add your work experience to showcase your career journey' : 'No experience added yet'}
           </p>
-            )}
+        )}
       </div>
 
       {/* Education Section */}
@@ -406,20 +406,20 @@ const Profile = () => {
           {isOwnProfile && (
             <Link to="/profile/edit" className="linkedin-edit-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </Link>
           )}
         </div>
-            {profile.education && profile.education.length > 0 ? (
+        {profile.education && profile.education.length > 0 ? (
           <div className="linkedin-education-list">
-                {profile.education.map((edu, index) => (
+            {profile.education.map((edu, index) => (
               <div key={index} className="linkedin-education-item">
                 <div className="linkedin-edu-logo">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="1.5">
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
                   </svg>
                 </div>
                 <div className="linkedin-edu-details">
@@ -433,15 +433,15 @@ const Profile = () => {
                   {edu.grade && <p className="linkedin-edu-grade">Grade: {edu.grade}</p>}
                   {edu.activities && <p className="linkedin-edu-activities">Activities: {edu.activities}</p>}
                 </div>
-                  </div>
-                ))}
               </div>
-            ) : (
+            ))}
+          </div>
+        ) : (
           <p className="linkedin-empty-text">
             {isOwnProfile ? 'Add your educational background' : 'No education added yet'}
           </p>
-            )}
-        </div>
+        )}
+      </div>
 
       {/* Skills Section */}
       <div className="linkedin-section-card">
@@ -450,12 +450,12 @@ const Profile = () => {
           {isOwnProfile && (
             <Link to="/profile/edit" className="linkedin-edit-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </Link>
-              )}
-            </div>
+          )}
+        </div>
         {profile.skills && profile.skills.length > 0 ? (
           <div className="linkedin-skills-list">
             {profile.skills.map((skill, index) => (
@@ -492,8 +492,8 @@ const Profile = () => {
               <h3>{menuType === 'avatar' ? 'Profile photo' : 'Cover image'}</h3>
               <button className="linkedin-modal-close" onClick={closeMenu}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
@@ -507,8 +507,8 @@ const Profile = () => {
                 disabled={menuType === 'avatar' ? !profile.photo_url : !profile.cover_url}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
                 </svg>
                 View image
               </button>
@@ -526,22 +526,22 @@ const Profile = () => {
                     }}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
                     </svg>
                     Change {menuType === 'avatar' ? 'photo' : 'cover'}
                   </button>
                   {((menuType === 'avatar' && profile.photo_url) || (menuType === 'cover' && profile.cover_url)) && (
                     <button
                       className="linkedin-modal-action linkedin-modal-action-danger"
-                       onClick={() => {
-                         if (menuType === 'avatar') handleDeletePhoto();
-                         else handleDeleteCover();
-                       }}
-                     >
+                      onClick={() => {
+                        if (menuType === 'avatar') handleDeletePhoto();
+                        else handleDeleteCover();
+                      }}
+                    >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
                       Delete {menuType === 'avatar' ? 'photo' : 'cover'}
                     </button>

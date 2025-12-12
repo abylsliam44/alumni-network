@@ -1,89 +1,90 @@
 import { useEffect, useRef, useState } from 'react';
 import { aiApi } from '../api/ai';
+import ReactMarkdown from 'react-markdown';
 
 // Icons
 const SendIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13"/>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 );
 
 
 const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-    <circle cx="12" cy="7" r="4"/>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
 const BotIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 8V4H8"/>
-    <rect width="16" height="12" x="4" y="8" rx="2"/>
-    <path d="M2 14h2"/>
-    <path d="M20 14h2"/>
-    <path d="M15 13v2"/>
-    <path d="M9 13v2"/>
+    <path d="M12 8V4H8" />
+    <rect width="16" height="12" x="4" y="8" rx="2" />
+    <path d="M2 14h2" />
+    <path d="M20 14h2" />
+    <path d="M15 13v2" />
+    <path d="M9 13v2" />
   </svg>
 );
 
 const ClockIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <polyline points="12 6 12 12 16 14"/>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
   </svg>
 );
 
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 
 const ChevronDownIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
 
 const BookIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
   </svg>
 );
 
 const UsersIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-    <circle cx="9" cy="7" r="4"/>
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
 const GraduationCapIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-    <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/>
+    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+    <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
   </svg>
 );
 
 const CalendarIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-    <line x1="16" y1="2" x2="16" y2="6"/>
-    <line x1="8" y1="2" x2="8" y2="6"/>
-    <line x1="3" y1="10" x2="21" y2="10"/>
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
   </svg>
 );
 
 // Suggested prompts
 const SUGGESTED_PROMPTS = [
-  { icon: <BookIcon />, text: "What courses are available?", category: "Academics" },
   { icon: <UsersIcon />, text: "How do I find a mentor?", category: "Mentorship" },
-  { icon: <GraduationCapIcon />, text: "Tell me about programs at AITU", category: "Programs" },
+  { icon: <BookIcon />, text: "How can I update my profile?", category: "Profile" },
+  { icon: <GraduationCapIcon />, text: "How do I connect with alumni?", category: "Connections" },
   { icon: <CalendarIcon />, text: "What events are coming up?", category: "Events" },
 ];
 
@@ -122,24 +123,24 @@ const AiChat = () => {
   const send = async (customQuestion) => {
     const q = customQuestion || question;
     if (!q.trim()) return;
-    
+
     setLoading(true);
     setError('');
     const newMessages = [...messages, { role: 'user', content: q, created_at: new Date().toISOString() }];
     setMessages(newMessages);
     setQuestion('');
-    
+
     // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = '56px';
     }
-    
+
     try {
       const res = await aiApi.chat(q.trim());
-      const assistantMessage = { 
-        role: 'assistant', 
-        content: res.answer, 
-        created_at: new Date().toISOString() 
+      const assistantMessage = {
+        role: 'assistant',
+        content: res.answer,
+        created_at: new Date().toISOString()
       };
       setMessages([...newMessages, assistantMessage]);
       setHistory([...newMessages, assistantMessage]);
@@ -185,10 +186,13 @@ const AiChat = () => {
 
   const renderContent = (m, idx) => {
     const isLastAssistant = m.role === 'assistant' && idx === messages.length - 1 && typingTarget;
-    if (isLastAssistant) {
-      return typingText || '';
+    const content = isLastAssistant ? (typingText || '') : m.content;
+
+    // Render markdown for assistant messages
+    if (m.role === 'assistant') {
+      return <ReactMarkdown>{content}</ReactMarkdown>;
     }
-    return m.content;
+    return content;
   };
 
   const formatTime = (dateStr) => {
@@ -224,7 +228,7 @@ const AiChat = () => {
         <header className="ai-header">
           <div className="ai-header-text">
             <h1>AI Assistant</h1>
-            <p>Your guide to Astana IT University</p>
+            <p>Your smart platform guide</p>
           </div>
         </header>
 
@@ -233,8 +237,8 @@ const AiChat = () => {
           {messages.length === 0 ? (
             <div className="ai-welcome">
               <h2>How can I help you today?</h2>
-              <p>Ask me anything about courses, campus life, mentorship, or academics at AITU.</p>
-              
+              <p>Ask me anything about navigating the platform, finding connections, mentorship, events, or jobs.</p>
+
               {/* Suggested Prompts */}
               <div className="ai-suggestions">
                 {SUGGESTED_PROMPTS.map((prompt, idx) => (
@@ -256,8 +260,8 @@ const AiChat = () => {
           ) : (
             <div className="ai-messages-list">
               {messages.map((m, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   className={`ai-message ${m.role}`}
                   style={{ animationDelay: `${idx * 0.05}s` }}
                 >
@@ -282,7 +286,7 @@ const AiChat = () => {
                   </div>
                 </div>
               ))}
-              
+
               {/* Loading indicator */}
               {loading && (
                 <div className="ai-message assistant loading">
@@ -299,7 +303,7 @@ const AiChat = () => {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -321,11 +325,11 @@ const AiChat = () => {
               value={question}
               onChange={handleTextareaChange}
               onKeyDown={onKey}
-              placeholder="Ask about Astana IT University..."
+              placeholder="Ask anything about the platform..."
               rows={1}
               disabled={loading}
             />
-            <button 
+            <button
               className={`ai-send-btn ${question.trim() ? 'active' : ''}`}
               onClick={() => send()}
               disabled={loading || !question.trim()}
@@ -346,7 +350,7 @@ const AiChat = () => {
       {/* History Sidebar */}
       <aside className="ai-sidebar">
         <div className="ai-sidebar-header">
-          <button 
+          <button
             className="ai-sidebar-toggle"
             onClick={() => setHistoryExpanded(!historyExpanded)}
           >
@@ -355,7 +359,7 @@ const AiChat = () => {
             <ChevronDownIcon className={historyExpanded ? 'expanded' : ''} />
           </button>
         </div>
-        
+
         {historyExpanded && (
           <div className="ai-history-content">
             {Object.keys(groupedHistory).length === 0 ? (
@@ -369,8 +373,8 @@ const AiChat = () => {
                 <div key={date} className="ai-history-group">
                   <div className="ai-history-date">{date}</div>
                   {msgs.map((msg, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       className={`ai-history-item ${msg.role}`}
                     >
                       <div className="ai-history-item-icon">
@@ -381,8 +385,8 @@ const AiChat = () => {
                           {msg.role === 'user' ? 'You' : 'Assistant'}
                         </span>
                         <p className="ai-history-item-text">
-                          {msg.content.length > 60 
-                            ? msg.content.slice(0, 60) + '...' 
+                          {msg.content.length > 60
+                            ? msg.content.slice(0, 60) + '...'
                             : msg.content}
                         </p>
                         <span className="ai-history-item-time">
