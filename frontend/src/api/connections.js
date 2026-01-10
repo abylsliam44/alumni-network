@@ -2,7 +2,7 @@ import api from './axios';
 
 export const connectionsApi = {
   async list() {
-    const { data } = await api.get('/api/v1/connections');
+    const { data } = await api.get('/api/v1/connections/');
     return data;
   },
   async request(recipientId) {

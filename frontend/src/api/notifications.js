@@ -2,7 +2,7 @@ import api from './axios';
 
 export const notificationsApi = {
   async list(limit = 50, unreadOnly = false) {
-    const { data } = await api.get('/api/v1/notifications', {
+    const { data } = await api.get('/api/v1/notifications/', {
       params: { limit, unread_only: unreadOnly }
     });
     return data;

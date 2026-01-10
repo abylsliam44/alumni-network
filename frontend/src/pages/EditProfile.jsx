@@ -48,6 +48,27 @@ const EditProfile = () => {
   const [avatarError, setAvatarError] = useState(false);
   const [coverError, setCoverError] = useState(false);
 
+  // Profile completion calculation
+  const calculateCompletion = () => {
+    const checks = [
+      { label: 'Name', done: Boolean(formData.name?.trim()) },
+      { label: 'Headline', done: Boolean(formData.headline?.trim()) },
+      { label: 'Bio', done: Boolean(formData.bio?.trim()) },
+      { label: 'Location', done: Boolean(formData.location?.trim()) },
+      { label: 'Skills', done: Boolean(formData.skills?.trim?.() || formData.skills?.length) },
+      { label: 'Experience', done: formData.experience?.length > 0 },
+      { label: 'Education', done: formData.education?.length > 0 },
+      { label: 'Photo', done: Boolean(photoPreview) },
+      { label: 'Graduation Year', done: Boolean(formData.graduation_year) },
+    ];
+    const completed = checks.filter(c => c.done).length;
+    const percent = Math.round((completed / checks.length) * 100);
+    const missing = checks.filter(c => !c.done).map(c => c.label);
+    return { percent, completed, total: checks.length, missing };
+  };
+
+  const completion = calculateCompletion();
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -193,6 +214,43 @@ const EditProfile = () => {
         <div className="profile-edit-header">
           <h1>Edit Profile</h1>
           <p>Customize your profile to stand out to recruiters and peers.</p>
+
+          {/* Profile Completion Progress */}
+          <div className="profile-completion-card">
+            <div className="completion-header">
+              <span className="completion-label">Profile Completion</span>
+              <span className="completion-percent">{completion.percent}%</span>
+            </div>
+            <div className="completion-bar-track">
+              <div
+                className="completion-bar-fill"
+                style={{
+                  width: `${completion.percent}%`,
+                  backgroundColor: completion.percent === 100 ? '#22c55e' :
+                    completion.percent >= 70 ? '#3b82f6' :
+                      completion.percent >= 40 ? '#f59e0b' : '#ef4444'
+                }}
+              />
+            </div>
+            {completion.missing.length > 0 && (
+              <div className="completion-missing">
+                <span className="missing-label">Add to improve:</span>
+                <div className="missing-tags">
+                  {completion.missing.slice(0, 4).map(field => (
+                    <span key={field} className="missing-tag">{field}</span>
+                  ))}
+                  {completion.missing.length > 4 && (
+                    <span className="missing-tag more">+{completion.missing.length - 4} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {completion.percent === 100 && (
+              <div className="completion-success">
+                ✓ Your profile is complete! You're all set.
+              </div>
+            )}
+          </div>
         </div>
 
         {notice && <Alert type={notice.type}>{notice.message}</Alert>}

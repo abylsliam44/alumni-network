@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { messagesApi } from '../api/messages';
+import { videocallApi } from '../api/videocall';
 import { connectionsApi } from '../api/connections';
 import { useAuth } from '../hooks/useAuth';
 import { useChatSocket } from '../hooks/useChatSocket';
+import VideoCallModal from '../components/VideoCallModal';
 
 const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => {
@@ -149,6 +151,11 @@ const Messages = () => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+
+  // Video call state
+  const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
+  const [videoCallData, setVideoCallData] = useState({ livekitUrl: '', token: '' });
+  const [isStartingCall, setIsStartingCall] = useState(false);
 
   const currentMessages = messagesById[activeId]?.messages || [];
 
@@ -463,6 +470,54 @@ const Messages = () => {
   const canMessage = otherUser ? friendIds.includes(otherUser.id) : false;
   const isOtherUserOnline = otherUser ? onlineUsers.has(otherUser.id) : false;
 
+  // Video call handler
+  const startVideoCall = async () => {
+    if (!activeId || !canMessage || isStartingCall) return;
+
+    try {
+      setIsStartingCall(true);
+      const data = await videocallApi.createRoom(activeId);
+      setVideoCallData({
+        livekitUrl: data.livekit_url,
+        token: data.token,
+      });
+      setIsVideoCallOpen(true);
+    } catch (err) {
+      console.error('Failed to start video call:', err);
+      alert('Не удалось начать видеозвонок. Проверьте конфигурацию LiveKit.');
+    } finally {
+      setIsStartingCall(false);
+    }
+  };
+
+  // Join video call handler
+  const joinVideoCall = async (roomName) => {
+    if (!roomName || isStartingCall) return;
+
+    try {
+      setIsStartingCall(true);
+      const data = await videocallApi.joinRoom(roomName);
+      setVideoCallData({
+        livekitUrl: data.livekit_url,
+        token: data.token,
+      });
+      setIsVideoCallOpen(true);
+    } catch (err) {
+      console.error('Failed to join video call:', err);
+    } finally {
+      setIsStartingCall(false);
+    }
+  };
+
+  const handleCallEnded = (duration) => {
+    setIsVideoCallOpen(false);
+    setVideoCallData({ livekitUrl: '', token: '' });
+    // После завершения звонка обновляем сообщения, чтобы увидеть AI-саммари
+    if (activeId) {
+      fetchMessages(activeId);
+    }
+  };
+
   // Group messages by date
   const groupedMessages = useMemo(() => {
     const groups = [];
@@ -558,7 +613,9 @@ const Messages = () => {
                       </span>
                       <span className="msg-convo-separator">•</span>
                       <span className="msg-convo-last-msg">
-                        {c.last_message?.text || 'Start a conversation'}
+                        {c.last_message?.text.startsWith('JOIN_VIDEO_CALL|')
+                          ? '📹 Video Call'
+                          : c.last_message?.text || 'Start a conversation'}
                       </span>
                     </div>
                   </div>
@@ -618,7 +675,12 @@ const Messages = () => {
                 <button className="msg-action-btn" title="Voice call">
                   <PhoneIcon />
                 </button>
-                <button className="msg-action-btn" title="Video call">
+                <button
+                  className={`msg-action-btn ${isStartingCall ? 'loading' : ''}`}
+                  title="Video call"
+                  onClick={startVideoCall}
+                  disabled={!canMessage || isStartingCall}
+                >
                   <VideoIcon />
                 </button>
                 <button className="msg-action-btn" title="More options">
@@ -647,6 +709,8 @@ const Messages = () => {
 
                     const msg = item.data;
                     const isOwn = msg.sender_id === user?.id;
+                    const isVideoInvite = msg.text.startsWith('JOIN_VIDEO_CALL|');
+                    const roomName = isVideoInvite ? msg.text.split('|')[1] : null;
 
                     return (
                       <div
@@ -661,7 +725,29 @@ const Messages = () => {
                           />
                         )}
                         <div className={`msg-bubble ${isOwn ? 'outgoing' : 'incoming'}`}>
-                          <p className="msg-bubble-text">{msg.text}</p>
+                          {isVideoInvite ? (
+                            <div className="flex flex-col gap-2 items-start">
+                              <span className="font-semibold">📹 Входящий видеозвонок</span>
+                              <button
+                                onClick={() => joinVideoCall(roomName)}
+                                style={{
+                                  backgroundColor: '#3b82f6',
+                                  color: 'white',
+                                  padding: '8px 16px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  marginTop: '8px',
+                                  fontWeight: '500'
+                                }}
+                                disabled={isStartingCall}
+                              >
+                                Присоединиться
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="msg-bubble-text">{msg.text}</p>
+                          )}
                           <div className="msg-bubble-meta">
                             <span className="msg-bubble-time">{formatTime(msg.created_at)}</span>
                             {isOwn && (
@@ -817,6 +903,16 @@ const Messages = () => {
           </div>
         </aside>
       )}
+
+      {/* Video Call Modal */}
+      <VideoCallModal
+        isOpen={isVideoCallOpen}
+        onClose={() => setIsVideoCallOpen(false)}
+        livekitUrl={videoCallData.livekitUrl}
+        token={videoCallData.token}
+        otherUser={otherUser}
+        onCallEnded={handleCallEnded}
+      />
     </div>
   );
 };

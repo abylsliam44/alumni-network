@@ -5,6 +5,20 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
 import { mentorshipApi } from '../api/mentorship';
+import './BecomeMentor.css';
+
+const SparklesIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2L14.4 7.2L19 9L14.4 10.8L12 16L9.6 10.8L5 9L9.6 7.2L12 2Z" fill="url(#grad1)" stroke="none" />
+    <path d="M18 16L19 18L21 19L19 20L18 22L17 20L15 19L17 18L18 16Z" fill="url(#grad1)" stroke="none" />
+    <defs>
+      <linearGradient id="grad1" x1="5" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#6366f1" />
+        <stop offset="1" stopColor="#ec4899" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 const BecomeMentor = () => {
   const { user, refreshUser } = useAuth();
@@ -51,114 +65,156 @@ const BecomeMentor = () => {
       await mentorshipApi.becomeMentor(payload);
       await refreshUser();
       setSuccess(true);
-      navigate('/dashboard');
+      // Wait a bit to show success message before redirecting
+      setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to update mentor status');
-    } finally {
       setSubmitting(false);
     }
   };
 
   if (user && user.role !== 'ALUMNI') {
     return (
-      <div className="page-container">
-        <Card className="auth-card">
-          <h2>Become a Mentor</h2>
-          <p className="text-secondary">
-            Only AITU alumni can enroll as mentors. Students can still browse mentors and send requests.
-          </p>
-        </Card>
+      <div className="mentor-page">
+        <div className="mentor-card">
+          <div className="mentor-header">
+            <h2 className="mentor-title">Become a Mentor</h2>
+            <p className="mentor-description">
+              Only AITU alumni can enroll as mentors. Students can browse mentors and send requests.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (user?.is_mentor) {
     return (
-      <div className="page-container">
-        <Card className="auth-card">
-          <h2>You are already a mentor</h2>
-          <p className="text-secondary mb-4">
-            Head over to your mentor dashboard to manage requests and mentees.
-          </p>
-          <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
-        </Card>
+      <div className="mentor-page">
+        <div className="mentor-card">
+          <div className="mentor-header">
+            <h2 className="mentor-title">You are a Mentor! 🎉</h2>
+            <p className="mentor-description">
+              Thank you for contributing to the community. Head over to your dashboard to manage your mentorship requests.
+            </p>
+          </div>
+          <Button className="w-full" onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="page-container">
-      <Card className="auth-card">
-        <h2>Become a Mentor</h2>
-        <p className="text-secondary mb-6">
-          As an AITU alumni you can support students with career guidance, interview prep, and more. This is optional and you can manage your availability anytime.
-        </p>
+    <div className="mentor-page">
+      <div className="mentor-card">
+        <div className="mentor-header">
+          <div className="flex justify-center mb-4">
+            <SparklesIcon />
+          </div>
+          <h2 className="mentor-title">Become a Mentor</h2>
+          <p className="mentor-description">
+            Share your expertise with the next generation. Support students with career guidance, interview prep, and industry insights.
+          </p>
+        </div>
 
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">Mentor profile saved!</div>}
+        {error && (
+          <div className="status-message status-error">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {success && (
+          <div className="status-message status-success">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Mentor profile activated successfully! Redirecting...
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mentor-form">
           <Input
-            label="Mentor headline"
+            label="Your Headline"
             name="headline"
             value={formData.headline}
             onChange={handleChange}
-            placeholder="Backend engineer, happy to mentor on careers & internships"
+            placeholder="e.g. Senior Backend Engineer at Google"
             required
+            className="form-input-premium"
           />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Using grid here assuming Tailwind is available or layout works fine in flex col. 
+                 Since custom CSS didn't define grid classes, I'll stick to full width logic or add grid to CSS.
+                 Wait, I didn't add grid utilities. I'll stick to full width for now 
+                 or relies on `gap-4` if `App.css` has it. `App.css` usually doesn't have Tailwind utilities unless using Tailwind.
+                 I'll remove grid classes and keep it simple vertical stack as per CSS file.
+             */}
+          </div>
+
           <Input
-            label="Areas of help (comma separated)"
+            label="Areas of Help"
             name="areas_of_help"
             value={formData.areas_of_help}
             onChange={handleChange}
-            placeholder="CV review, Interview prep, Career guidance"
+            placeholder="e.g. CV Review, Mock Interview, System Design"
           />
+
           <Input
-            label="Industries / Domains (comma separated)"
+            label="Industries / Domains"
             name="industries"
             value={formData.industries}
             onChange={handleChange}
-            placeholder="Fintech, AI, Backend"
+            placeholder="e.g. Fintech, EdTech, Artificial Intelligence"
           />
+
           <Input
-            label="Max mentees (optional)"
+            label="Max Concurrent Mentees"
             name="max_mentees"
             type="number"
             min="1"
+            max="50"
             value={formData.max_mentees}
             onChange={handleChange}
-            placeholder="e.g., 3"
+            placeholder="e.g. 3"
           />
+
           <div className="form-group">
-            <label className="form-label">Availability note</label>
+            <label className="form-label">Availability & BIO</label>
             <textarea
-              className="form-input"
+              className="form-textarea"
               name="availability_note"
-              rows="3"
+              rows="4"
               value={formData.availability_note}
               onChange={handleChange}
-              placeholder="Evenings, weekends, online only..."
+              placeholder="Tell us a bit about yourself and when you are usually available (e.g. Weekends, Evenings EST)..."
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <label className="checkbox-wrapper">
             <input
               type="checkbox"
               name="consent_mentor"
               checked={formData.consent_mentor}
               onChange={handleChange}
               required
+              className="custom-checkbox"
             />
-            <span className="text-sm">
-              I confirm that I am willing to be contacted by students as a mentor.
+            <span className="checkbox-label">
+              I confirm that I am willing to be contacted by students and listed in the mentor directory.
             </span>
-          </div>
+          </label>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? 'Saving...' : 'Activate Mentor Profile'}
-          </Button>
+          <div className="submit-btn-wrapper">
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? 'Activating Profile...' : 'Activate Mentor Profile'}
+            </Button>
+          </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 };

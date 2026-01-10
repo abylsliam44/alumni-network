@@ -267,20 +267,38 @@ const Dashboard = () => {
   const unreadMessages = conversations.filter((c) => c.unread_count > 0).length;
   const totalUnreadCount = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
-  // Calculate profile completion
+  // Calculate profile completion with proper null handling and weighting
   const calculateProfileCompletion = () => {
     if (!profile) return 0;
+
+    // Check each field with proper null/empty handling
+    const checkField = (value) => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string') return value.trim().length > 0;
+      if (Array.isArray(value)) return value.length > 0;
+      return Boolean(value);
+    };
+
+    // Fields to check with their weights (more important = higher weight)
     const fields = [
-      profile.headline,
-      profile.bio,
-      profile.location,
-      profile.skills?.length > 0,
-      profile.experience?.length > 0,
-      profile.education?.length > 0,
-      user?.photo_url,
+      { value: profile.name || user?.name, weight: 1 },           // Name
+      { value: profile.headline, weight: 1.5 },                   // Headline - important for visibility
+      { value: profile.bio, weight: 1 },                          // Bio
+      { value: profile.location, weight: 1 },                     // Location
+      { value: profile.skills, weight: 2 },                       // Skills - critical for matching
+      { value: profile.experience, weight: 1.5 },                 // Experience
+      { value: profile.education, weight: 1 },                    // Education
+      { value: profile.photo_url || user?.photo_url, weight: 1 }, // Photo
+      { value: profile.graduation_year, weight: 0.5 },            // Graduation year
+      { value: profile.linkedin_url, weight: 0.5 },               // LinkedIn
     ];
-    const filled = fields.filter(Boolean).length;
-    return Math.round((filled / fields.length) * 100);
+
+    const totalWeight = fields.reduce((sum, f) => sum + f.weight, 0);
+    const earnedWeight = fields.reduce((sum, f) => {
+      return sum + (checkField(f.value) ? f.weight : 0);
+    }, 0);
+
+    return Math.round((earnedWeight / totalWeight) * 100);
   };
 
   const profileCompletion = calculateProfileCompletion();

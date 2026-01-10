@@ -1,43 +1,32 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: alumni-postgres
+    container_name: alumni-postgres-prod
     env_file:
       - .env.prod
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-alumni_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-alumni_password}
-      - POSTGRES_DB=${POSTGRES_DB:-alumni_db}
-    expose:
-      - "5432"
+    # No ports exposed to host for security, only internal network
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alumni_user} -d ${POSTGRES_DB:-alumni_db}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: alumni-backend
-    ports:
-      - "8010:8000"
+    container_name: alumni-backend-prod
+    expose:
+      - "8000"
     env_file:
       - .env.prod
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg2://${POSTGRES_USER:-alumni_user}:${POSTGRES_PASSWORD:-alumni_password}@postgres:5432/${POSTGRES_DB:-alumni_db}}
-      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://localhost:3030,http://frontend:3030}
-      - UPLOAD_DIR=/app/uploads
-      - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+      - QDRANT_URL=http://qdrant:6333
     volumes:
-      - backend_uploads:/app/uploads
+      - backend_uploads_prod:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,37 +37,57 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-      args:
-        VITE_API_URL: ${VITE_API_URL:-}
-    container_name: alumni-frontend
+    container_name: alumni-frontend-prod
     ports:
-      - "3030:80"
+      - "3030:80" # Expose Nginx on port 3030 (Host) -> 80 (Container)
+    env_file:
+      - .env.prod
     depends_on:
       backend:
         condition: service_healthy
-    restart: unless-stopped
+    restart: always
 
   qdrant:
     image: qdrant/qdrant:v1.9.0
-    container_name: alumni-qdrant
+    container_name: alumni-qdrant-prod
     expose:
       - "6333"
     volumes:
-      - qdrant_data:/qdrant/storage
+      - qdrant_data_prod:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/6333'"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
+      test: [ "CMD", "true" ]
+      interval: 30s
+      timeout: 5s
+      retries: 1
+    restart: always
+
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: alumni-agent-prod
+    env_file:
+      - .env.prod
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - LIVEKIT_URL=${LIVEKIT_URL}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - BACKEND_API_SECRET=${BACKEND_API_SECRET:-agent-secret-key}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: always
 
 volumes:
-  postgres_data:
-  backend_uploads:
-  qdrant_data:
+  postgres_data_prod:
+  backend_uploads_prod:
+  qdrant_data_prod:

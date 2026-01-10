@@ -42,5 +42,6 @@ htmlcov/
 uploads/*
 !uploads/.gitkeep
 
-# Cursor
-.cursor/
+# Rules
+rules/
+

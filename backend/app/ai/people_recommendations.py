@@ -545,6 +545,8 @@ async def _bootstrap_embeddings_if_empty(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         client = _get_qdrant_client()
+        # Ensure collection exists first
+        _ensure_collection(client, 384)  # all-MiniLM-L6-v2 produces 384-dim vectors
         count = client.count(collection_name=COLLECTION_NAME, exact=False).count
         logger.info(f"Qdrant collection '{COLLECTION_NAME}' has {count} vectors")
         if count and count > 0:
