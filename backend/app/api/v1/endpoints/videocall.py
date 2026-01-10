@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi.encoders import jsonable_encoder
+from app.api.ws import manager
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
