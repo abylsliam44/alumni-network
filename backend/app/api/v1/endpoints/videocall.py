@@ -96,11 +96,13 @@ def create_access_token(
             detail="LiveKit credentials not configured"
         )
     
-    # DEBUG LOGGING
-    logger.info(f"Generating LiveKit token for room: {room_name}")
-    logger.info(f"LIVEKIT_URL: {LIVEKIT_URL}")
-    logger.info(f"API_KEY: {LIVEKIT_API_KEY[:4]}... (len={len(LIVEKIT_API_KEY)})")
-    logger.info(f"API_SECRET: {LIVEKIT_API_SECRET[:4]}... (len={len(LIVEKIT_API_SECRET)})")
+    # DEBUG LOGGING (Using print to ensure it shows in docker logs)
+    print(f"--- LIVEKIT TOKEN GENERATION ---", flush=True)
+    print(f"Room: {room_name}", flush=True)
+    print(f"URL: '{LIVEKIT_URL}'", flush=True)
+    print(f"API_KEY: '{LIVEKIT_API_KEY}' (len={len(LIVEKIT_API_KEY)})", flush=True)
+    print(f"API_SECRET: '{LIVEKIT_API_SECRET[:5]}...' (len={len(LIVEKIT_API_SECRET)})", flush=True)
+    print(f"-------------------------------", flush=True)
     
     # Права доступа
     grant = livekit_api.VideoGrants(
