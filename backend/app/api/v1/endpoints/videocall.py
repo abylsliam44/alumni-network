@@ -13,6 +13,7 @@ from app.api.ws import manager
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from app.api import deps
 from app.core.database import get_db
@@ -29,13 +30,18 @@ try:
 except ImportError:
     LIVEKIT_AVAILABLE = False
 
+    LIVEKIT_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 # Конфигурация LiveKit
-LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")
-LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
-LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
-BACKEND_API_SECRET = os.getenv("BACKEND_API_SECRET", "agent-secret-key")
+# Конфигурация LiveKit
+LIVEKIT_URL = os.getenv("LIVEKIT_URL", "").strip().rstrip("/")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip()
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "").strip()
+BACKEND_API_SECRET = os.getenv("BACKEND_API_SECRET", "agent-secret-key").strip()
 
 
 class CreateRoomRequest(BaseModel):
@@ -89,6 +95,12 @@ def create_access_token(
             status_code=503,
             detail="LiveKit credentials not configured"
         )
+    
+    # DEBUG LOGGING
+    logger.info(f"Generating LiveKit token for room: {room_name}")
+    logger.info(f"LIVEKIT_URL: {LIVEKIT_URL}")
+    logger.info(f"API_KEY: {LIVEKIT_API_KEY[:4]}... (len={len(LIVEKIT_API_KEY)})")
+    logger.info(f"API_SECRET: {LIVEKIT_API_SECRET[:4]}... (len={len(LIVEKIT_API_SECRET)})")
     
     # Права доступа
     grant = livekit_api.VideoGrants(
