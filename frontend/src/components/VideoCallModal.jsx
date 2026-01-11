@@ -108,7 +108,11 @@ const VideoCallModal = ({
     useEffect(() => {
         const remoteParticipant = remoteParticipants[0];
         if (remoteParticipant && remoteVideoRef.current) {
-            const videoPublication = Array.from(remoteParticipant.videoTracks.values())[0];
+            // Add safety check for videoTracks
+            const tracksMap = remoteParticipant.videoTracks;
+            if (!tracksMap) return;
+
+            const videoPublication = Array.from(tracksMap.values())[0];
             if (videoPublication?.track) {
                 videoPublication.track.attach(remoteVideoRef.current);
                 return () => {
