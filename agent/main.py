@@ -26,7 +26,7 @@ from livekit.agents import (
 from livekit.agents.stt import SpeechEvent, SpeechEventType
 from livekit.plugins import deepgram, openai
 
-load_dotenv()
+load_dotenv(override=False)  # Не переопределяем переменные из Docker environment
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +35,16 @@ logger = logging.getLogger("videocall-agent")
 # URL бэкенда для сохранения результатов
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 BACKEND_API_SECRET = os.getenv("BACKEND_API_SECRET", "")
+
+# Debug: проверяем что переменные окружения загружены
+_lk_url = os.getenv("LIVEKIT_URL", "")
+_lk_key = os.getenv("LIVEKIT_API_KEY", "")
+_lk_secret = os.getenv("LIVEKIT_API_SECRET", "")
+logger.info(f"=== AGENT STARTUP ===")
+logger.info(f"LIVEKIT_URL: {'SET' if _lk_url else 'NOT SET'} ({_lk_url[:30]}...)" if _lk_url else "LIVEKIT_URL: NOT SET")
+logger.info(f"LIVEKIT_API_KEY: {'SET' if _lk_key else 'NOT SET'}")
+logger.info(f"LIVEKIT_API_SECRET: {'SET' if _lk_secret else 'NOT SET'}")
+logger.info(f"BACKEND_URL: {BACKEND_URL}")
 
 
 class TranscriptBuffer:
