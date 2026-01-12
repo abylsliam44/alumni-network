@@ -1,3 +1,4 @@
+#!/bin/bash
 echo "=== ENTRYPOINT DEBUG ==="
 echo "LIVEKIT_URL: '${LIVEKIT_URL}'"
 echo "LIVEKIT_API_KEY length: ${#LIVEKIT_API_KEY}"
