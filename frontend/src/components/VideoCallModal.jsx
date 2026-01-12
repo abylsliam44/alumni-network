@@ -59,6 +59,56 @@ const formatDuration = (seconds) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
+// Подкомпонент для управления аудио участника
+// Вынесен из VideoCallModal чтобы избежать пересоздания при ре-рендерах родителя
+const ParticipantAudio = ({ participant }) => {
+    const audioRef = useRef(null);
+
+    // Функция для прикрепления треков
+    const attachTracks = useCallback((el) => {
+        if (!el || !participant) return;
+
+        participant.audioTracks.forEach(pub => {
+            if (pub.track && pub.kind === 'audio') {
+                pub.track.attach(el);
+            }
+        });
+
+        // Явно пытаемся воспроизвести
+        el.play().catch(e => {
+            console.error("Audio autoplay failed:", e);
+        });
+    }, [participant]);
+
+    // Используем ref callback для управления жизненным циклом элемента
+    const setAudioRef = useCallback((el) => {
+        // Если элемент меняется (или удаляется), нужно открепить треки от старого
+        if (audioRef.current && audioRef.current !== el) {
+            participant.audioTracks.forEach(pub => {
+                if (pub.track) {
+                    pub.track.detach(audioRef.current);
+                }
+            });
+        }
+
+        audioRef.current = el;
+
+        // Если появился новый элемент, прикрепляем
+        if (el) {
+            attachTracks(el);
+        }
+    }, [participant, attachTracks]);
+
+    // Эффект для обновления при изменениях внутри participant (например, новый трек добавлен)
+    useEffect(() => {
+        if (audioRef.current && participant) {
+            attachTracks(audioRef.current);
+        }
+    }); // Run on every render to ensure tracks are attached if they just arrived
+
+    return <audio ref={setAudioRef} autoPlay playsInline />;
+};
+
 const VideoCallModal = ({
     isOpen,
     onClose,
@@ -84,7 +134,6 @@ const VideoCallModal = ({
 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
-    const remoteAudioRef = useRef(null);
     const [showControls, setShowControls] = useState(true);
     const controlsTimeoutRef = useRef(null);
 
@@ -105,54 +154,27 @@ const VideoCallModal = ({
         }
     }, [localVideoTrack]);
 
-    // Прикрепляем удалённое видео и аудио
+    // Прикрепляем удалённое видео (только для активного участника)
     useEffect(() => {
-        if (!remoteParticipants.length) return;
-
-        const cleanupFns = [];
-
-        // 1. Ищем участника с видео (приоритет реальному собеседнику)
-        // Проверяем есть ли опубликованные и подписанные видео треки
+        // 1. Ищем участника с видео (приоритет реальному собеседнику с камерой)
         const videoParticipant = remoteParticipants.find(p => {
             return Array.from(p.videoTracks.values()).some(pub =>
                 pub.track && pub.kind === 'video'
             );
         }) || remoteParticipants[0];
 
-        // Прикрепляем видео (только одного участника)
         if (videoParticipant && remoteVideoRef.current) {
-            const videoTracksMap = videoParticipant.videoTracks;
-            const videoPublication = Array.from(videoTracksMap.values())
+            const videoPublication = Array.from(videoParticipant.videoTracks.values())
                 .find(pub => pub.track && pub.kind === 'video');
 
             if (videoPublication?.track) {
                 videoPublication.track.attach(remoteVideoRef.current);
-                cleanupFns.push(() => {
+                return () => {
                     videoPublication.track.detach(remoteVideoRef.current);
-                });
+                };
             }
         }
-
-        // 2. Прикрепляем аудио ВСЕХ участников (чтобы слышать и собеседника, и агента)
-        remoteParticipants.forEach(p => {
-            const audioTracksMap = p.audioTracks;
-            Array.from(audioTracksMap.values()).forEach(pub => {
-                if (pub.track && pub.kind === 'audio') {
-                    // Используем встроенный механизм LiveKit для создания аудио элементов
-                    // Так как участников может быть несколько
-                    const audioElement = pub.track.attach();
-                    cleanupFns.push(() => {
-                        pub.track.detach(audioElement);
-                        audioElement.remove();
-                    });
-                }
-            });
-        });
-
-        return () => {
-            cleanupFns.forEach(fn => fn());
-        };
-    }, [remoteParticipants]);
+    }, [remoteParticipants]); // Здесь зависимость от списка ок, так как видео элемент один
 
     // Автоскрытие контролов
     useEffect(() => {
@@ -191,6 +213,11 @@ const VideoCallModal = ({
     return (
         <div className="videocall-modal-overlay">
             <div className="videocall-modal">
+                {/* Рендерим аудио для ВСЕХ участников независимо */}
+                {remoteParticipants.map(participant => (
+                    <ParticipantAudio key={participant.identity} participant={participant} />
+                ))}
+
                 {/* Заголовок */}
                 <div className={`videocall-header ${showControls ? 'visible' : ''}`}>
                     <div className="videocall-info">
@@ -282,9 +309,6 @@ const VideoCallModal = ({
                         <button onClick={() => connect(livekitUrl, token)}>Попробовать снова</button>
                     </div>
                 )}
-
-                {/* Скрытый audio элемент для воспроизведения звука собеседника */}
-                <audio ref={remoteAudioRef} autoPlay />
             </div>
         </div>
     );
