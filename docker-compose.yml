@@ -77,9 +77,9 @@ services:
       - .env
     environment:
       - BACKEND_URL=http://backend:8000
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - BACKEND_API_SECRET=${BACKEND_API_SECRET:-agent-secret-key}
+    volumes:
+      - ./.env:/app/.env
     depends_on:
       backend:
         condition: service_healthy
