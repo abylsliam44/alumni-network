@@ -107,38 +107,47 @@ const VideoCallModal = ({
 
     // Прикрепляем удалённое видео и аудио
     useEffect(() => {
-        const remoteParticipant = remoteParticipants[0];
-        if (!remoteParticipant) return;
+        if (!remoteParticipants.length) return;
 
         const cleanupFns = [];
 
-        // Прикрепляем видео трек
-        if (remoteVideoRef.current) {
-            const videoTracksMap = remoteParticipant.videoTracks;
-            if (videoTracksMap) {
-                const videoPublication = Array.from(videoTracksMap.values())[0];
-                if (videoPublication?.track) {
-                    videoPublication.track.attach(remoteVideoRef.current);
-                    cleanupFns.push(() => {
-                        videoPublication.track.detach(remoteVideoRef.current);
-                    });
-                }
+        // 1. Ищем участника с видео (приоритет реальному собеседнику)
+        // Проверяем есть ли опубликованные и подписанные видео треки
+        const videoParticipant = remoteParticipants.find(p => {
+            return Array.from(p.videoTracks.values()).some(pub =>
+                pub.track && pub.kind === 'video'
+            );
+        }) || remoteParticipants[0];
+
+        // Прикрепляем видео (только одного участника)
+        if (videoParticipant && remoteVideoRef.current) {
+            const videoTracksMap = videoParticipant.videoTracks;
+            const videoPublication = Array.from(videoTracksMap.values())
+                .find(pub => pub.track && pub.kind === 'video');
+
+            if (videoPublication?.track) {
+                videoPublication.track.attach(remoteVideoRef.current);
+                cleanupFns.push(() => {
+                    videoPublication.track.detach(remoteVideoRef.current);
+                });
             }
         }
 
-        // Прикрепляем аудио трек (КРИТИЧНО для слышимости собеседника!)
-        if (remoteAudioRef.current) {
-            const audioTracksMap = remoteParticipant.audioTracks;
-            if (audioTracksMap) {
-                const audioPublication = Array.from(audioTracksMap.values())[0];
-                if (audioPublication?.track) {
-                    audioPublication.track.attach(remoteAudioRef.current);
+        // 2. Прикрепляем аудио ВСЕХ участников (чтобы слышать и собеседника, и агента)
+        remoteParticipants.forEach(p => {
+            const audioTracksMap = p.audioTracks;
+            Array.from(audioTracksMap.values()).forEach(pub => {
+                if (pub.track && pub.kind === 'audio') {
+                    // Используем встроенный механизм LiveKit для создания аудио элементов
+                    // Так как участников может быть несколько
+                    const audioElement = pub.track.attach();
                     cleanupFns.push(() => {
-                        audioPublication.track.detach(remoteAudioRef.current);
+                        pub.track.detach(audioElement);
+                        audioElement.remove();
                     });
                 }
-            }
-        }
+            });
+        });
 
         return () => {
             cleanupFns.forEach(fn => fn());
