@@ -20,6 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Run the agent worker
-CMD ["python", "main.py", "start"]
+# Make entrypoint executable
+RUN chmod +x entrypoint.sh
 
+# Run the agent worker via entrypoint script
+CMD ["./entrypoint.sh"]
