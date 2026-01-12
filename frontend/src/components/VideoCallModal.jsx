@@ -84,6 +84,7 @@ const VideoCallModal = ({
 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+    const remoteAudioRef = useRef(null);
     const [showControls, setShowControls] = useState(true);
     const controlsTimeoutRef = useRef(null);
 
@@ -104,22 +105,44 @@ const VideoCallModal = ({
         }
     }, [localVideoTrack]);
 
-    // Прикрепляем удалённое видео
+    // Прикрепляем удалённое видео и аудио
     useEffect(() => {
         const remoteParticipant = remoteParticipants[0];
-        if (remoteParticipant && remoteVideoRef.current) {
-            // Add safety check for videoTracks
-            const tracksMap = remoteParticipant.videoTracks;
-            if (!tracksMap) return;
+        if (!remoteParticipant) return;
 
-            const videoPublication = Array.from(tracksMap.values())[0];
-            if (videoPublication?.track) {
-                videoPublication.track.attach(remoteVideoRef.current);
-                return () => {
-                    videoPublication.track.detach(remoteVideoRef.current);
-                };
+        const cleanupFns = [];
+
+        // Прикрепляем видео трек
+        if (remoteVideoRef.current) {
+            const videoTracksMap = remoteParticipant.videoTracks;
+            if (videoTracksMap) {
+                const videoPublication = Array.from(videoTracksMap.values())[0];
+                if (videoPublication?.track) {
+                    videoPublication.track.attach(remoteVideoRef.current);
+                    cleanupFns.push(() => {
+                        videoPublication.track.detach(remoteVideoRef.current);
+                    });
+                }
             }
         }
+
+        // Прикрепляем аудио трек (КРИТИЧНО для слышимости собеседника!)
+        if (remoteAudioRef.current) {
+            const audioTracksMap = remoteParticipant.audioTracks;
+            if (audioTracksMap) {
+                const audioPublication = Array.from(audioTracksMap.values())[0];
+                if (audioPublication?.track) {
+                    audioPublication.track.attach(remoteAudioRef.current);
+                    cleanupFns.push(() => {
+                        audioPublication.track.detach(remoteAudioRef.current);
+                    });
+                }
+            }
+        }
+
+        return () => {
+            cleanupFns.forEach(fn => fn());
+        };
     }, [remoteParticipants]);
 
     // Автоскрытие контролов
@@ -250,6 +273,9 @@ const VideoCallModal = ({
                         <button onClick={() => connect(livekitUrl, token)}>Попробовать снова</button>
                     </div>
                 )}
+
+                {/* Скрытый audio элемент для воспроизведения звука собеседника */}
+                <audio ref={remoteAudioRef} autoPlay />
             </div>
         </div>
     );

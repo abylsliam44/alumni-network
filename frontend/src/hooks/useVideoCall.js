@@ -86,7 +86,22 @@ export const useVideoCall = () => {
             });
 
             room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                // Обновляем участника с новым треком
+                // Добавляем или обновляем участника с новым треком
+                setRemoteParticipants((prev) => {
+                    const exists = prev.some((p) => p.identity === participant.identity);
+                    if (exists) {
+                        // Создаём новый массив с обновлённым участником для trigger re-render
+                        return prev.map((p) =>
+                            p.identity === participant.identity ? participant : p
+                        );
+                    } else {
+                        return [...prev, participant];
+                    }
+                });
+            });
+
+            room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                // Принудительно обновляем состояние участников для re-render
                 setRemoteParticipants((prev) =>
                     prev.map((p) =>
                         p.identity === participant.identity ? participant : p

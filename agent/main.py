@@ -148,15 +148,20 @@ async def entrypoint(ctx: JobContext):
     """
     logger.info(f"Агент подключается к комнате: {ctx.room.name}")
     
-    # Извлекаем conversation_id из метаданных комнаты
-    room_metadata = ctx.room.metadata or "{}"
-    import json
+    # Извлекаем conversation_id из имени комнаты: call_{conversation_id}_{timestamp}
+    room_name = ctx.room.name
+    conversation_id = ""
     try:
-        metadata = json.loads(room_metadata)
-        conversation_id = metadata.get("conversation_id", "")
-    except json.JSONDecodeError:
-        conversation_id = ""
-        logger.warning("Не удалось распарсить метаданные комнаты")
+        parts = room_name.split("_")
+        if len(parts) >= 3 and parts[0] == "call":
+            # UUID находится между первым "call_" и последним "_timestamp"
+            # Формат: call_{uuid}_{timestamp}
+            conversation_id = parts[1]
+            logger.info(f"Извлечён conversation_id: {conversation_id}")
+        else:
+            logger.warning(f"Неожиданный формат имени комнаты: {room_name}")
+    except Exception as e:
+        logger.error(f"Ошибка при извлечении conversation_id: {e}")
 
     # Инициализируем буфер транскриптов
     transcript_buffer = TranscriptBuffer()
