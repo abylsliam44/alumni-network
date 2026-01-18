@@ -16,6 +16,12 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
+# Optional OAuth2 scheme - does not raise error if token missing
+optional_oauth2 = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False
+)
+
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
     token: str = Depends(reusable_oauth2)
@@ -66,3 +72,29 @@ def require_admin(
             detail="Admin privileges required"
         )
     return current_user
+
+
+async def get_current_user_optional(
+    db: AsyncSession = Depends(get_db),
+    token: Optional[str] = Depends(optional_oauth2)
+) -> Optional[User]:
+    """
+    Get current user if token provided, otherwise return None.
+    Useful for endpoints accessible to both authenticated and anonymous users.
+    """
+    if not token:
+        return None
+    
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+    except (JWTError, ValidationError):
+        return None
+    
+    result = await db.execute(select(User).where(User.id == token_data.sub))
+    user = result.scalars().first()
+    
+    return user
+

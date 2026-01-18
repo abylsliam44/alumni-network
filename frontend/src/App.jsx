@@ -13,7 +13,11 @@ import EditProfile from './pages/EditProfile';
 import Directory from './pages/Directory';
 import Feed from './pages/Feed';
 import Jobs from './pages/Jobs';
+import JobCreate from './pages/JobCreate';
+import JobDetail from './pages/JobDetail';
 import Events from './pages/Events';
+import EventDetail from './pages/EventDetail';
+import EventCreate from './pages/EventCreate';
 import Messages from './pages/Messages';
 import Recommendations from './pages/Recommendations';
 import Settings from './pages/Settings';
@@ -85,11 +89,51 @@ function App() {
               }
             />
             <Route
+              path="/jobs/create"
+              element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <JobCreate />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/jobs/:jobId"
+              element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <JobDetail />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/events"
               element={
                 <ProtectedRoute>
                   <AppShell>
                     <Events />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events/create"
+              element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <EventCreate />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events/:eventId"
+              element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <EventDetail />
                   </AppShell>
                 </ProtectedRoute>
               }

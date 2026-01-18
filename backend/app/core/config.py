@@ -29,6 +29,21 @@ class Settings(BaseSettings):
 
     # Storage
     UPLOAD_DIR: str = "uploads"
+    
+    # MinIO (S3-compatible storage)
+    MINIO_ENDPOINT: str = "minio:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET: str = "alumni-files"
+    MINIO_SECURE: bool = False
+    
+    # Email (SMTP)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAIL_FROM: Optional[str] = None
+    EMAIL_FROM_NAME: str = "Alumni Network"
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
@@ -43,3 +58,4 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
+
