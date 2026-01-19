@@ -26,19 +26,44 @@ def upgrade() -> None:
     materialtype_enum = postgresql.ENUM('agenda', 'presentation', 'document', 'other', name='materialtype', create_type=False)
     
     # Create the enum types
-    op.execute("CREATE TYPE eventtype AS ENUM ('career', 'educational', 'networking', 'recruiting', 'invite-only')")
-    op.execute("CREATE TYPE eventformat AS ENUM ('online', 'offline', 'hybrid')")
-    op.execute("CREATE TYPE eventstatus AS ENUM ('draft', 'pending', 'approved', 'cancelled', 'completed')")
-    op.execute("CREATE TYPE materialtype AS ENUM ('agenda', 'presentation', 'document', 'other')")
+    # Create the enum types safely
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE eventtype AS ENUM ('career', 'educational', 'networking', 'recruiting', 'invite-only');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE eventformat AS ENUM ('online', 'offline', 'hybrid');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE eventstatus AS ENUM ('draft', 'pending', 'approved', 'cancelled', 'completed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE materialtype AS ENUM ('agenda', 'presentation', 'document', 'other');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
     
     # Add WAITLISTED to registrationstatus enum
     op.execute("ALTER TYPE registrationstatus ADD VALUE IF NOT EXISTS 'WAITLISTED'")
     
     # Add new columns to events table
     op.add_column('events', sa.Column('topic', sa.String(length=200), nullable=True))
-    op.add_column('events', sa.Column('type', sa.Enum('career', 'educational', 'networking', 'recruiting', 'invite-only', name='eventtype'), nullable=True))
-    op.add_column('events', sa.Column('format', sa.Enum('online', 'offline', 'hybrid', name='eventformat'), nullable=True))
-    op.add_column('events', sa.Column('status', sa.Enum('draft', 'pending', 'approved', 'cancelled', 'completed', name='eventstatus'), nullable=True))
+    op.add_column('events', sa.Column('type', eventtype_enum, nullable=True))
+    op.add_column('events', sa.Column('format', eventformat_enum, nullable=True))
+    op.add_column('events', sa.Column('status', eventstatus_enum, nullable=True))
     op.add_column('events', sa.Column('start_time', sa.DateTime(), nullable=True))
     op.add_column('events', sa.Column('end_time', sa.DateTime(), nullable=True))
     op.add_column('events', sa.Column('online_link', sa.String(length=500), nullable=True))
@@ -91,7 +116,7 @@ def upgrade() -> None:
         sa.Column('event_id', sa.UUID(), nullable=False),
         sa.Column('title', sa.String(length=200), nullable=False),
         sa.Column('url', sa.String(length=500), nullable=False),
-        sa.Column('type', sa.Enum('agenda', 'presentation', 'document', 'other', name='materialtype'), nullable=False),
+        sa.Column('type', materialtype_enum, nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['event_id'], ['events.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')

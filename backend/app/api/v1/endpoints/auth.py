@@ -71,6 +71,7 @@ async def register(
         role=role_value,
         is_mentor=False,
         is_admin=False,
+        system_roles=["JOB_APPLICANT"],
     )
     
     # Create empty profile for user
