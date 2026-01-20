@@ -219,7 +219,19 @@ const Recommendations = () => {
         ) : (
           <div className="rec-grid">
             {recommendations.map((rec, index) => {
-              const user = rec.user || rec;
+              // The API returns a flat list of items with 'target_user_id'
+              // Some other APIs might return { user: { ... } }
+              const rawUser = rec.user || rec;
+
+              // Normalize the user object
+              const user = {
+                ...rawUser,
+                id: rawUser.id || rawUser.target_user_id,
+              };
+
+              // Skip if no valid ID
+              if (!user.id) return null;
+
               const matchScore = rec.match_score || rec.score || 0;
               const photoUrl = resolveUrl(user.photo_url);
               const isConnected = connectedIds.has(user.id);
@@ -227,7 +239,7 @@ const Recommendations = () => {
 
               return (
                 <article
-                  key={user.id || index}
+                  key={user.id}
                   className="rec-card"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >

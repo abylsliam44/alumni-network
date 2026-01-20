@@ -681,27 +681,37 @@ const Dashboard = () => {
           </div>
           {recommendations.length > 0 ? (
             <div className="dash-recommendations">
-              {recommendations.map((rec) => (
-                <div key={rec.user.id} className="dash-rec-item">
-                  <img
-                    src={resolveUrl(rec.user.photo_url) || dicebear(rec.user.name)}
-                    alt={rec.user.name}
-                    className="dash-rec-avatar"
-                  />
-                  <div className="dash-rec-info">
-                    <span className="dash-rec-name">{rec.user.name}</span>
-                    <span className="dash-rec-headline">
-                      {rec.user.headline || rec.user.role}
-                    </span>
-                    {rec.reason && (
-                      <span className="dash-rec-reason">{rec.reason}</span>
-                    )}
+              {recommendations.map((rec) => {
+                // API returns items with target_user_id, not nested user object
+                const userId = rec.target_user_id || rec.id || rec.user?.id;
+                const name = rec.name || rec.user?.name;
+                const photoUrl = rec.photo_url || rec.user?.photo_url;
+                const headline = rec.mentor_headline || rec.role || rec.user?.headline;
+                // Use short reason if available
+                const reason = rec.reason_short || rec.reason || "Recommended based on your profile";
+
+                if (!userId) return null;
+
+                return (
+                  <div key={userId} className="dash-rec-item">
+                    <img
+                      src={resolveUrl(photoUrl) || dicebear(name)}
+                      alt={name}
+                      className="dash-rec-avatar"
+                    />
+                    <div className="dash-rec-info">
+                      <span className="dash-rec-name">{name}</span>
+                      <span className="dash-rec-headline">
+                        {headline}
+                      </span>
+                      <span className="dash-rec-reason">{reason}</span>
+                    </div>
+                    <Link to={`/profile/${userId}`} className="dash-btn small secondary">
+                      View
+                    </Link>
                   </div>
-                  <Link to={`/profile/${rec.user.id}`} className="dash-btn small secondary">
-                    View
-                  </Link>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="dash-empty">
