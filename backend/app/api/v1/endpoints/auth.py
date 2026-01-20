@@ -107,3 +107,38 @@ async def read_users_me(
     Get current user
     """
     return current_user
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    refresh_token: str,
+) -> Any:
+    """
+    Refresh access token
+    """
+    try:
+        payload = security.verify_token(refresh_token)
+        user_id = payload.get("sub")
+        if not user_id:
+             raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # In a real app we might check if user exists/is active here too
+    access_token = security.create_access_token(user_id)
+    # Be polite and return a new refresh token too to extend session
+    new_refresh_token = security.create_refresh_token(user_id)
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "refresh_token": new_refresh_token
+    }

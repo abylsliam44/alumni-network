@@ -26,6 +26,9 @@ def create_refresh_token(subject: Union[str, Any], expires_delta: Optional[timed
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
+def verify_token(token: str) -> dict:
+    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
