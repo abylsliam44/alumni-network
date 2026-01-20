@@ -706,8 +706,17 @@ const Dashboard = () => {
           ) : (
             <div className="dash-empty">
               <UsersIcon />
-              <span>No recommendations yet</span>
-              <p>Connect with more people to get personalized recommendations</p>
+              {profileCompletion > 50 ? (
+                <>
+                  <span>No new matches found</span>
+                  <p>Check back later for new alumni connections</p>
+                </>
+              ) : (
+                <>
+                  <span>No recommendations yet</span>
+                  <p>Connect with more people to get personalized recommendations</p>
+                </>
+              )}
             </div>
           )}
         </section>

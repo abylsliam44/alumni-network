@@ -91,13 +91,21 @@ const Recommendations = () => {
   const [connectingId, setConnectingId] = useState(null);
   const [connectedIds, setConnectedIds] = useState(new Set());
 
+  const [profile, setProfile] = useState(null);
+
   const loadRecommendations = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await recommendationsApi.getPeople();
-      setData(res);
+      // Fetch both recommendations and profile to know if we should tell them to complete it
+      const [recRes, profileRes] = await Promise.all([
+        recommendationsApi.getPeople(),
+        import('../api/profile').then(m => m.profileApi.getMe())
+      ]);
+      setData(recRes);
+      setProfile(profileRes);
     } catch (err) {
+      console.error(err);
       setError('Failed to load recommendations. Please try again.');
     } finally {
       setLoading(false);
@@ -189,11 +197,24 @@ const Recommendations = () => {
             <div className="rec-empty-icon">
               <UsersIcon />
             </div>
-            <h3>No recommendations yet</h3>
-            <p>Complete your profile with skills and interests to get personalized recommendations</p>
-            <Link to="/profile/edit" className="rec-empty-btn">
-              Complete Profile
-            </Link>
+            {/* Logic: if profile has skills/interests, then it's a "no match" issue. If not, it's "incomplete". */}
+            {profile && (profile.skills?.length > 0 || profile.interests?.length > 0 || profile.mentor_areas_of_help?.length > 0) ? (
+              <>
+                <h3>No new recommendations</h3>
+                <p>We couldn't find any new matches for you right now. Check back later as more alumni join!</p>
+                <button onClick={loadRecommendations} className="rec-empty-btn secondary">
+                  Refresh
+                </button>
+              </>
+            ) : (
+              <>
+                <h3>No recommendations yet</h3>
+                <p>Complete your profile with skills and interests to get personalized recommendations</p>
+                <Link to="/profile/edit" className="rec-empty-btn">
+                  Complete Profile
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <div className="rec-grid">

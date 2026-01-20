@@ -159,10 +159,11 @@ const VideoCallModal = ({
         // 1. Ищем участника с видео (приоритет реальному собеседнику с камерой)
         const videoParticipant = remoteParticipants.find(p => {
             return Array.from(p.videoTracks.values()).some(pub =>
-                pub.track && pub.kind === 'video'
+                pub.track && pub.kind === 'video' && !pub.isMuted
             );
-        }) || remoteParticipants[0];
+        });
 
+        // Если нашли участника с видео - прикрепляем к рефу
         if (videoParticipant && remoteVideoRef.current) {
             const videoPublication = Array.from(videoParticipant.videoTracks.values())
                 .find(pub => pub.track && pub.kind === 'video');
@@ -239,7 +240,41 @@ const VideoCallModal = ({
                     {/* Удалённое видео (основное) */}
                     <div className="videocall-remote-video">
                         {remoteParticipants.length > 0 ? (
-                            <video ref={remoteVideoRef} autoPlay playsInline />
+                            (() => {
+                                // Logic to determine what to show
+                                // 1. Find a participant with an active video track
+                                const videoParticipant = remoteParticipants.find(p => {
+                                    return Array.from(p.videoTracks.values()).some(pub =>
+                                        pub.track && pub.kind === 'video' && !pub.isMuted
+                                    );
+                                });
+
+                                // If we have a participant with video, show it
+                                if (videoParticipant) {
+                                    return <video ref={remoteVideoRef} autoPlay playsInline className="remote-video-element" />;
+                                }
+
+                                // Otherwise show the avatar of the primary remote participant (not the agent if possible)
+                                // We'll just show the avatar of the 'otherUser' passed in props as a fallback for 1-on-1 calls
+                                return (
+                                    <div className="videocall-waiting">
+                                        <div className="videocall-avatar">
+                                            <img
+                                                src={
+                                                    otherUser?.photo_url ||
+                                                    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(otherUser?.name || 'U')}`
+                                                }
+                                                alt={otherUser?.name}
+                                            />
+                                        </div>
+                                        <span className="videocall-waiting-text">
+                                            {remoteParticipants.some(p => p.identity !== 'agent')
+                                                ? 'Собеседник без камеры'
+                                                : 'Ожидание участника...'}
+                                        </span>
+                                    </div>
+                                );
+                            })()
                         ) : (
                             <div className="videocall-waiting">
                                 <div className="videocall-avatar">

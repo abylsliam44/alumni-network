@@ -109,9 +109,27 @@ export const useVideoCall = () => {
                 );
             });
 
+            // Handle Subscription Failures
+            room.on(RoomEvent.TrackSubscriptionFailed, (trackSid, participant) => {
+                console.error('Failed to subscribe to track:', trackSid, participant);
+                // Optionally notify user via UI if needed, for now just log
+            });
+
+            // Handle Media Device Errors (permisssions, hardware issues)
+            room.on(RoomEvent.MediaDevicesError, (e) => {
+                const msg = `Media device error: ${e.message}`;
+                console.error(msg);
+                setError(msg);
+            });
+
             room.on(RoomEvent.ConnectionStateChanged, (state) => {
+                console.log('LiveKit connection state changed:', state);
                 if (state === 'reconnecting') {
                     setConnectionState('reconnecting');
+                } else if (state === 'connected') {
+                    setConnectionState('connected');
+                } else if (state === 'disconnected') {
+                    setConnectionState('disconnected');
                 }
             });
 
