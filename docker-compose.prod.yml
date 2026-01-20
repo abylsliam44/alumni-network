@@ -88,3 +88,4 @@ volumes:
   postgres_data_prod:
   backend_uploads_prod:
   qdrant_data_prod:
+  minio_data_prod:
