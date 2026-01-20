@@ -84,6 +84,25 @@ services:
         condition: service_healthy
     restart: always
 
+  minio:
+    image: minio/minio:latest
+    container_name: alumni-minio-prod
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data_prod:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
 volumes:
   postgres_data_prod:
   backend_uploads_prod:
