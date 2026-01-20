@@ -186,14 +186,14 @@ const Directory = () => {
               {total} members available to connect
             </p>
           </div>
-          
+
           <div className="dir-header-actions">
             <SearchInput
               value={filters.query}
               onChange={handleSearchChange}
               placeholder="Search members..."
             />
-            <button 
+            <button
               className={`dir-filter-toggle ${filtersVisible ? 'active' : ''}`}
               onClick={() => setFiltersVisible(!filtersVisible)}
             >

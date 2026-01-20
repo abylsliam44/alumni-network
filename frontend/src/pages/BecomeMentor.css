@@ -4,9 +4,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - 80px);
-    /* Adjust for header if needed */
-    padding: 40px 20px;
+    width: 100%;
+    /* Background kept for aesthetics */
     background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 40%),
         radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.05), transparent 40%);
 }

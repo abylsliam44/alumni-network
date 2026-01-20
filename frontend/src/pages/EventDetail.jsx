@@ -172,98 +172,100 @@ const EventDetail = () => {
 
   return (
     <div className="page event-detail-page">
-      <div className="back-link">
-        <Link to="/events">← Back to Events</Link>
-      </div>
+      {/* Hero Section */}
+      <div className="event-hero">
+        <div className="event-hero-content">
+          <div className="back-nav">
+            <Link to="/events" className="back-link">
+              ← Back to Events
+            </Link>
+          </div>
 
-      <div className="event-detail-layout">
-        <div className="event-main">
-          <Card className="event-header-card elevated">
-            <div className="event-badges">
-              <span
-                className="type-badge"
-                style={{ backgroundColor: EVENT_TYPES[event.type]?.color }}
-              >
+          <div className="hero-main">
+            <div className="hero-badges">
+              <span className="type-pill" style={{
+                backgroundColor: `${EVENT_TYPES[event.type]?.color || '#666'}20`,
+                color: EVENT_TYPES[event.type]?.color || '#fff',
+                borderColor: `${EVENT_TYPES[event.type]?.color || '#666'}40`
+              }}>
                 {EVENT_TYPES[event.type]?.label}
               </span>
-              <span className={`status-badge status-${event.status}`}>
+              <span className={`status-pill status-${event.status}`}>
                 {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
               </span>
-              <span className="format-badge">
-                {event.format === 'online' ? '🌐 Online' :
-                  event.format === 'hybrid' ? '🔄 Hybrid' : '📍 In-Person'}
-              </span>
             </div>
 
-            <h1 className="event-title">{event.title}</h1>
-            <p className="event-topic">{event.topic}</p>
+            <h1 className="hero-title">{event.title}</h1>
+            <p className="hero-topic">{event.topic}</p>
 
-            <div className="event-info-grid">
-              <div className="info-item">
-                <span className="info-icon">📅</span>
-                <div>
-                  <strong>When</strong>
-                  <p>{formatDate(event.start_time)}</p>
-                  {event.end_time && <p className="text-secondary">Until {formatDate(event.end_time)}</p>}
-                </div>
+            <div className="hero-meta">
+              <div className="hero-meta-item">
+                <span className="icon">📅</span>
+                <span>{formatDate(event.start_time)}</span>
               </div>
-
-              {event.location && (
-                <div className="info-item">
-                  <span className="info-icon">📍</span>
-                  <div>
-                    <strong>Location</strong>
-                    <p>{event.location}</p>
-                  </div>
-                </div>
-              )}
-
-              {event.online_link && (
-                <div className="info-item">
-                  <span className="info-icon">🔗</span>
-                  <div>
-                    <strong>Join Link</strong>
-                    <a href={event.online_link} target="_blank" rel="noopener noreferrer">
-                      {event.online_link}
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {event.capacity && (
-                <div className="info-item">
-                  <span className="info-icon">👥</span>
-                  <div>
-                    <strong>Capacity</strong>
-                    <p>{event.registrations_count} / {event.capacity} registered</p>
-                    {event.waitlist_count > 0 && (
-                      <p className="text-secondary">{event.waitlist_count} on waitlist</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {event.company_name && (
-                <div className="info-item">
-                  <span className="info-icon">🏢</span>
-                  <div>
-                    <strong>Company</strong>
-                    <p>{event.company_name}</p>
-                  </div>
-                </div>
-              )}
+              <div className="hero-meta-item">
+                <span className="icon">
+                  {event.format === 'online' ? '🌐' : event.format === 'hybrid' ? '🔄' : '📍'}
+                </span>
+                <span>
+                  {event.format === 'online' ? 'Online' :
+                    event.format === 'hybrid' ? 'Hybrid' :
+                      event.location || 'In-Person'}
+                </span>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {event.description && (
+      <div className="event-content-wrapper">
+
+        {/* Main Content Column */}
+        <div className="main-content">
+
+          {/* About Section */}
+          <Card className="content-card elevated">
+            <div className="section-header">
+              <h3>About this Event</h3>
+            </div>
+            {event.description ? (
               <div className="event-description">
-                <h3>About this Event</h3>
                 <p>{event.description}</p>
               </div>
+            ) : (
+              <p className="text-secondary">No description provided.</p>
             )}
 
-            {/* Organizer Actions */}
-            {canManage && (
-              <div className="organizer-actions">
+            {/* Materials (Mobile/Inline fallback or if important enough for main view) */}
+            {event.materials && event.materials.length > 0 && (
+              <div className="materials-section">
+                <h4>Materials</h4>
+                <div className="materials-grid">
+                  {event.materials.map((material) => (
+                    <a
+                      key={material.id}
+                      href={material.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="material-pill"
+                    >
+                      <span className="material-icon">
+                        {material.type === 'agenda' ? '📋' :
+                          material.type === 'presentation' ? '📊' : '📄'}
+                      </span>
+                      <span>{material.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Admin / Organizer Toolbar */}
+          {canManage && (
+            <Card className="admin-toolbar elevated">
+              <h3>Event Management</h3>
+              <div className="toolbar-actions">
                 {event.status === 'draft' && (
                   <>
                     <Button className="btn-primary" onClick={handleSubmitForApproval}>
@@ -275,217 +277,284 @@ const EventDetail = () => {
                   </>
                 )}
                 {event.status !== 'cancelled' && event.status !== 'completed' && (
-                  <Button className="btn-danger" onClick={handleCancel}>
+                  <Button className="btn-danger-outline" onClick={handleCancel}>
                     Cancel Event
                   </Button>
                 )}
               </div>
-            )}
-          </Card>
-
-          {/* Tabs */}
-          {hasStarted && (
-            <div className="event-tabs">
-              <button
-                className={`tab ${activeTab === 'details' ? 'active' : ''}`}
-                onClick={() => setActiveTab('details')}
-              >
-                Details
-              </button>
-              <button
-                className={`tab ${activeTab === 'chat' ? 'active' : ''}`}
-                onClick={() => setActiveTab('chat')}
-              >
-                Chat ({messages.total})
-              </button>
-              <button
-                className={`tab ${activeTab === 'reviews' ? 'active' : ''}`}
-                onClick={() => setActiveTab('reviews')}
-              >
-                Reviews ({reviews.total})
-              </button>
-            </div>
-          )}
-
-          {/* Tab Content */}
-          {activeTab === 'chat' && hasStarted && event.is_registered && (
-            <Card className="chat-section elevated">
-              <h3>Event Chat</h3>
-              <div className="messages-list">
-                {messages.items.length === 0 ? (
-                  <p className="text-secondary">No messages yet. Start the conversation!</p>
-                ) : (
-                  messages.items.map((msg) => (
-                    <div key={msg.id} className={`message ${msg.user_id === user?.id ? 'own' : ''}`}>
-                      <Avatar name={msg.user_name} src={msg.user_photo} size="sm" />
-                      <div className="message-content">
-                        <strong>{msg.user_name}</strong>
-                        <p>{msg.content}</p>
-                        <span className="message-time">
-                          {new Date(msg.created_at).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <form onSubmit={handleSendMessage} className="message-form">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="input"
-                />
-                <Button type="submit" className="btn-primary">Send</Button>
-              </form>
             </Card>
           )}
 
-          {activeTab === 'reviews' && hasStarted && (
-            <Card className="reviews-section elevated">
-              <div className="reviews-header">
-                <h3>Reviews</h3>
-                {reviews.average_rating > 0 && (
-                  <div className="average-rating">
-                    {'⭐'.repeat(Math.round(reviews.average_rating))}
-                    <span>{reviews.average_rating.toFixed(1)}</span>
-                  </div>
-                )}
+          {/* Interactive Tabs */}
+          {hasStarted && (
+            <div className="interaction-section">
+              <div className="tabs-nav">
+                <button
+                  className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('details')}
+                >
+                  Details
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('chat')}
+                >
+                  Live Chat <span className="tab-count">{messages.total}</span>
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === 'reviews' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('reviews')}
+                >
+                  Reviews <span className="tab-count">{reviews.total}</span>
+                </button>
               </div>
 
-              {event.is_registered && !showReviewForm && (
-                <Button className="btn-secondary" onClick={() => setShowReviewForm(true)}>
-                  Write a Review
-                </Button>
-              )}
+              <div className="tab-content">
+                {activeTab === 'details' && (
+                  <div className="details-tab-placeholder">
+                    <p className="text-secondary">Additional event details and resources appear here.</p>
+                    {/* You could move materials here if preferred */}
+                  </div>
+                )}
 
-              {showReviewForm && (
-                <form onSubmit={handleSubmitReview} className="review-form">
-                  <div className="form-group">
-                    <label>Rating</label>
-                    <div className="star-rating">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          className={`star ${newReview.rating >= star ? 'active' : ''}`}
-                          onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
-                        >
-                          ⭐
-                        </button>
+                {activeTab === 'chat' && (
+                  <Card className="chat-card elevated">
+                    <div className="messages-container">
+                      {messages.items.length === 0 ? (
+                        <div className="empty-chat">
+                          <span>💬</span>
+                          <p>Start the conversation!</p>
+                        </div>
+                      ) : (
+                        messages.items.map((msg) => (
+                          <div key={msg.id} className={`chat-message ${msg.user_id === user?.id ? 'own' : ''}`}>
+                            <Avatar name={msg.user_name} src={msg.user_photo} size="sm" />
+                            <div className="bubble">
+                              <div className="bubble-header">
+                                <span className="author">{msg.user_name}</span>
+                                <span className="time">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <p>{msg.content}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {event.is_registered ? (
+                      <form onSubmit={handleSendMessage} className="chat-input-area">
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Type a message..."
+                          className="chat-input"
+                        />
+                        <Button type="submit" className="btn-primary btn-icon">
+                          ➤
+                        </Button>
+                      </form>
+                    ) : (
+                      <div className="chat-locked">
+                        <p>Register to join the chat.</p>
+                      </div>
+                    )}
+                  </Card>
+                )}
+
+                {activeTab === 'reviews' && (
+                  <Card className="reviews-card elevated">
+                    <div className="reviews-summary">
+                      <div className="rating-big">
+                        <span className="score">{reviews.average_rating.toFixed(1)}</span>
+                        <div className="stars">
+                          {'⭐'.repeat(Math.round(reviews.average_rating))}
+                        </div>
+                        <span className="count">{reviews.total} reviews</span>
+                      </div>
+                      {event.is_registered && !showReviewForm && (
+                        <Button className="btn-secondary" onClick={() => setShowReviewForm(true)}>
+                          Write Review
+                        </Button>
+                      )}
+                    </div>
+
+                    {showReviewForm && (
+                      <form onSubmit={handleSubmitReview} className="review-form-box">
+                        <h4>Write a Review</h4>
+                        <div className="form-group">
+                          <div className="star-select">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                className={`star-btn ${newReview.rating >= star ? 'active' : ''}`}
+                                onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
+                              >
+                                ★
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <textarea
+                          value={newReview.comment}
+                          onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
+                          placeholder="Share your experience..."
+                          className="review-input"
+                          rows={3}
+                        />
+                        <div className="form-actions">
+                          <Button type="submit" className="btn-primary">Submit</Button>
+                          <Button type="button" className="btn-text" onClick={() => setShowReviewForm(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    )}
+
+                    <div className="reviews-list">
+                      {reviews.items.map((review) => (
+                        <div key={review.id} className="review-row">
+                          <Avatar name={review.user_name} src={review.user_photo} size="md" />
+                          <div className="review-content">
+                            <div className="review-meta">
+                              <span className="author">{review.user_name}</span>
+                              <span className="date">{new Date(review.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div className="review-stars">{'⭐'.repeat(review.rating)}</div>
+                            {review.comment && <p className="comment-text">{review.comment}</p>}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                  <div className="form-group">
-                    <label>Comment (optional)</label>
-                    <textarea
-                      value={newReview.comment}
-                      onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
-                      className="input"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="form-actions">
-                    <Button type="submit" className="btn-primary">Submit Review</Button>
-                    <Button type="button" className="btn-secondary" onClick={() => setShowReviewForm(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              )}
-
-              <div className="reviews-list">
-                {reviews.items.map((review) => (
-                  <div key={review.id} className="review-item">
-                    <div className="review-header">
-                      <Avatar name={review.user_name} src={review.user_photo} size="sm" />
-                      <div>
-                        <strong>{review.user_name}</strong>
-                        <div className="review-rating">
-                          {'⭐'.repeat(review.rating)}
-                        </div>
-                      </div>
-                      <span className="review-date">
-                        {new Date(review.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {review.comment && <p className="review-comment">{review.comment}</p>}
-                  </div>
-                ))}
+                  </Card>
+                )}
               </div>
-            </Card>
+            </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="event-sidebar">
-          {/* Registration Card */}
-          <Card className="registration-card elevated">
+        {/* Sidebar Column */}
+        <div className="sidebar-content">
+
+          {/* Primary Action Card */}
+          <Card className="sidebar-card action-card elevated">
             <h3>Registration</h3>
-            {event.status === 'approved' ? (
-              <>
-                {event.is_registered ? (
-                  <div className="registered-status">
-                    <div className={`status-display ${event.registration_status?.toLowerCase()}`}>
-                      {event.registration_status === 'WAITLISTED' ? (
-                        <>
-                          <span className="status-icon">⏳</span>
-                          <span>You're on the waitlist</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="status-icon">✓</span>
-                          <span>You're registered!</span>
-                        </>
-                      )}
+            <div className="registration-status-box">
+              {event.status === 'approved' ? (
+                event.is_registered ? (
+                  <div className="status-message">
+                    <div className={`status-icon-box ${event.registration_status === 'WAITLISTED' ? 'waitlist' : 'success'}`}>
+                      {event.registration_status === 'WAITLISTED' ? '⏳' : '✓'}
                     </div>
-                    <Button className="btn-danger btn-sm" onClick={handleUnregister}>
+                    <div className="status-text">
+                      <h4>{event.registration_status === 'WAITLISTED' ? 'Waitlisted' : 'Registered'}</h4>
+                      <p>{event.registration_status === 'WAITLISTED' ? 'You are on the waitlist.' : 'You are all set!'}</p>
+                    </div>
+                    <Button className="btn-text-danger full-width" onClick={handleUnregister}>
                       Cancel Registration
                     </Button>
                   </div>
                 ) : (
-                  <Button className="btn-primary btn-full" onClick={handleRegister}>
-                    {event.capacity && event.registrations_count >= event.capacity
-                      ? 'Join Waitlist'
-                      : 'Register Now'}
-                  </Button>
-                )}
-              </>
-            ) : (
-              <p className="text-secondary">
-                {event.status === 'draft' ? 'Event is still a draft.' :
-                  event.status === 'pending' ? 'Pending admin approval.' :
-                    event.status === 'cancelled' ? 'This event has been cancelled.' :
-                      'Registration closed.'}
-              </p>
+                  <div className="register-action">
+                    {event.capacity && (
+                      <div className="spots-indicator">
+                        <div className="progress-bar">
+                          <div
+                            className="progress-fill"
+                            style={{ width: `${Math.min(100, (event.registrations_count / event.capacity) * 100)}%` }}
+                          ></div>
+                        </div>
+                        <span className="spots-text">
+                          {Math.max(0, event.capacity - event.registrations_count)} spots left
+                        </span>
+                      </div>
+                    )}
+                    <Button className="btn-primary full-width" onClick={handleRegister}>
+                      {event.capacity && event.registrations_count >= event.capacity
+                        ? 'Join Waitlist'
+                        : 'Register Now'}
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <div className="status-message">
+                  <p className="text-secondary text-center">
+                    {event.status === 'draft' ? 'Event is unpublished.' :
+                      event.status === 'pending' ? 'Pending approval.' :
+                        event.status === 'cancelled' ? 'Event cancelled.' : 'Closed.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Event Details Sidebar */}
+          <Card className="sidebar-card info-card elevated">
+            <div className="sidebar-row">
+              <span className="sidebar-icon">🕒</span>
+              <div>
+                <strong>Date & Time</strong>
+                <p>{formatDate(event.start_time)}</p>
+                {event.end_time && <span className="sub-text">to {new Date(event.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+              </div>
+            </div>
+
+            {event.location && (
+              <div className="sidebar-row">
+                <span className="sidebar-icon">📍</span>
+                <div>
+                  <strong>Location</strong>
+                  <p>{event.location}</p>
+                </div>
+              </div>
+            )}
+
+            {event.company_name && (
+              <div className="sidebar-row">
+                <span className="sidebar-icon">🏢</span>
+                <div>
+                  <strong>Company</strong>
+                  <p>{event.company_name}</p>
+                </div>
+              </div>
+            )}
+
+            {event.online_link && event.is_registered && (
+              <div className="sidebar-row join-link-row">
+                <a href={event.online_link} target="_blank" rel="noopener noreferrer" className="btn-secondary full-width">
+                  🔗 Join Meeting
+                </a>
+              </div>
             )}
           </Card>
 
-          {/* Organizer Card */}
+          {/* Organizer */}
           {event.organizer && (
-            <Card className="organizer-card elevated">
+            <Card className="sidebar-card organizer-card elevated">
               <h3>Organizer</h3>
-              <Link to={`/profile/${event.organizer.id}`} className="organizer-link">
+              <Link to={`/profile/${event.organizer.id}`} className="organizer-profile">
                 <Avatar name={event.organizer.name} src={event.organizer.photo_url} size="md" />
-                <span>{event.organizer.name}</span>
+                <div className="organizer-info">
+                  <span className="name">{event.organizer.name}</span>
+                  <span className="role text-secondary">View Profile</span>
+                </div>
               </Link>
             </Card>
           )}
 
-          {/* Speakers Card */}
+          {/* Speakers */}
           {event.speakers && event.speakers.length > 0 && (
-            <Card className="speakers-card elevated">
+            <Card className="sidebar-card speakers-card elevated">
               <h3>Speakers</h3>
-              <div className="speakers-list">
+              <div className="speakers-list-sidebar">
                 {event.speakers.map((speaker) => (
-                  <div key={speaker.id} className="speaker-item">
+                  <div key={speaker.id} className="speaker-row">
                     <Avatar name={speaker.name} size="sm" />
-                    <div>
-                      <strong>{speaker.name}</strong>
+                    <div className="speaker-info">
+                      <span className="name">{speaker.name}</span>
                       {speaker.link && (
-                        <a href={speaker.link} target="_blank" rel="noopener noreferrer">
-                          View Profile
+                        <a href={speaker.link} target="_blank" rel="noopener noreferrer" className="link">
+                          Profile ↗
                         </a>
                       )}
                     </div>
@@ -494,320 +563,267 @@ const EventDetail = () => {
               </div>
             </Card>
           )}
-
-          {/* Materials Card */}
-          {event.materials && event.materials.length > 0 && (
-            <Card className="materials-card elevated">
-              <h3>Materials</h3>
-              <div className="materials-list">
-                {event.materials.map((material) => (
-                  <a
-                    key={material.id}
-                    href={material.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="material-item"
-                  >
-                    <span className="material-icon">
-                      {material.type === 'agenda' ? '📋' :
-                        material.type === 'presentation' ? '📊' : '📄'}
-                    </span>
-                    <span>{material.title}</span>
-                  </a>
-                ))}
-              </div>
-            </Card>
-          )}
         </div>
       </div>
 
       <style>{`
-        .event-detail-page { max-width: 1200px; margin: 0 auto; }
-        .back-link { margin-bottom: 1rem; }
-        .back-link a { color: var(--text-secondary); text-decoration: none; }
-        .back-link a:hover { color: var(--text-primary); }
-        
-        .event-detail-layout {
-          display: grid;
-          grid-template-columns: 1fr 320px;
-          gap: 1.5rem;
+        .event-detail-page {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding-bottom: 4rem;
         }
-        
-        @media (max-width: 900px) {
-          .event-detail-layout { grid-template-columns: 1fr; }
+
+        /* Hero */
+        .event-hero {
+          background: var(--bg-elevated);
+          padding: 2rem;
+          border-radius: 20px;
+          margin-bottom: 2rem;
+          border: 1px solid var(--border-subtle);
+          box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
         }
-        
-        .event-header-card { padding: 1.5rem; }
-        
-        .event-badges {
-          display: flex;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-          margin-bottom: 1rem;
-        }
-        
-        .type-badge {
-          color: white;
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.8rem;
-          font-weight: 600;
-        }
-        
-        .status-badge {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.8rem;
+
+        .back-link {
+          display: inline-block;
+          color: var(--text-secondary);
+          text-decoration: none;
           font-weight: 500;
+          margin-bottom: 1.5rem;
+          transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent-primary); }
+
+        .hero-badges {
+          display: flex;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .type-pill, .status-pill {
+           padding: 0.35rem 0.85rem;
+           border-radius: 50px;
+           font-size: 0.75rem;
+           font-weight: 700;
+           text-transform: uppercase;
+           letter-spacing: 0.05em;
+           border: 1px solid transparent;
         }
         
-        .status-draft { background: var(--bg-tertiary); color: var(--text-secondary); }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-approved { background: #d1fae5; color: #065f46; }
-        .status-cancelled { background: #fee2e2; color: #991b1b; }
-        .status-completed { background: #dbeafe; color: #1e40af; }
-        
-        .format-badge {
-          background: var(--bg-secondary);
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.8rem;
-        }
-        
-        .event-title {
-          font-size: 1.75rem;
+        .status-pill.status-approved { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+        .status-pill.status-pending { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+        .status-pill.status-cancelled { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+        .hero-title {
+          font-size: 2.5rem;
+          font-weight: 800;
           margin: 0 0 0.5rem;
+          line-height: 1.2;
+          background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
-        
-        .event-topic {
-          font-size: 1rem;
+
+        .hero-topic {
+          font-size: 1.1rem;
           color: var(--text-secondary);
           margin: 0 0 1.5rem;
         }
-        
-        .event-info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        
-        .info-item {
+
+        .hero-meta {
           display: flex;
+          gap: 2rem;
+          flex-wrap: wrap;
+        }
+
+        .hero-meta-item {
+          display: flex;
+          align-items: center;
           gap: 0.75rem;
-        }
-        
-        .info-icon { font-size: 1.5rem; }
-        
-        .info-item strong {
-          display: block;
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          color: var(--text-tertiary);
-          margin-bottom: 0.25rem;
-        }
-        
-        .info-item p { margin: 0; font-size: 0.9rem; }
-        
-        .event-description {
-          padding-top: 1.5rem;
-          border-top: 1px solid var(--border-color);
-        }
-        
-        .event-description h3 { margin: 0 0 0.75rem; }
-        .event-description p { line-height: 1.6; color: var(--text-secondary); }
-        
-        .organizer-actions {
-          display: flex;
-          gap: 0.5rem;
-          margin-top: 1.5rem;
-          padding-top: 1.5rem;
-          border-top: 1px solid var(--border-color);
-        }
-        
-        .btn-danger { background: #ef4444; color: white; }
-        
-        .event-tabs {
-          display: flex;
-          gap: 0.5rem;
-          margin: 1.5rem 0 1rem;
-        }
-        
-        .tab {
-          padding: 0.75rem 1.25rem;
-          background: var(--bg-secondary);
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
+          font-size: 1rem;
+          color: var(--text-primary);
           font-weight: 500;
-          transition: all 0.2s;
         }
         
-        .tab:hover { background: var(--bg-tertiary); }
-        .tab.active { background: var(--accent-primary); color: white; }
+        .hero-meta-item .icon { font-size: 1.25rem; }
+
+        /* Layout */
+        .event-content-wrapper {
+          display: grid;
+          grid-template-columns: 1fr 350px;
+          gap: 2rem;
+          align-items: start;
+        }
+
+        @media (max-width: 900px) {
+          .event-content-wrapper {
+             grid-template-columns: 1fr;
+          }
+          .hero-title { font-size: 2rem; }
+        }
+
+        /* Content Styles */
+        .content-card {
+           padding: 2rem;
+           margin-bottom: 2rem;
+           border-radius: 16px;
+           background: var(--bg-elevated);
+           border: 1px solid var(--border-subtle);
+        }
+
+        .event-description p {
+           line-height: 1.7;
+           font-size: 1.05rem;
+           color: var(--text-secondary);
+        }
+
+        .materials-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle); }
+        .materials-section h4 { font-size: 0.9rem; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 1rem; }
         
-        .chat-section, .reviews-section { padding: 1.25rem; }
+        .materials-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; }
         
-        .messages-list {
-          max-height: 400px;
-          overflow-y: auto;
-          margin-bottom: 1rem;
+        .material-pill {
+           display: flex;
+           align-items: center;
+           gap: 0.5rem;
+           padding: 0.5rem 1rem;
+           background: var(--bg-secondary);
+           border-radius: 8px;
+           text-decoration: none;
+           color: var(--text-primary);
+           font-weight: 500;
+           font-size: 0.9rem;
+           transition: all 0.2s;
+           border: 1px solid var(--border-color);
+        }
+        .material-pill:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: var(--bg-primary); }
+
+        /* Tabs */
+        .interaction-section { margin-top: 2rem; }
+        
+        .tabs-nav {
+           display: flex;
+           gap: 2rem;
+           border-bottom: 1px solid var(--border-subtle);
+           margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+           background: none;
+           border: none;
+           padding: 1rem 0;
+           font-size: 1rem;
+           font-weight: 600;
+           color: var(--text-secondary);
+           cursor: pointer;
+           position: relative;
+        }
+
+        .tab-btn.active { color: var(--accent-primary); }
+        
+        .tab-btn.active::after {
+           content: '';
+           position: absolute;
+           bottom: -1px;
+           left: 0;
+           width: 100%;
+           height: 2px;
+           background: var(--accent-primary);
         }
         
-        .message {
-          display: flex;
-          gap: 0.75rem;
-          margin-bottom: 1rem;
+        .tab-count {
+           font-size: 0.75rem;
+           background: var(--bg-tertiary);
+           padding: 0.1rem 0.4rem;
+           border-radius: 10px;
+           margin-left: 0.4rem;
+           color: var(--text-secondary);
         }
+
+        /* Chat */
+        .chat-card { padding: 0; overflow: hidden; height: 500px; display: flex; flex-direction: column; }
+        .messages-container { flex: 1; overflow-y: auto; padding: 1.5rem; background: var(--bg-secondary); }
         
-        .message-content {
-          background: var(--bg-secondary);
-          padding: 0.75rem;
-          border-radius: 8px;
-          max-width: 80%;
+        .chat-message { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .chat-message.own { flex-direction: row-reverse; }
+        
+        .bubble {
+           background: var(--bg-elevated);
+           padding: 0.8rem 1rem;
+           border-radius: 12px;
+           max-width: 70%;
+           box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+           position: relative;
         }
+        .chat-message.own .bubble { background: var(--accent-primary); color: white; }
+        .chat-message.own .bubble p { color: white; }
+        .chat-message.own .bubble .author, .chat-message.own .bubble .time { color: rgba(255,255,255,0.8); }
+
+        .bubble-header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.25rem; font-size: 0.75rem; }
+        .author { font-weight: 700; opacity: 0.8; }
+        .time { opacity: 0.6; }
         
-        .message-content strong { font-size: 0.85rem; }
-        .message-content p { margin: 0.25rem 0; }
-        .message-time { font-size: 0.7rem; color: var(--text-tertiary); }
+        .chat-input-area { padding: 1rem; background: var(--bg-elevated); border-top: 1px solid var(--border-subtle); display: flex; gap: 0.5rem; }
+        .chat-input { flex: 1; padding: 0.75rem; border-radius: 20px; border: 1px solid var(--border-color); background: var(--bg-secondary); }
+        .btn-icon { border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; }
         
-        .message.own .message-content {
-          background: var(--accent-primary);
-          color: white;
-        }
+        .empty-chat { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-tertiary); }
+        .empty-chat span { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+
+        /* Sidebar Styles */
+        .sidebar-card { padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 16px; border: 1px solid var(--border-subtle); background: var(--bg-elevated); }
+        .sidebar-card h3 { font-size: 1.1rem; margin: 0 0 1rem; }
+
+        .registration-status-box { text-align: center; }
+        .status-icon-box { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem; }
+        .status-icon-box.success { background: #d1fae5; color: #065f46; }
+        .status-icon-box.waitlist { background: #fef3c7; color: #92400e; }
         
-        .message-form {
-          display: flex;
-          gap: 0.5rem;
-        }
+        .status-text h4 { margin: 0 0 0.25rem; }
+        .status-text p { margin: 0 0 1.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+
+        .progress-bar { height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; }
+        .progress-fill { height: 100%; background: var(--accent-primary); border-radius: 4px; }
+        .spots-indicator { margin-bottom: 1rem; text-align: left; }
+        .spots-text { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
         
-        .message-form .input { flex: 1; }
+        .full-width { width: 100%; justify-content: center; }
+        .btn-text-danger { background: none; border: none; color: #ef4444; font-size: 0.85rem; cursor: pointer; text-decoration: underline; margin-top: 0.5rem; }
+
+        .sidebar-row { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start; }
+        .sidebar-row:last-child { margin-bottom: 0; }
+        .sidebar-icon { font-size: 1.25rem; width: 1.5rem; text-align: center; }
+        .sidebar-row strong { display: block; font-size: 0.9rem; }
+        .sidebar-row p { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
+        .sub-text { font-size: 0.8rem; color: var(--text-tertiary); }
+
+        .organizer-profile { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-primary); padding: 0.5rem; border-radius: 8px; transition: background 0.2s; }
+        .organizer-profile:hover { background: var(--bg-secondary); }
+        .name { font-weight: 600; display: block; }
+        .role { font-size: 0.8rem; display: block; }
+
+        .speaker-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .link { font-size: 0.8rem; color: var(--accent-primary); text-decoration: none; }
+
+        /* Reviews */
+        .reviews-summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; }
+        .rating-big { display: flex; flex-direction: column; }
+        .score { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+        .count { font-size: 0.8rem; color: var(--text-secondary); }
         
-        .reviews-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1rem;
-        }
-        
-        .average-rating {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 1.1rem;
-        }
-        
-        .review-form {
-          background: var(--bg-secondary);
-          padding: 1rem;
-          border-radius: 8px;
-          margin-bottom: 1rem;
-        }
-        
-        .star-rating { display: flex; gap: 0.25rem; }
-        .star { background: none; border: none; font-size: 1.5rem; cursor: pointer; opacity: 0.3; }
-        .star.active { opacity: 1; }
-        
-        .form-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
-        
-        .reviews-list { margin-top: 1rem; }
-        
-        .review-item {
-          padding: 1rem 0;
-          border-bottom: 1px solid var(--border-color);
-        }
-        
-        .review-header {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        
-        .review-date {
-          margin-left: auto;
-          font-size: 0.8rem;
-          color: var(--text-tertiary);
-        }
-        
-        .review-rating { font-size: 0.8rem; }
-        .review-comment { margin: 0.5rem 0 0; color: var(--text-secondary); }
-        
-        .event-sidebar .elevated { margin-bottom: 1rem; padding: 1rem; }
-        .event-sidebar h3 { margin: 0 0 0.75rem; font-size: 1rem; }
-        
-        .registration-card .btn-full { width: 100%; }
-        
-        .registered-status { text-align: center; }
-        
-        .status-display {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          padding: 0.75rem;
-          border-radius: 8px;
-          margin-bottom: 0.75rem;
-        }
-        
-        .status-display.registered { background: #d1fae5; color: #065f46; }
-        .status-display.waitlisted { background: #fef3c7; color: #92400e; }
-        
-        .organizer-link {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          text-decoration: none;
-          color: var(--text-primary);
-        }
-        
-        .speakers-list, .materials-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-        
-        .speaker-item {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        
-        .speaker-item a {
-          font-size: 0.8rem;
-          color: var(--accent-primary);
-        }
-        
-        .material-item {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem;
-          background: var(--bg-secondary);
-          border-radius: 6px;
-          text-decoration: none;
-          color: var(--text-primary);
-        }
-        
-        .material-item:hover { background: var(--bg-tertiary); }
-        
-        .loading-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 300px;
-        }
-        
-        .spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid var(--bg-tertiary);
-          border-top-color: var(--accent-primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .review-row { display: flex; gap: 1rem; padding: 1.5rem 0; border-bottom: 1px solid var(--border-color); }
+        .review-content { flex: 1; }
+        .review-meta { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
+        .review-meta .date { font-size: 0.8rem; color: var(--text-tertiary); }
+        .comment-text { color: var(--text-secondary); font-style: italic; margin-top: 0.5rem; line-height: 1.5; }
+
+        .review-form-box { background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; }
+        .star-select { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .star-btn { font-size: 1.5rem; background: none; border: none; cursor: pointer; color: var(--text-tertiary); transition: color 0.1s; }
+        .star-btn.active { color: #f59e0b; }
+        .review-input { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1rem; }
+        .btn-text { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
+
       `}</style>
     </div>
   );

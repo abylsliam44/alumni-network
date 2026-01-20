@@ -162,6 +162,7 @@ const Register = () => {
                 >
                   <option value="STUDENT">Student — Current AITU student</option>
                   <option value="ALUMNI">Alumni — AITU graduate</option>
+                  <option value="STAFF">Staff — University administration</option>
                 </select>
               </div>
 

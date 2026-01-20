@@ -1,9 +1,10 @@
-import { NavLink, useLocation, Link } from 'react-router-dom';
+import { NavLink, useLocation, Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import NotificationDropdown from './NotificationDropdown';
 import Logo from '../../images/aitu-logo__2.png';
+import { AnimatePresence, motion } from 'framer-motion';
 
-const AppShell = ({ children }) => {
+const AppShell = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
 
@@ -35,13 +36,16 @@ const AppShell = ({ children }) => {
   return (
     <div className="app-shell">
       <aside className="shell-sidebar">
-        <Link to="/dashboard" className="shell-brand">
-          <img src={Logo} alt="AITU" className="shell-brand-logo" />
-          <div className="shell-brand-text">
-            <span className="shell-brand-name">Alumni</span>
-            <span className="shell-brand-name">Network</span>
-          </div>
-        </Link>
+        <div className="shell-brand-wrapper">
+          <Link to="/dashboard" className="shell-brand">
+            <img src={Logo} alt="AITU" className="shell-brand-logo" />
+            <div className="shell-brand-text">
+              <span className="shell-brand-name">Alumni</span>
+              <span className="shell-brand-name">Network</span>
+            </div>
+          </Link>
+        </div>
+
         <nav className="shell-nav">
           {primaryNav.map((item) => (
             <NavLink
@@ -55,6 +59,7 @@ const AppShell = ({ children }) => {
             </NavLink>
           ))}
         </nav>
+
         <div className="shell-nav secondary">
           <NotificationDropdown />
           {secondaryNav.map((item) => (
@@ -69,9 +74,25 @@ const AppShell = ({ children }) => {
           ))}
         </div>
       </aside>
+
       <main className="shell-main">
         <div className="shell-content">
-          <div className="page">{children}</div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className={
+                location.pathname.startsWith('/messages')
+                  ? 'page-container-full'
+                  : 'page-container'
+              }
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

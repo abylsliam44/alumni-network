@@ -61,8 +61,8 @@ async def register(
         )
         
     role_value = user_in.role or UserRole.STUDENT
-    if role_value not in [UserRole.STUDENT, UserRole.ALUMNI]:
-        raise HTTPException(status_code=400, detail="Invalid role. Choose STUDENT or ALUMNI.")
+    if role_value not in [UserRole.STUDENT, UserRole.ALUMNI, UserRole.STAFF]:
+        raise HTTPException(status_code=400, detail="Invalid role. Choose STUDENT, ALUMNI, or STAFF.")
 
     user = User(
         email=user_in.email,

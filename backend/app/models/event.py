@@ -49,10 +49,10 @@ class Event(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     topic: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     
-    # Event type and format
-    type: Mapped[EventType] = mapped_column(Enum(EventType), default=EventType.NETWORKING, nullable=False)
-    format: Mapped[EventFormat] = mapped_column(Enum(EventFormat), default=EventFormat.OFFLINE, nullable=False)
-    status: Mapped[EventStatus] = mapped_column(Enum(EventStatus), default=EventStatus.DRAFT, nullable=False)
+    # Event type and format - use values_callable to use enum values (lowercase) not names (uppercase)
+    type: Mapped[EventType] = mapped_column(Enum(EventType, values_callable=lambda x: [e.value for e in x]), default=EventType.NETWORKING, nullable=False)
+    format: Mapped[EventFormat] = mapped_column(Enum(EventFormat, values_callable=lambda x: [e.value for e in x]), default=EventFormat.OFFLINE, nullable=False)
+    status: Mapped[EventStatus] = mapped_column(Enum(EventStatus, values_callable=lambda x: [e.value for e in x]), default=EventStatus.DRAFT, nullable=False)
     
     # Time (startTime required, endTime optional)
     start_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)

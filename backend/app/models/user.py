@@ -14,6 +14,7 @@ class UserRole(str, enum.Enum):
     """
     STUDENT = "STUDENT"
     ALUMNI = "ALUMNI"
+    STAFF = "STAFF"  # University administration - can approve events
 
 class User(Base):
     __tablename__ = "users"

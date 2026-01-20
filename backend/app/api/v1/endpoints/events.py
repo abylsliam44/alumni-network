@@ -486,9 +486,9 @@ async def approve_event(
     db: AsyncSession = Depends(get_db),
     background_tasks: BackgroundTasks = None,
 ) -> Any:
-    """Admin approves an event."""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Only admins can approve events")
+    """Admin or Staff approves an event."""
+    if not current_user.is_admin and current_user.role != UserRole.STAFF:
+        raise HTTPException(status_code=403, detail="Only admins and staff can approve events")
     
     event = await get_event_or_404(db, event_id)
     
@@ -533,9 +533,9 @@ async def reject_event(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Admin rejects an event, returning it to draft status."""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Only admins can reject events")
+    """Admin or Staff rejects an event, returning it to draft status."""
+    if not current_user.is_admin and current_user.role != UserRole.STAFF:
+        raise HTTPException(status_code=403, detail="Only admins and staff can reject events")
     
     event = await get_event_or_404(db, event_id)
     
@@ -1254,7 +1254,7 @@ async def list_pending_events(
     limit: int = Query(10, ge=1, le=50),
 ) -> Any:
     """List all pending events for admin review."""
-    if not current_user.is_admin:
+    if not current_user.is_admin and current_user.role != UserRole.STAFF:
         raise HTTPException(status_code=403, detail="Admin access required")
     
     stmt = (

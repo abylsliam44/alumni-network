@@ -99,19 +99,19 @@ const Events = () => {
   };
 
   const canCreateEvent = user && (user.role === 'ALUMNI' || user.is_admin);
-  const isAdmin = user?.is_admin;
+  const canApproveEvents = user?.is_admin || user?.role === 'STAFF';
 
   return (
     <div className="page events-page">
-      <div className="page-header">
-        <div className="page-header-content">
-          <h1>Events</h1>
-          <p className="text-secondary">Discover and join alumni events, workshops, and networking sessions</p>
+      <div className="events-hero">
+        <div className="hero-content">
+          <h1>Events & Networking</h1>
+          <p>Connect, learn, and grow with the alumni community.</p>
         </div>
-        <div className="page-header-actions">
-          {isAdmin && (
+        <div className="hero-actions">
+          {canApproveEvents && (
             <Button
-              className="btn-secondary"
+              className="btn-glass"
               onClick={() => navigate('/events/admin')}
             >
               Review Pending
@@ -128,22 +128,22 @@ const Events = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="events-filters">
-        <div className="filter-group">
+      {/* Modern Filter Bar */}
+      <div className="events-filters-bar elevated">
+        <div className="search-wrapper">
           <input
             type="text"
             placeholder="Search events..."
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            className="input"
           />
         </div>
-        <div className="filter-group">
+
+        <div className="filters-group">
           <select
             value={filters.type}
             onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-            className="input"
+            className="filter-select"
           >
             <option value="">All Types</option>
             <option value="career">Career</option>
@@ -152,27 +152,27 @@ const Events = () => {
             <option value="recruiting">Recruiting</option>
             <option value="invite-only">Invite Only</option>
           </select>
-        </div>
-        <div className="filter-group">
+
           <select
             value={filters.format}
             onChange={(e) => setFilters(prev => ({ ...prev, format: e.target.value }))}
-            className="input"
+            className="filter-select"
           >
             <option value="">All Formats</option>
             <option value="online">Online</option>
             <option value="offline">In-Person</option>
             <option value="hybrid">Hybrid</option>
           </select>
+
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={filters.upcoming_only}
+              onChange={(e) => setFilters(prev => ({ ...prev, upcoming_only: e.target.checked }))}
+            />
+            <span className="toggle-text">Upcoming only</span>
+          </label>
         </div>
-        <label className="filter-checkbox">
-          <input
-            type="checkbox"
-            checked={filters.upcoming_only}
-            onChange={(e) => setFilters(prev => ({ ...prev, upcoming_only: e.target.checked }))}
-          />
-          <span>Upcoming only</span>
-        </label>
       </div>
 
       {error && <Alert type="error">{error}</Alert>}
@@ -183,12 +183,12 @@ const Events = () => {
           <p>Loading events...</p>
         </div>
       ) : events.length === 0 ? (
-        <Card className="empty-state">
+        <div className="empty-state-card elevated">
           <div className="empty-icon">📅</div>
           <h3>No events found</h3>
-          <p className="text-secondary">
+          <p>
             {filters.upcoming_only
-              ? 'No upcoming events match your criteria. Try adjusting filters or check back later.'
+              ? 'No upcoming events match your criteria. Try adjusting filters.'
               : 'No events match your criteria.'}
           </p>
           {canCreateEvent && (
@@ -196,90 +196,92 @@ const Events = () => {
               Create First Event
             </Button>
           )}
-        </Card>
+        </div>
       ) : (
         <>
           <div className="events-grid">
-            {events.map((event) => (
-              <Card key={event.id} className="event-card elevated">
-                <div className="event-card-header">
-                  <span
-                    className="event-type-badge"
-                    style={{ backgroundColor: EVENT_TYPES[event.type]?.color || 'var(--bg-tertiary)' }}
-                  >
-                    {EVENT_TYPES[event.type]?.label || event.type}
-                  </span>
-                  {event.status !== 'approved' && (
-                    <span className={`status-badge ${STATUS_BADGES[event.status]?.className}`}>
-                      {STATUS_BADGES[event.status]?.label}
-                    </span>
-                  )}
-                </div>
+            {events.map((event) => {
+              const dateObj = new Date(event.start_time);
+              const month = dateObj.toLocaleString('en-US', { month: 'short' });
+              const day = dateObj.getDate();
 
-                <h3 className="event-title">{event.title}</h3>
-                <p className="event-topic">{event.topic}</p>
+              return (
+                <Card key={event.id} className="event-card-modern elevated">
+                  <div className="card-top">
+                    {/* Date Box */}
+                    <div className="date-box">
+                      <span className="date-month">{month}</span>
+                      <span className="date-day">{day}</span>
+                    </div>
 
-                <div className="event-meta">
-                  <div className="meta-item">
-                    <span className="meta-icon">📅</span>
-                    <span>{formatDate(event.start_time)}</span>
+                    <div className="card-header-content">
+                      <div className="badges-row">
+                        <span
+                          className="type-pill"
+                          style={{
+                            color: EVENT_TYPES[event.type]?.color || 'var(--text-secondary)',
+                            backgroundColor: `${EVENT_TYPES[event.type]?.color || '#666'}15`,
+                            borderColor: `${EVENT_TYPES[event.type]?.color || '#666'}30`
+                          }}
+                        >
+                          {EVENT_TYPES[event.type]?.label || event.type}
+                        </span>
+                        {event.status !== 'approved' && (
+                          <span className={`status-pill status-${event.status}`}>
+                            {STATUS_BADGES[event.status]?.label}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="card-title" title={event.title}>{event.title}</h3>
+                      <p className="card-topic">{event.topic}</p>
+                    </div>
                   </div>
-                  <div className="meta-item">
-                    <span className="meta-icon">{FORMAT_ICONS[event.format]}</span>
-                    <span>
-                      {event.format === 'online' ? 'Online' :
-                        event.format === 'hybrid' ? 'Hybrid' :
-                          event.location || 'In-Person'}
-                    </span>
-                  </div>
-                  {event.capacity && (
-                    <div className="meta-item">
-                      <span className="meta-icon">👥</span>
+
+                  <div className="card-body">
+                    <div className="info-row">
+                      <span className="icon">{FORMAT_ICONS[event.format]}</span>
                       <span>
-                        {event.registrations_count}/{event.capacity}
-                        {event.waitlist_count > 0 && ` (+${event.waitlist_count} waitlist)`}
+                        {event.format === 'online' ? 'Online' :
+                          event.format === 'hybrid' ? 'Hybrid' :
+                            event.location || 'In-Person'}
                       </span>
                     </div>
-                  )}
-                </div>
-
-                {event.company_name && (
-                  <div className="event-company">
-                    <span className="company-icon">🏢</span>
-                    <span>{event.company_name}</span>
+                    <div className="info-row">
+                      <span className="icon">⏰</span>
+                      <span>{dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    {event.company_name && (
+                      <div className="info-row company">
+                        <span className="icon">🏢</span>
+                        <span>{event.company_name}</span>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                <div className="event-card-footer">
-                  <Link to={`/events/${event.id}`} className="btn btn-secondary btn-sm">
-                    View Details
-                  </Link>
-                  {event.status === 'approved' && !event.is_registered && (
-                    <Button
-                      className="btn-primary btn-sm"
-                      onClick={() => handleRegister(event.id)}
-                    >
-                      {event.capacity && event.registrations_count >= event.capacity
-                        ? 'Join Waitlist'
-                        : 'Register'}
-                    </Button>
-                  )}
-                  {event.is_registered && (
-                    <div className="registration-status">
-                      <span className={`status-pill ${event.registration_status === 'WAITLISTED' ? 'waitlisted' : 'registered'}`}>
+                  <div className="card-footer">
+                    {event.is_registered ? (
+                      <div className={`user-status ${event.registration_status === 'WAITLISTED' ? 'waitlist' : 'registered'}`}>
                         {event.registration_status === 'WAITLISTED' ? '⏳ Waitlisted' : '✓ Registered'}
-                      </span>
-                      <button
-                        className="btn-link text-danger"
-                        onClick={() => handleUnregister(event.id)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            ))}
+                      </div>
+                    ) : (
+                      <div className="spots-left">
+                        {event.capacity ? (
+                          <>
+                            <span className="count">{Math.max(0, event.capacity - event.registrations_count)}</span> spots left
+                          </>
+                        ) : (
+                          <span className="open-spots">Open Registration</span>
+                        )}
+                      </div>
+                    )}
+
+                    <Link to={`/events/${event.id}`} className="view-btn">
+                      View Details &rarr;
+                    </Link>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Pagination */}
@@ -307,226 +309,311 @@ const Events = () => {
 
       <style>{`
         .events-page {
-          max-width: 1200px;
-          margin: 0 auto;
+          /* Layout handled by AppShell */
         }
-        
-        .page-header {
+
+        /* Hero Section */
+        .events-hero {
+          background: var(--bg-primary);
+          padding: 2rem 0;
+          margin-bottom: 2rem;
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           flex-wrap: wrap;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        
-        .page-header-actions {
-          display: flex;
-          gap: 0.75rem;
-        }
-        
-        .events-filters {
-          display: flex;
-          gap: 1rem;
-          flex-wrap: wrap;
-          margin-bottom: 1.5rem;
-          padding: 1rem;
-          background: var(--bg-secondary);
-          border-radius: 12px;
-        }
-        
-        .filter-group {
-          flex: 1;
-          min-width: 150px;
-        }
-        
-        .filter-group .input {
-          width: 100%;
-        }
-        
-        .filter-checkbox {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        
-        .events-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
           gap: 1.5rem;
+          border-bottom: 1px solid var(--border-color);
         }
         
-        .event-card {
-          display: flex;
-          flex-direction: column;
-          padding: 1.25rem;
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .event-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        }
-        
-        .event-card-header {
-          display: flex;
-          gap: 0.5rem;
-          margin-bottom: 0.75rem;
-        }
-        
-        .event-type-badge {
-          font-size: 0.75rem;
-          font-weight: 600;
-          padding: 0.25rem 0.5rem;
-          border-radius: 4px;
-          color: white;
-        }
-        
-        .status-badge {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.4rem;
-          border-radius: 4px;
-          font-weight: 500;
-        }
-        
-        .badge-secondary { background: var(--bg-tertiary); color: var(--text-secondary); }
-        .badge-warning { background: #f59e0b; color: white; }
-        .badge-success { background: #10b981; color: white; }
-        .badge-danger { background: #ef4444; color: white; }
-        .badge-info { background: #3b82f6; color: white; }
-        
-        .event-title {
-          font-size: 1.125rem;
-          font-weight: 600;
-          margin: 0 0 0.25rem;
+        .hero-content h1 {
+          font-size: 1.875rem;
+          font-weight: 700;
+          margin: 0 0 0.5rem;
           color: var(--text-primary);
         }
         
-        .event-topic {
-          font-size: 0.875rem;
+        .hero-content p {
+          font-size: 1rem;
           color: var(--text-secondary);
-          margin: 0 0 1rem;
         }
-        
-        .event-meta {
+
+        .hero-actions {
+          display: flex;
+          gap: 1rem;
+        }
+
+        .btn-glass {
+          background: rgba(255,255,255,0.7);
+          backdrop-filter: blur(10px);
+          border: 1px solid var(--border-color);
+          color: var(--text-primary);
+        }
+
+        /* Filters Bar */
+        .events-filters-bar {
+          background: var(--bg-elevated);
+          padding: 1rem;
+          border-radius: 16px;
+          display: flex;
+          gap: 1.5rem;
+          align-items: center;
+          margin-bottom: 2.5rem;
+          border: 1px solid var(--border-subtle);
+          flex-wrap: wrap;
+        }
+
+        .search-wrapper {
+           flex: 1;
+           min-width: 200px;
+        }
+
+        .search-wrapper input {
+           width: 100%;
+           padding: 0.75rem 1rem;
+          border-radius: 12px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          transition: all 0.2s;
+        }
+
+        .search-wrapper input:focus {
+           background: var(--bg-primary);
+           border-color: var(--accent-primary);
+           box-shadow: 0 0 0 3px var(--accent-light);
+           outline: none;
+        }
+
+        .filters-group {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .filter-select {
+          padding: 0.75rem 2rem 0.75rem 1rem;
+          border-radius: 12px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          cursor: pointer;
+          min-width: 140px;
+        }
+
+        .toggle-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          font-weight: 500;
+          font-size: 0.9rem;
+          user-select: none;
+        }
+
+        /* Grid */
+        .events-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          gap: 2rem;
+        }
+
+        /* Card Modern */
+        .event-card-modern {
+          padding: 1.5rem;
+          border-radius: 20px;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
-          margin-bottom: 0.75rem;
+          height: 100%;
+          position: relative;
+          overflow: hidden;
         }
-        
-        .meta-item {
+
+        .event-card-modern:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 20px 40px -5px rgba(0,0,0,0.1);
+          border-color: var(--accent-hover);
+        }
+
+        .card-top {
           display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.875rem;
-          color: var(--text-secondary);
+          gap: 1.25rem;
+          margin-bottom: 1.25rem;
         }
-        
-        .meta-icon {
-          font-size: 1rem;
-          width: 1.25rem;
-        }
-        
-        .event-company {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-          padding: 0.5rem;
-          background: var(--bg-secondary);
-          border-radius: 6px;
-          margin-bottom: 1rem;
-        }
-        
-        .event-card-footer {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: auto;
-          padding-top: 1rem;
-          border-top: 1px solid var(--border-color);
-        }
-        
-        .registration-status {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-left: auto;
-        }
-        
-        .status-pill {
-          font-size: 0.75rem;
-          font-weight: 500;
-          padding: 0.25rem 0.5rem;
-          border-radius: 12px;
-        }
-        
-        .status-pill.registered {
-          background: #d1fae5;
-          color: #065f46;
-        }
-        
-        .status-pill.waitlisted {
-          background: #fef3c7;
-          color: #92400e;
-        }
-        
-        .btn-link {
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-size: 0.75rem;
-        }
-        
-        .text-danger { color: #ef4444; }
-        
-        .loading-state, .empty-state {
+
+        .date-box {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 3rem;
+          background: var(--bg-secondary);
+          border-radius: 12px;
+          width: 60px;
+          height: 60px;
+          flex-shrink: 0;
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
+        }
+
+        .date-month {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--accent-primary); /* Uses main accent in light mode */
+        }
+        
+        [data-theme='dark'] .date-month {
+           color: #60a5fa;
+        }
+
+        .date-day {
+          font-size: 1.5rem;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .card-header-content {
+          flex: 1;
+          min-width: 0; /* for truncation */
+        }
+
+        .badges-row {
+           display: flex;
+           gap: 0.5rem;
+           margin-bottom: 0.5rem;
+           flex-wrap: wrap;
+        }
+
+        .type-pill {
+          font-size: 0.7rem;
+          font-weight: 700;
+          padding: 0.2rem 0.6rem;
+          border-radius: 20px;
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
+          border: 1px solid transparent;
+        }
+
+        .status-pill {
+           font-size: 0.7rem;
+           padding: 0.2rem 0.6rem;
+           border-radius: 20px;
+           background: #e5e7eb;
+           color: #374151;
+        }
+
+        .card-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          margin: 0 0 0.25rem;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .card-topic {
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .card-body {
+          margin-bottom: auto; /* Pushes footer down */
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .info-row {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+        }
+        
+        .info-row.company {
+           color: var(--text-primary);
+           font-weight: 500;
+        }
+
+        .icon {
+          font-size: 1.1rem;
+          width: 1.2rem;
           text-align: center;
         }
-        
-        .spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid var(--bg-tertiary);
-          border-top-color: var(--accent-primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        
-        .empty-icon {
-          font-size: 3rem;
-          margin-bottom: 1rem;
-        }
-        
-        .pagination {
+
+        .card-footer {
+          margin-top: 1.5rem;
+          padding-top: 1rem;
+          border-top: 1px solid var(--border-subtle);
           display: flex;
-          justify-content: center;
+          justify-content: space-between;
           align-items: center;
-          gap: 1rem;
-          margin-top: 2rem;
         }
-        
-        .page-info {
-          font-size: 0.875rem;
+
+        .spots-left {
+          font-size: 0.85rem;
           color: var(--text-secondary);
         }
         
-        .btn-sm {
-          padding: 0.5rem 1rem;
-          font-size: 0.875rem;
+        .spots-left .count {
+           font-weight: 700;
+           color: var(--text-primary);
+        }
+
+        .open-spots {
+           color: var(--success-color);
+           font-weight: 600;
+        }
+
+        .user-status {
+           font-size: 0.85rem;
+           font-weight: 600;
+        }
+        .user-status.registered { color: var(--success-color); }
+        .user-status.waitlist { color: #d97706; }
+
+        .view-btn {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: var(--accent-primary);
+          text-decoration: none;
+          transition: transform 0.2s;
+        }
+
+        .view-btn:hover {
+          transform: translateX(3px);
+          text-decoration: underline;
+        }
+
+        .empty-state-card {
+           text-align: center;
+           padding: 4rem;
+           border-radius: 20px;
+           background: var(--bg-elevated);
+        }
+
+        @media (max-width: 768px) {
+          .events-hero {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1.5rem;
+          }
+          .events-filters-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .filters-group {
+             flex-direction: column;
+             align-items: stretch;
+          }
         }
       `}</style>
     </div>

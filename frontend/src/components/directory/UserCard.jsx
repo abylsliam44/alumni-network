@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { resolveUrl } from '../../utils/image';
 
 const UserCard = ({
   user,
@@ -10,12 +11,6 @@ const UserCard = ({
   onDecline,
   isSelf = false,
 }) => {
-  const apiBase = import.meta.env.VITE_API_URL || '';
-
-  const resolveUrl = (path) => {
-    if (!path) return null;
-    return path.startsWith('http') ? path : `${apiBase}${path}`;
-  };
 
   const getInitials = (name) => {
     if (!name) return '?';

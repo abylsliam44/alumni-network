@@ -74,6 +74,7 @@ body {
   margin: 0;
   min-height: 100vh;
   line-height: 1.5;
+  font-size: 16px;
 }
 
 /* Auth Layout - Modern Split Screen */
@@ -573,13 +574,9 @@ h3 {
    ===================================================== */
 
 .dash-page {
-  padding: 2.5rem 2rem 4rem;
-  max-width: 1400px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  min-height: 100vh;
 }
 
 /* Loading State */
@@ -855,8 +852,28 @@ h3 {
   color: #ef4444;
 }
 
-/* Main Grid */
-.dash-grid {
+/* Unified Page Container */
+.page-container {
+  max-width: 1200px;
+  /* Reduced from 1400px slightly for tighter focus, or keep 1400 */
+  margin: 0 auto;
+  padding: 2rem 4rem;
+  width: 100%;
+}
+
+.page-container-full {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 1rem;
+  }
+}
+
+/* Main 2x2 Grid */
+.dash-main-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
@@ -1935,9 +1952,7 @@ h3 {
 
 /* Page Container */
 .dir-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 2rem 4rem;
+  /* Layout handled by AppShell */
   min-height: 100vh;
 }
 
@@ -2692,10 +2707,8 @@ h3 {
    ============================================ */
 
 .friends-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 2rem 4rem;
-  min-height: 100vh;
+  /* Layout handled by AppShell */
+  width: 100%;
 }
 
 .friends-header {
@@ -5885,9 +5898,6 @@ button:focus-visible {
    ===================================================== */
 
 .rec-page {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -6513,10 +6523,7 @@ button:focus-visible {
    ===================================================== */
 
 .linkedin-profile-container {
-  max-width: 100%;
   width: 100%;
-  margin: 0 auto;
-  padding: 24px 32px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6747,7 +6754,7 @@ button:focus-visible {
 }
 
 .linkedin-btn-primary {
-  background: var(--accent-primary) !important;
+  background: #0a66c2 !important;
   color: white !important;
   /* Force white text */
   border: none !important;
@@ -6760,14 +6767,14 @@ button:focus-visible {
 }
 
 .linkedin-btn-primary:hover {
-  background: var(--accent-hover) !important;
+  background: #005582 !important;
   transform: translateY(-1px);
 }
 
 .linkedin-btn-secondary {
   background: transparent !important;
-  color: var(--accent-primary) !important;
-  border: 2px solid var(--accent-primary) !important;
+  color: #0a66c2 !important;
+  border: 2px solid #0a66c2 !important;
   border-radius: 24px !important;
   padding: 6px 18px !important;
   font-weight: 600 !important;
@@ -8745,9 +8752,8 @@ input:checked+.slider:before {
    ===================================================== */
 
 .settings-page {
-  padding: 2.5rem 2rem 4rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  /* Layout handled by AppShell */
+  width: 100%;
 }
 
 .settings-header {

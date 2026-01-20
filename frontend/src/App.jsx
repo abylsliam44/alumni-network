@@ -18,6 +18,7 @@ import JobDetail from './pages/JobDetail';
 import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
 import EventCreate from './pages/EventCreate';
+import EventsAdmin from './pages/EventsAdmin';
 import Messages from './pages/Messages';
 import Recommendations from './pages/Recommendations';
 import Settings from './pages/Settings';
@@ -39,185 +40,32 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
             <Route
-              path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <AppShell>
-                    <Dashboard />
-                  </AppShell>
+                  <AppShell />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/feed"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Feed />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/directory"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Directory />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/become-mentor"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <BecomeMentor />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/jobs"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Jobs />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/jobs/create"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <JobCreate />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/jobs/:jobId"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <JobDetail />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/events"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Events />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/events/create"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <EventCreate />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/events/:eventId"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <EventDetail />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/messages"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Messages />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/friends"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Friends />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/recommendations"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Recommendations />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ai"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <AiChat />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Profile />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile/edit"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <EditProfile />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile/:userId"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Profile />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <Settings />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/feed" element={<Feed />} />
+              <Route path="/directory" element={<Directory />} />
+              <Route path="/become-mentor" element={<BecomeMentor />} />
+              <Route path="/jobs" element={<Jobs />} />
+              <Route path="/jobs/create" element={<JobCreate />} />
+              <Route path="/jobs/:jobId" element={<JobDetail />} />
+              <Route path="/events/admin" element={<EventsAdmin />} />
+              <Route path="/events" element={<Events />} />
+              <Route path="/events/create" element={<EventCreate />} />
+              <Route path="/events/:eventId" element={<EventDetail />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/friends" element={<Friends />} />
+              <Route path="/recommendations" element={<Recommendations />} />
+              <Route path="/ai" element={<AiChat />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/edit" element={<EditProfile />} />
+              <Route path="/profile/:userId" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
 
             <Route path="/" element={<Landing />} />
           </Routes>

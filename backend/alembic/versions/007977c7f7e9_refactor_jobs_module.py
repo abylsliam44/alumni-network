@@ -80,7 +80,7 @@ def upgrade() -> None:
     op.drop_index('ix_notifications_is_read', table_name='notifications')
     op.drop_index('ix_notifications_user_id', table_name='notifications')
     op.drop_index('ix_notifications_user_unread', table_name='notifications')
-    op.add_column('users', sa.Column('system_roles', sa.ARRAY(sa.String()), nullable=False))
+    op.add_column('users', sa.Column('system_roles', sa.ARRAY(sa.String()), nullable=False, server_default='{}'))
     # ### end Alembic commands ###
 
 

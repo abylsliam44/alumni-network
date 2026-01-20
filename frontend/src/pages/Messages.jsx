@@ -7,11 +7,10 @@ import { useAuth } from '../hooks/useAuth';
 import { useChatSocket } from '../hooks/useChatSocket';
 import VideoCallModal from '../components/VideoCallModal';
 
+import { resolveUrl } from '../utils/image';
+
 const apiBase = import.meta.env.VITE_API_URL || '';
-const resolveUrl = (path) => {
-  if (!path) return null;
-  return path.startsWith('http') ? path : `${apiBase}${path}`;
-};
+
 
 const dicebear = (name = 'User') =>
   `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
