@@ -474,10 +474,8 @@ async def _fallback_recommendations(
             continue
         if candidate.role.value not in target_roles:
             continue
-        if user.role == UserRole.STUDENT and not (
-            candidate.is_mentor and candidate.profile.mentor_consent
-        ):
-            continue
+        # Note: Removed strict mentor_consent requirement for students
+        # to show all Alumni, prioritizing mentors in scoring instead
 
         candidate_meta = _metadata_from_profile(candidate, candidate.profile)
         shared_skills = _shared_lists(profile.skills or [], candidate.profile.skills or [])
@@ -486,11 +484,14 @@ async def _fallback_recommendations(
             candidate_meta.get("career_focus", candidate_meta.get("career_interests", [])),
         )
 
-        if not shared_skills and not shared_interests:
-            continue
+        # Note: Removed strict requirement for shared skills/interests
+        # Now we show candidates even without overlap, but with lower scores
+
+        # Base similarity is higher if there's any overlap
+        base_similarity = 0.4 if (shared_skills or shared_interests) else 0.2
 
         match_score = _composite_match_score(
-            similarity=0.4,  # modest base for deterministic path
+            similarity=base_similarity,
             shared_skills=shared_skills,
             shared_interests=shared_interests,
             payload=candidate_meta,
@@ -502,6 +503,16 @@ async def _fallback_recommendations(
             reason_parts.append(f"Shared skills: {', '.join(shared_skills[:3])}")
         if shared_interests:
             reason_parts.append(f"Interests overlap: {', '.join(shared_interests[:2])}")
+        if not reason_parts:
+            # Generate a reason even without direct overlap
+            if candidate.is_mentor:
+                reason_parts.append("Available as mentor")
+            if candidate_meta.get("industries"):
+                reason_parts.append(f"Works in: {', '.join(candidate_meta['industries'][:2])}")
+            if candidate_meta.get("experience"):
+                reason_parts.append("Has relevant experience")
+            if not reason_parts:
+                reason_parts.append("Part of AITU community")
         reason = " | ".join(reason_parts)
 
         items.append(
@@ -534,6 +545,75 @@ async def _fallback_recommendations(
     return await _enrich_reasons_with_llm(
         items, reason_seed, ctx.get("profile_summary", "")
     )
+
+
+async def _last_resort_recommendations(ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Last resort: show any users with filled profiles when no other matches found.
+    This ensures users always see some recommendations.
+    """
+    db: AsyncSession = ctx["db"]
+    user: User = ctx["user"]
+
+    result = await db.execute(select(User).options(selectinload(User.profile)))
+    candidates = result.scalars().all()
+
+    items: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        if candidate.id == user.id or not candidate.profile:
+            continue
+        # Only require minimal profile, no role or skill filters
+        completeness = _profile_completeness(candidate.profile)
+        if completeness < 0.2:  # Very low threshold
+            continue
+
+        candidate_meta = _metadata_from_profile(candidate, candidate.profile)
+
+        # Build a generic reason
+        reason_parts = []
+        if candidate.is_mentor:
+            reason_parts.append("Available as mentor")
+        if candidate.role.value == "ALUMNI":
+            reason_parts.append("AITU Alumni")
+        elif candidate.role.value == "STUDENT":
+            reason_parts.append("AITU Student")
+        if candidate_meta.get("industries"):
+            reason_parts.append(f"Works in: {', '.join(candidate_meta['industries'][:2])}")
+        if not reason_parts:
+            reason_parts.append("Part of AITU community")
+
+        # Low base score for last resort matches
+        match_score = int(round(min(50.0, completeness * 50 + 10)))
+
+        items.append(
+            {
+                "target_user_id": str(candidate.id),
+                "name": candidate.name,
+                "photo_url": candidate.photo_url,
+                "role": candidate.role.value,
+                "available_for_mentorship": bool(
+                    candidate.is_mentor and candidate.profile.mentor_consent
+                ),
+                "match_score": match_score,
+                "shared_skills": [],
+                "shared_interests": [],
+                "reason_short": " | ".join(reason_parts),
+                "graduation_year": candidate.profile.graduation_year,
+                "location": candidate.profile.location,
+                "mentor_headline": candidate.profile.mentor_headline,
+                "mentor_availability_note": candidate.profile.mentor_availability_note,
+                "industries": candidate.profile.mentor_industries or [],
+                "mentor_areas_of_help": candidate.profile.mentor_areas_of_help or [],
+                "career_interests": candidate_meta.get("career_focus", []),
+                "profile_completeness": completeness,
+                "experience": candidate_meta.get("experience", []),
+                "education": candidate_meta.get("education", []),
+            }
+        )
+
+    items = sorted(items, key=lambda x: x["match_score"], reverse=True)[:MAX_RETURNED_ITEMS]
+    logger.info(f"Last resort recommendations found {len(items)} candidates")
+    return items
 
 
 async def _bootstrap_embeddings_if_empty(ctx: Dict[str, Any]) -> Dict[str, Any]:
@@ -634,13 +714,8 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
             range=qmodels.Range(gte=MIN_PROFILE_COMPLETENESS),
         )
     )
-    if user.role == UserRole.STUDENT:
-        filters.append(
-            qmodels.FieldCondition(
-                key="available_for_mentorship",
-                match=qmodels.MatchValue(value=True),
-            )
-        )
+    # Note: Removed strict available_for_mentorship filter for students
+    # to show all Alumni, not just mentors with consent
     # Exclude self
     must_not = [qmodels.FieldCondition(key="id", match=qmodels.MatchValue(value=str(user.id)))]
 
@@ -695,6 +770,14 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
             reason_parts.append(f"Shared skills: {', '.join(shared_skills[:3])}")
         if shared_interests:
             reason_parts.append(f"Interests overlap: {', '.join(shared_interests[:2])}")
+        if not reason_parts:
+            # Generate a reason even without direct overlap
+            if payload.get("available_for_mentorship"):
+                reason_parts.append("Available as mentor")
+            if payload.get("industries"):
+                reason_parts.append(f"Works in: {', '.join(payload['industries'][:2])}")
+            if payload.get("experience"):
+                reason_parts.append("Has relevant experience")
         reason = " | ".join(reason_parts) or "Relevant background alignment."
         items.append(
             {
@@ -735,7 +818,13 @@ async def _vector_search(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
     # If vector search is too sparse, supplement with deterministic matches
     if not items:
+        logger.info("Vector search returned no results, trying fallback recommendations")
         items = await _fallback_recommendations(ctx, current_metadata)
+
+    # Last resort: show any users with profiles if still empty
+    if not items:
+        logger.info("Fallback also empty, trying last resort recommendations")
+        items = await _last_resort_recommendations(ctx)
 
     ctx["items"] = items
     return ctx

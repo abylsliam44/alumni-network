@@ -15,32 +15,14 @@ const ApplicationChat = ({ applicationId }) => {
     // Load history
     jobsApi.getChatHistory(applicationId).then(setMessages).catch(console.error);
 
-    // Connect WS
-    // Vite proxy usually handles /api, but WS might need full URL if proxy doesn't upgrade WS?
-    // Usually relative path works if proxy configured, but standard WS uses ws:// protocol.
-    // If dev server proxies /api, it might proxy ws too.
+    // Connect WS - use environment variable or derive from current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host; // e.g. localhost:3000
-    // If we are proxying, correct path is needed. Assuming standard setup:
-    // Actually our backend is on 8000, frontend 3000.
-    // If we use 'ws://localhost:8000/api/v1/job-chat/ws/...' it works.
-    // Ideally use env var for backend URL.
 
-    // Simplistic hack for typical generic setup:
-    const wsUrl = `${protocol}//${host.replace('3000', '8010')}/api/v1/job-chat/ws/${applicationId}?token=${token}`;
-    // Better: use direct backend port if we know it (8010 in docker-compose) or proxy through frontend.
-    // Since we don't know if frontend proxy is set up for WS, we'll try direct backend port 8010 or 8000.
-    // Docker-compose map 8010:8000. Frontend accesses backend at localhost:8010.
+    // Get backend URL from environment or derive from current host
+    const backendUrl = import.meta.env.VITE_API_URL || window.location.origin;
+    const wsHost = backendUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-    // Let's assume users use localhost:3030 (frontend) and backend is at localhost:8010.
-    // If user is accessing via localhost:3030, current logic replaces 3030 with 8010.
-    // Note: The host replacement is fragile. Better to use config.
-    // I'll assume standard vite proxy isn't set for WS, so I'll guess backend URL.
-
-    // Let's try to assume relative path works if proxy is good, else fallback.
-    // For now, hardcode localhost:8010 for MVP if on localhost.
-
-    const wsEndpoint = `ws://localhost:8010/api/v1/job-chat/ws/${applicationId}?token=${token}`;
+    const wsEndpoint = `${protocol}//${wsHost}/api/v1/job-chat/ws/${applicationId}?token=${token}`;
 
     const ws = new WebSocket(wsEndpoint);
     wsRef.current = ws;

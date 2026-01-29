@@ -224,7 +224,3 @@ async def chat_history(
     )
     rows = result.scalars().all()
     return AiChatHistoryResponse(messages=rows)
-
-    return ChatResponse(answer=answer)
-
-

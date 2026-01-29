@@ -85,7 +85,6 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         "skills": user.profile.skills or [],
         "location": user.profile.location,
         "graduation_year": user.profile.graduation_year,
-        "graduation_year": user.profile.graduation_year,
         "linkedin_url": user.profile.linkedin_url,
         "github_url": user.profile.github_url,
         "website_url": user.profile.website_url,

@@ -30,13 +30,10 @@ try:
 except ImportError:
     LIVEKIT_AVAILABLE = False
 
-    LIVEKIT_AVAILABLE = False
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Конфигурация LiveKit
 # Конфигурация LiveKit
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "").strip().rstrip("/")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip()
@@ -96,14 +93,8 @@ def create_access_token(
             detail="LiveKit credentials not configured"
         )
     
-    # DEBUG LOGGING (Using print to ensure it shows in docker logs)
-    print(f"--- LIVEKIT TOKEN GENERATION ---", flush=True)
-    print(f"Room: {room_name}", flush=True)
-    print(f"URL: '{LIVEKIT_URL}'", flush=True)
-    print(f"API_KEY: '{LIVEKIT_API_KEY}' (len={len(LIVEKIT_API_KEY)})", flush=True)
-    print(f"API_SECRET: '{LIVEKIT_API_SECRET[:5]}...' (len={len(LIVEKIT_API_SECRET)})", flush=True)
-    print(f"-------------------------------", flush=True)
-    
+    logger.debug(f"Creating token for room: {room_name}, participant: {participant_name}")
+
     # Права доступа
     grant = livekit_api.VideoGrants(
         room_join=True,
@@ -192,7 +183,7 @@ async def create_room(
         )
     except Exception as e:
         # Логируем ошибку, но не прерываем создание комнаты
-        print(f"Failed to send call notification: {e}")
+        logger.error(f"Failed to send call notification: {e}")
     
     return CreateRoomResponse(
         room_name=room_name,

@@ -10,7 +10,9 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://alumni_user:alumni_passwo
 if "postgresql+asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+# Only log SQL queries in debug mode
+DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+engine = create_async_engine(DATABASE_URL, echo=DEBUG)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

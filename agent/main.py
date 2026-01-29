@@ -237,17 +237,25 @@ async def entrypoint(ctx: JobContext):
             del participant_streams[participant.identity]
             logger.info(f"Отписались от аудио трека: {participant.identity}")
     
+    # Создаём событие для отслеживания отключения
+    disconnected_event = asyncio.Event()
+
+    @ctx.room.on("disconnected")
+    def on_disconnected():
+        logger.info("Комната отключена")
+        disconnected_event.set()
+
     # Подключаемся к комнате
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-    
+
     logger.info("Агент успешно подключен к комнате и ожидает участников")
-    
+
     # Ожидаем завершения звонка (комната закрывается)
     call_start_time = datetime.utcnow()
-    
+
     try:
         # Ждем отключения от комнаты
-        await ctx.room.disconnected
+        await disconnected_event.wait()
     except asyncio.CancelledError:
         pass
     finally:

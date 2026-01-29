@@ -136,6 +136,14 @@ export const useVideoCall = () => {
             // Подключаемся к комнате
             await room.connect(livekitUrl, token);
 
+            // ВАЖНО: Добавляем уже существующих участников в комнате
+            // (они не вызывают ParticipantConnected если уже были там до нашего подключения)
+            const existingParticipants = Array.from(room.remoteParticipants.values());
+            if (existingParticipants.length > 0) {
+                console.log('Found existing participants:', existingParticipants.map(p => p.identity));
+                setRemoteParticipants(existingParticipants);
+            }
+
             // Публикуем локальные треки
             if (videoTrack) await room.localParticipant.publishTrack(videoTrack);
             if (audioTrack) await room.localParticipant.publishTrack(audioTrack);

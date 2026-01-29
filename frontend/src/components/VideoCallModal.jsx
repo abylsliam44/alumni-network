@@ -63,14 +63,22 @@ const formatDuration = (seconds) => {
 // Вынесен из VideoCallModal чтобы избежать пересоздания при ре-рендерах родителя
 const ParticipantAudio = ({ participant }) => {
     const audioRef = useRef(null);
+    const attachedTracksRef = useRef(new Set());
 
     // Функция для прикрепления треков
     const attachTracks = useCallback((el) => {
         if (!el || !participant) return;
 
         participant.audioTracks.forEach(pub => {
-            if (pub.track && pub.kind === 'audio') {
-                pub.track.attach(el);
+            // Проверяем что трек существует и подписан
+            if (pub.track && pub.isSubscribed && !pub.isMuted) {
+                const trackSid = pub.track.sid;
+                // Избегаем повторного прикрепления того же трека
+                if (!attachedTracksRef.current.has(trackSid)) {
+                    console.log(`Attaching audio track from ${participant.identity}:`, trackSid);
+                    pub.track.attach(el);
+                    attachedTracksRef.current.add(trackSid);
+                }
             }
         });
 
@@ -89,6 +97,7 @@ const ParticipantAudio = ({ participant }) => {
                     pub.track.detach(audioRef.current);
                 }
             });
+            attachedTracksRef.current.clear();
         }
 
         audioRef.current = el;
@@ -156,21 +165,44 @@ const VideoCallModal = ({
 
     // Прикрепляем удалённое видео (только для активного участника)
     useEffect(() => {
+        // Debug: логируем всех участников и их треки
+        console.log('Remote participants:', remoteParticipants.map(p => ({
+            identity: p.identity,
+            videoTracks: Array.from(p.videoTracks.values()).map(pub => ({
+                sid: pub.trackSid,
+                kind: pub.kind,
+                isSubscribed: pub.isSubscribed,
+                isMuted: pub.isMuted,
+                hasTrack: !!pub.track,
+            })),
+            audioTracks: Array.from(p.audioTracks.values()).map(pub => ({
+                sid: pub.trackSid,
+                kind: pub.kind,
+                isSubscribed: pub.isSubscribed,
+                isMuted: pub.isMuted,
+                hasTrack: !!pub.track,
+            })),
+        })));
+
         // 1. Ищем участника с видео (приоритет реальному собеседнику с камерой)
         const videoParticipant = remoteParticipants.find(p => {
+            // Пропускаем агента - он не публикует видео
+            if (p.identity === 'agent') return false;
             return Array.from(p.videoTracks.values()).some(pub =>
-                pub.track && pub.kind === 'video' && !pub.isMuted
+                pub.track && pub.isSubscribed && !pub.isMuted
             );
         });
 
         // Если нашли участника с видео - прикрепляем к рефу
         if (videoParticipant && remoteVideoRef.current) {
             const videoPublication = Array.from(videoParticipant.videoTracks.values())
-                .find(pub => pub.track && pub.kind === 'video');
+                .find(pub => pub.track && pub.isSubscribed);
 
             if (videoPublication?.track) {
+                console.log(`Attaching remote video from ${videoParticipant.identity}`);
                 videoPublication.track.attach(remoteVideoRef.current);
                 return () => {
+                    console.log(`Detaching remote video from ${videoParticipant.identity}`);
                     videoPublication.track.detach(remoteVideoRef.current);
                 };
             }
@@ -242,10 +274,11 @@ const VideoCallModal = ({
                         {remoteParticipants.length > 0 ? (
                             (() => {
                                 // Logic to determine what to show
-                                // 1. Find a participant with an active video track
+                                // 1. Find a participant with an active video track (excluding agent)
                                 const videoParticipant = remoteParticipants.find(p => {
+                                    if (p.identity === 'agent') return false;
                                     return Array.from(p.videoTracks.values()).some(pub =>
-                                        pub.track && pub.kind === 'video' && !pub.isMuted
+                                        pub.track && pub.isSubscribed && !pub.isMuted
                                     );
                                 });
 
@@ -253,6 +286,9 @@ const VideoCallModal = ({
                                 if (videoParticipant) {
                                     return <video ref={remoteVideoRef} autoPlay playsInline className="remote-video-element" />;
                                 }
+
+                                // Check if there's a real participant (not agent) in the room
+                                const hasRealParticipant = remoteParticipants.some(p => p.identity !== 'agent');
 
                                 // Otherwise show the avatar of the primary remote participant (not the agent if possible)
                                 // We'll just show the avatar of the 'otherUser' passed in props as a fallback for 1-on-1 calls
@@ -268,7 +304,7 @@ const VideoCallModal = ({
                                             />
                                         </div>
                                         <span className="videocall-waiting-text">
-                                            {remoteParticipants.some(p => p.identity !== 'agent')
+                                            {hasRealParticipant
                                                 ? 'Собеседник без камеры'
                                                 : 'Ожидание участника...'}
                                         </span>

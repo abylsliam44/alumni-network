@@ -1,11 +1,15 @@
+import logging
 import os
 import uuid
 import shutil
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 from fastapi import UploadFile, HTTPException
 from pathlib import Path
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Use the configured upload directory, converting to Path object
 UPLOAD_DIR = Path(settings.UPLOAD_DIR).resolve()
@@ -61,11 +65,11 @@ def generate_presigned_url(file_name: str, file_type: str, bucket: str = None) -
     # Ensure bucket exists
     try:
         s3_client.head_bucket(Bucket=bucket)
-    except:
+    except ClientError:
         try:
             s3_client.create_bucket(Bucket=bucket)
         except Exception as e:
-            print(f"Error creating bucket: {e}")
+            logger.error(f"Error creating bucket: {e}")
 
     object_name = f"resumes/{uuid.uuid4()}/{file_name}"
     
@@ -95,5 +99,5 @@ def generate_presigned_url(file_name: str, file_type: str, bucket: str = None) -
              
         return {"upload_url": url, "file_url": final_url, "object_name": object_name}
     except Exception as e:
-        print(f"Error generating presigned URL: {e}")
+        logger.error(f"Error generating presigned URL: {e}")
         raise HTTPException(status_code=500, detail="Could not generate upload URL")

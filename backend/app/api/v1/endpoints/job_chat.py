@@ -1,5 +1,11 @@
+import json
+import logging
+from datetime import datetime
 from typing import List
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -8,6 +14,8 @@ from app.api import deps
 from app.core.database import get_db
 from app.models.job import JobApplication, JobChatMessage
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -24,19 +32,18 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket, application_id: str):
         if application_id in self.active_connections:
-             if websocket in self.active_connections[application_id]:
+            if websocket in self.active_connections[application_id]:
                 self.active_connections[application_id].remove(websocket)
-             if not self.active_connections[application_id]:
-                 del self.active_connections[application_id]
+            if not self.active_connections[application_id]:
+                del self.active_connections[application_id]
 
     async def broadcast(self, message: str, application_id: str):
         if application_id in self.active_connections:
             for connection in self.active_connections[application_id]:
                 try:
                     await connection.send_text(message)
-                except:
-                    # Handle stale connection
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to send to connection: {e}")
 
 manager = ConnectionManager()
 
@@ -98,23 +105,18 @@ async def websocket_endpoint(
             # We'll broadcast the same text for now, client handles display.
             # Better: Broadcast structured JSON with sender_id.
             
-            import json
             response = {
                 "sender_id": str(user.id),
                 "message": data,
-                "created_at": str(datetime.utcnow())
+                "created_at": datetime.utcnow().isoformat()
             }
             await manager.broadcast(json.dumps(response), application_id)
-            
+
     except WebSocketDisconnect:
         manager.disconnect(websocket, application_id)
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket, application_id)
-
-from datetime import datetime
-from pydantic import BaseModel
-from uuid import UUID
 
 class MessageResponse(BaseModel):
     id: UUID
