@@ -4,7 +4,8 @@ import { jobsApi } from '../api/jobs';
 import Button from './ui/Button';
 
 const ApplicationChat = ({ applicationId }) => {
-  const { token, user } = useAuth();
+  const { token: authToken, user } = useAuth();
+  const token = authToken || localStorage.getItem('token');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
@@ -21,6 +22,11 @@ const ApplicationChat = ({ applicationId }) => {
     // Get backend URL from environment or derive from current host
     const backendUrl = import.meta.env.VITE_API_URL || window.location.origin;
     const wsHost = backendUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+    if (!token) {
+      setConnected(false);
+      return undefined;
+    }
 
     const wsEndpoint = `${protocol}//${wsHost}/api/v1/job-chat/ws/${applicationId}?token=${token}`;
 

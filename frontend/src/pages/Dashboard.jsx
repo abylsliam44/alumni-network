@@ -186,7 +186,7 @@ const Dashboard = () => {
           mentorshipApi.getRelationships(),
           mentorshipApi.getIncomingRequests(),
           mentorshipApi.getOutgoingRequests(),
-          eventsApi.list({ limit: 5, upcoming: true }),
+          eventsApi.list({ limit: 5, upcoming_only: true }),
           eventsApi.myRegistrations(),
           jobsApi.list({ limit: 5 }),
           jobsApi.myApplications(),
@@ -205,8 +205,8 @@ const Dashboard = () => {
 
         // Set pending connections
         if (connectionsData.status === 'fulfilled') {
-          const pending = (connectionsData.value.incoming || []).filter(
-            (c) => c.status === 'pending'
+          const pending = (connectionsData.value || []).filter(
+            (c) => c.status === 'PENDING' && c.recipient_id === user?.id
           );
           setPendingConnections(pending);
         }
@@ -224,12 +224,12 @@ const Dashboard = () => {
         // Set mentor requests
         if (incomingReqData.status === 'fulfilled') {
           setIncomingMentorRequests(
-            (incomingReqData.value || []).filter((r) => r.status === 'pending')
+            (incomingReqData.value || []).filter((r) => r.status === 'PENDING')
           );
         }
         if (outgoingReqData.status === 'fulfilled') {
           setOutgoingMentorRequests(
-            (outgoingReqData.value || []).filter((r) => r.status === 'pending')
+            (outgoingReqData.value || []).filter((r) => r.status === 'PENDING')
           );
         }
 
@@ -780,7 +780,7 @@ const Dashboard = () => {
                     <span className="dash-job-company">{job.company}</span>
                     <div className="dash-job-meta">
                       {job.location && <span><MapPinIcon /> {job.location}</span>}
-                      {job.job_type && <span>{job.job_type}</span>}
+                      {job.employment_type && <span>{job.employment_type.replaceAll('_', ' ')}</span>}
                     </div>
                   </div>
                 </Link>

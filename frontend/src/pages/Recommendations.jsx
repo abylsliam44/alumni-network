@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { recommendationsApi } from '../api/recommendations';
 import { connectionsApi } from '../api/connections';
+import PageIntro from '../components/PageIntro';
 
 const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => {
@@ -142,37 +143,37 @@ const Recommendations = () => {
 
   return (
     <div className="rec-page">
-      {/* Hero Section */}
-      <header className="rec-header">
-        <div className="rec-header-content">
-          <div className="rec-header-text">
-            <h1>Recommendations</h1>
-            <p>AI-powered matching based on your skills, interests, and goals</p>
-          </div>
-        </div>
+      <PageIntro
+        title="Recommendations"
+        subtitle="AI-powered matching based on your skills, interests, and goals."
+        side={(
+          <div className="page-intro-side-stack">
+            <div className="page-intro-metrics">
+              <div className="page-intro-metric">
+                <UsersIcon />
+                <span className="page-intro-metric-value">{summary.total}</span>
+                <span className="page-intro-metric-label">Suggested</span>
+              </div>
+              <div className="page-intro-metric highlight">
+                <TrophyIcon />
+                <span className="page-intro-metric-value">{summary.best}%</span>
+                <span className="page-intro-metric-label">Top Match</span>
+              </div>
+            </div>
 
-        <div className="rec-header-stats">
-          <div className="rec-stat">
-            <UsersIcon />
-            <span className="rec-stat-value">{summary.total}</span>
-            <span className="rec-stat-label">Suggested</span>
+            <div className="page-intro-actions">
+              <button
+                className="rec-refresh-btn page-intro-button page-intro-button-secondary"
+                onClick={loadRecommendations}
+                disabled={loading}
+              >
+                <RefreshIcon />
+                Refresh
+              </button>
+            </div>
           </div>
-          <div className="rec-stat highlight">
-            <TrophyIcon />
-            <span className="rec-stat-value">{summary.best}%</span>
-            <span className="rec-stat-label">Top Match</span>
-          </div>
-        </div>
-
-        <button
-          className="rec-refresh-btn"
-          onClick={loadRecommendations}
-          disabled={loading}
-        >
-          <RefreshIcon />
-          Refresh
-        </button>
-      </header>
+        )}
+      />
 
       {/* Content */}
       <main className="rec-content">

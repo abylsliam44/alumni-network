@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -10,44 +10,71 @@ const Register = () => {
     confirmPassword: '',
     role: 'STUDENT'
   });
-  const [validationError, setValidationError] = useState(null);
+  const [touched, setTouched] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, error } = useAuth();
   const navigate = useNavigate();
+
+  const passwordChecks = useMemo(() => {
+    const password = formData.password;
+    return {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+  }, [formData.password]);
+
+  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+  const passwordsMatch = formData.password === formData.confirmPassword;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+  const isNameValid = formData.name.trim().length >= 2;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleBlur = (e) => {
+    setTouched({ ...touched, [e.target.name]: true });
+  };
+
+  const getFieldError = (field) => {
+    if (!touched[field]) return null;
+
+    switch (field) {
+      case 'name':
+        if (!formData.name.trim()) return 'Name is required';
+        if (formData.name.trim().length < 2) return 'Name must be at least 2 characters';
+        return null;
+      case 'email':
+        if (!formData.email) return 'Email is required';
+        if (!isEmailValid) return 'Please enter a valid email address';
+        return null;
+      case 'confirmPassword':
+        if (!formData.confirmPassword) return 'Please confirm your password';
+        if (!passwordsMatch) return 'Passwords do not match';
+        return null;
+      default:
+        return null;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setValidationError(null);
 
-    if (formData.password !== formData.confirmPassword) {
-      setValidationError("Passwords don't match");
+    setTouched({
+      name: true,
+      email: true,
+      password: true,
+      confirmPassword: true
+    });
+
+    if (!isNameValid || !isEmailValid || !isPasswordValid || !passwordsMatch) {
       return;
     }
 
-    const password = formData.password;
-    if (password.length < 8) {
-      setValidationError("Password must be at least 8 characters");
-      return;
-    }
-    if (!/[A-Z]/.test(password)) {
-      setValidationError("Password must contain at least one uppercase letter");
-      return;
-    }
-    if (!/[a-z]/.test(password)) {
-      setValidationError("Password must contain at least one lowercase letter");
-      return;
-    }
-    if (!/\d/.test(password)) {
-      setValidationError("Password must contain at least one number");
-      return;
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      setValidationError("Password must contain at least one special character");
-      return;
-    }
+    setIsSubmitting(true);
 
     const success = await register({
       name: formData.name,
@@ -56,9 +83,26 @@ const Register = () => {
       role: formData.role
     });
 
+    setIsSubmitting(false);
+
     if (success) {
       navigate('/dashboard');
     }
+  };
+
+  const getServerErrorMessage = (error) => {
+    if (!error) return null;
+
+    if (error.includes('already registered') || error.includes('already exists')) {
+      return 'A user with this email already exists';
+    }
+    if (error.includes('Invalid email')) {
+      return 'Invalid email format';
+    }
+    if (error.includes('Network') || error.includes('fetch')) {
+      return 'Network error. Please check your connection';
+    }
+    return error;
   };
 
   return (
@@ -114,19 +158,19 @@ const Register = () => {
               <p>Join the AITU alumni community</p>
             </div>
 
-            {(error || validationError) && (
+            {error && (
               <div className="auth-error">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {error || validationError}
+                {getServerErrorMessage(error)}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="auth-form">
-              <div className="auth-input-group">
+              <div className={`auth-input-group ${getFieldError('name') ? 'has-error' : ''}`}>
                 <label htmlFor="name">Full name</label>
                 <input
                   id="name"
@@ -134,12 +178,15 @@ const Register = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  required
+                  onBlur={handleBlur}
                   placeholder="John Doe"
                 />
+                {getFieldError('name') && (
+                  <span className="field-error">{getFieldError('name')}</span>
+                )}
               </div>
 
-              <div className="auth-input-group">
+              <div className={`auth-input-group ${getFieldError('email') ? 'has-error' : ''}`}>
                 <label htmlFor="email">Email address</label>
                 <input
                   id="email"
@@ -147,9 +194,12 @@ const Register = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  required
+                  onBlur={handleBlur}
                   placeholder="name@example.com"
                 />
+                {getFieldError('email') && (
+                  <span className="field-error">{getFieldError('email')}</span>
+                )}
               </div>
 
               <div className="auth-input-group">
@@ -166,36 +216,68 @@ const Register = () => {
                 </select>
               </div>
 
-              <div className="auth-input-row">
-                <div className="auth-input-group">
-                  <label htmlFor="password">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    placeholder="Min. 6 characters"
-                  />
-                </div>
+              <div className="auth-input-group">
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Enter password"
+                />
 
-                <div className="auth-input-group">
-                  <label htmlFor="confirmPassword">Confirm password</label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    placeholder="Confirm password"
-                  />
-                </div>
+                {formData.password && (
+                  <div className="password-requirements">
+                    <p className="requirements-title">Password requirements:</p>
+                    <ul className="requirements-list">
+                      <li className={passwordChecks.length ? 'valid' : 'invalid'}>
+                        <span className="check-icon">{passwordChecks.length ? '✓' : '✗'}</span>
+                        At least 8 characters
+                      </li>
+                      <li className={passwordChecks.uppercase ? 'valid' : 'invalid'}>
+                        <span className="check-icon">{passwordChecks.uppercase ? '✓' : '✗'}</span>
+                        One uppercase letter (A-Z)
+                      </li>
+                      <li className={passwordChecks.lowercase ? 'valid' : 'invalid'}>
+                        <span className="check-icon">{passwordChecks.lowercase ? '✓' : '✗'}</span>
+                        One lowercase letter (a-z)
+                      </li>
+                      <li className={passwordChecks.number ? 'valid' : 'invalid'}>
+                        <span className="check-icon">{passwordChecks.number ? '✓' : '✗'}</span>
+                        One number (0-9)
+                      </li>
+                      <li className={passwordChecks.special ? 'valid' : 'invalid'}>
+                        <span className="check-icon">{passwordChecks.special ? '✓' : '✗'}</span>
+                        One special character (!@#$%^&*)
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
-              <button type="submit" className="auth-submit-btn">
-                Create account
+              <div className={`auth-input-group ${getFieldError('confirmPassword') ? 'has-error' : ''}`}>
+                <label htmlFor="confirmPassword">Confirm password</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Confirm password"
+                />
+                {getFieldError('confirmPassword') && (
+                  <span className="field-error">{getFieldError('confirmPassword')}</span>
+                )}
+                {touched.confirmPassword && passwordsMatch && formData.confirmPassword && (
+                  <span className="field-success">Passwords match</span>
+                )}
+              </div>
+
+              <button type="submit" className="auth-submit-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating account...' : 'Create account'}
               </button>
             </form>
 

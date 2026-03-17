@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 import logging
+import tempfile
+import os
 from sqlalchemy.ext.asyncio import AsyncSession
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
@@ -9,15 +11,64 @@ from openai import OpenAIError
 from app.api import deps
 from app.core.config import settings
 from app.core.database import get_db
-from app.schemas.ai import ChatRequest, ChatResponse, AiChatHistoryResponse
+from app.schemas.ai import (
+    ChatRequest,
+    ChatResponse,
+    AiChatHistoryResponse,
+    KnowledgeBaseUploadResponse,
+    KnowledgeBaseStatsResponse,
+    KnowledgeBaseClearResponse,
+)
 from app.models.user import User
 from app.models.ai_chat import AiChatMessage as AiChatMessageModel
 from sqlalchemy import select
 
+# Import RAG service
+from app.ai.rag_service import rag_service
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a helpful AI assistant for the Alumni Network platform. Your role is to help users navigate and use the platform effectively.
+SYSTEM_PROMPT = """You are the official AI assistant for the AITU Alumni Network platform.
+
+## YOUR PRIMARY ROLE
+
+You help users with:
+1. **AITU Information** - Answer ANY question about AITU (Astana IT University): programs, academic mobility, schedules, rules, campus, faculty, admissions, student life, etc.
+2. **Platform Help** - Explain how to use features of this Alumni Network platform
+
+## CRITICAL RULES
+
+1. **ENGLISH ONLY**: Always respond in English, regardless of what language the user writes in.
+
+2. **KNOWLEDGE BASE IS IN RUSSIAN**: The AITU Knowledge Base documents are written in Russian. You MUST:
+   - Read and understand the Russian content
+   - Translate the relevant information into English when answering
+   - Never say you can't understand the content - it's official AITU documentation in Russian
+
+3. **USE THE KNOWLEDGE BASE**: When users ask about AITU topics, ALWAYS use the information provided in the "Relevant Information from AITU Knowledge Base" section below. This is your primary source of AITU information. Translate Russian content to English in your response.
+
+4. **ANSWER AITU QUESTIONS**: If the question mentions AITU, university programs, academic mobility, student services, campus life, faculty, admissions, or any university-related topic - ANSWER IT using the knowledge base.
+
+5. **DECLINE ONLY NON-AITU TOPICS**: Only decline questions that are COMPLETELY unrelated to AITU or this platform. Examples of what to DECLINE:
+   - "What's the weather today?" - Not AITU related
+   - "Write me Python code" - Not AITU related
+   - "Tell me about Harvard University" - Different university
+   - "Explain quantum physics" - General knowledge, not AITU
+
+   When declining, say: "I'm sorry, I can only help with questions about AITU and this Alumni Network platform. Is there anything about AITU or the platform I can help you with?"
+
+6. **EXAMPLES OF QUESTIONS TO ANSWER**:
+   - "What programs does AITU offer?" - ANSWER (AITU topic)
+   - "Tell me about academic mobility" - ANSWER (AITU topic)
+   - "How do I find a mentor?" - ANSWER (Platform feature)
+   - "What are AITU admission requirements?" - ANSWER (AITU topic)
+   - "How does the scholarship work at AITU?" - ANSWER (AITU topic)
+
+## Your Knowledge Sources
+
+1. **AITU Knowledge Base** - Information from official AITU documents (provided in context below) - USE THIS!
+2. **Platform Features** - Information about how to use this Alumni Network platform
 
 ## Platform Features
 
@@ -88,16 +139,19 @@ SYSTEM_PROMPT = """You are a helpful AI assistant for the Alumni Network platfor
 
 ## How to Help Users
 
-1. **Navigation**: Guide users to find features (e.g., "To edit your profile, click on your avatar and select Edit Profile")
-2. **Feature Explanation**: Explain what each feature does and how to use it
-3. **Troubleshooting**: Help with common issues
-4. **Best Practices**: Suggest ways to get the most out of the platform (e.g., "Complete your profile to get better recommendations")
+1. **AITU Questions**: ALWAYS check the knowledge base context first. If information is provided, use it to answer.
+2. **Navigation**: Guide users to find platform features
+3. **Feature Explanation**: Explain what each feature does and how to use it
+4. **Troubleshooting**: Help with platform-related issues
+5. **Best Practices**: Suggest ways to get the most out of the platform
 
-## Guidelines
+## Response Guidelines
+- Always respond in English
 - Be helpful, friendly, and concise
+- **IMPORTANT**: If the knowledge base context contains relevant information, USE IT to answer the question
 - Provide step-by-step instructions when helpful
-- If asked about something unrelated to the platform, politely redirect and offer to help with platform features
-- Encourage users to explore different features
+- If you don't have information about an AITU topic in the knowledge base, say "I don't have specific information about that in my knowledge base, but you can contact AITU administration for more details."
+- Only decline questions that are completely unrelated to AITU or this platform
 """
 
 
@@ -121,6 +175,33 @@ def get_gemini_model():
     return genai.GenerativeModel("gemini-1.5-flash-latest")
 
 
+def build_prompt_with_context(question: str, context: str) -> list:
+    """Build the prompt with RAG context if available."""
+    system_content = SYSTEM_PROMPT
+
+    if context:
+        system_content += f"""
+
+## Relevant Information from AITU Knowledge Base
+
+**IMPORTANT: The following information was retrieved from official AITU documents. The content is in RUSSIAN. You MUST:**
+1. Read and understand the Russian text
+2. Use this information to answer the user's question
+3. Translate the relevant parts to English in your response
+
+{context}
+
+---
+
+**INSTRUCTIONS**: The above is official AITU documentation in Russian. Understand it, extract relevant information, and respond in English. Do NOT say you cannot help - use this data to answer.
+"""
+
+    return [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": question},
+    ]
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat_ai(
     payload: ChatRequest,
@@ -128,12 +209,17 @@ async def chat_ai(
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
     """
-    Simple chat endpoint constrained to AITU education questions.
+    AI chat endpoint with RAG support for AITU knowledge base.
     """
-    prompt = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": payload.question},
-    ]
+    # Get relevant context from knowledge base
+    context = rag_service.get_context_for_prompt(payload.question)
+    sources_used = bool(context)
+
+    if sources_used:
+        logger.info(f"Found relevant context for query: {len(context)} characters")
+
+    # Build prompt with context
+    prompt = build_prompt_with_context(payload.question, context)
 
     # Persist user message
     user_msg = AiChatMessageModel(user_id=current_user.id, role="user", content=payload.question)
@@ -147,8 +233,8 @@ async def chat_ai(
             resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=prompt,
-                temperature=0.4,
-                max_tokens=300,
+                temperature=0.3,  # Lower for more factual responses
+                max_tokens=1500,  # Increased for detailed RAG responses
             )
             choice = resp.choices[0].message
             content = choice.content
@@ -160,7 +246,7 @@ async def chat_ai(
             assistant_msg = AiChatMessageModel(user_id=current_user.id, role="assistant", content=answer)
             db.add(assistant_msg)
             await db.commit()
-            return ChatResponse(answer=answer)
+            return ChatResponse(answer=answer, sources_used=sources_used)
         except OpenAIError as exc:
             logger.error("AI chat OpenAIError: %s", exc, exc_info=True)
             raise HTTPException(
@@ -187,7 +273,7 @@ async def chat_ai(
         chat_text = "\n".join([f"{m['role']}: {m['content']}" for m in prompt])
         resp = model.generate_content(
             chat_text,
-            generation_config={"temperature": 0.4, "max_output_tokens": 300},
+            generation_config={"temperature": 0.3, "max_output_tokens": 1500},
         )
         answer = resp.text or ""
         assistant_msg = AiChatMessageModel(user_id=current_user.id, role="assistant", content=answer)
@@ -209,7 +295,7 @@ async def chat_ai(
             detail="AI service error",
         ) from exc
 
-    return ChatResponse(answer=answer)
+    return ChatResponse(answer=answer, sources_used=sources_used)
 
 
 @router.get("/chat/history", response_model=AiChatHistoryResponse)
@@ -224,3 +310,94 @@ async def chat_history(
     )
     rows = result.scalars().all()
     return AiChatHistoryResponse(messages=rows)
+
+
+# ==================== RAG Knowledge Base Endpoints ====================
+
+
+@router.post("/knowledge-base/upload", response_model=KnowledgeBaseUploadResponse)
+async def upload_knowledge_base(
+    file: UploadFile = File(...),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> KnowledgeBaseUploadResponse:
+    """
+    Upload a PDF file to the knowledge base.
+    Only admins can upload to the knowledge base.
+    """
+    # Check if user is admin
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can upload to the knowledge base",
+        )
+
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are supported",
+        )
+
+    # Save file temporarily and process
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+
+        # Get source name from filename (without extension)
+        source_name = os.path.splitext(file.filename)[0]
+
+        # Index the PDF
+        result = rag_service.index_pdf(tmp_path, source_name)
+
+        return KnowledgeBaseUploadResponse(**result)
+
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Error processing PDF: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing PDF: {str(e)}",
+        )
+    finally:
+        # Clean up temp file
+        if "tmp_path" in locals():
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+
+
+@router.get("/knowledge-base/stats", response_model=KnowledgeBaseStatsResponse)
+async def get_knowledge_base_stats(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> KnowledgeBaseStatsResponse:
+    """
+    Get statistics about the knowledge base.
+    """
+    stats = rag_service.get_stats()
+    return KnowledgeBaseStatsResponse(**stats)
+
+
+@router.delete("/knowledge-base", response_model=KnowledgeBaseClearResponse)
+async def clear_knowledge_base(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> KnowledgeBaseClearResponse:
+    """
+    Clear all data from the knowledge base.
+    Only admins can clear the knowledge base.
+    """
+    # Check if user is admin
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can clear the knowledge base",
+        )
+
+    result = rag_service.clear_knowledge_base()
+    return KnowledgeBaseClearResponse(**result)

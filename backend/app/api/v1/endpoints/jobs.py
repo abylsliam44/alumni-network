@@ -1,13 +1,13 @@
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, or_, desc
+from sqlalchemy import select, func, or_, desc, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.database import get_db
 from app.models.job import Job, JobApplication, JobStatus, JobFormat, JobEmploymentType, ApplicationStatus
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.job import (
     JobCreate,
     JobRead,
@@ -24,16 +24,24 @@ from app.core import storage
 router = APIRouter()
 
 # --- Role Check Helpers ---
-def check_is_poster(user: User):
-    # For now, allow anyone or check system_roles
-    pass 
-    # if "JOB_POSTER" not in user.system_roles and not user.is_admin:
-    #     raise HTTPException(status_code=403, detail="Not authorized to post jobs")
+def can_moderate_jobs(user: Optional[User]) -> bool:
+    if not user:
+        return False
+    system_roles = user.system_roles or []
+    return user.is_admin or user.role == UserRole.STAFF or "JOB_MODERATOR" in system_roles
 
-def check_is_admin_or_moderator(user: User):
+def check_is_poster(user: User):
+    system_roles = user.system_roles or []
     if user.is_admin:
         return
-    if "JOB_MODERATOR" in user.system_roles:
+    if user.role == UserRole.ALUMNI:
+        return
+    if "JOB_POSTER" in system_roles:
+        return
+    raise HTTPException(status_code=403, detail="Not authorized to post jobs")
+
+def check_is_admin_or_moderator(user: User):
+    if can_moderate_jobs(user):
         return
     raise HTTPException(status_code=403, detail="Not authorized to moderate jobs")
 
@@ -47,9 +55,10 @@ async def list_jobs(
     query: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     job_type: Optional[JobEmploymentType] = Query(None),
+    employment_type: Optional[JobEmploymentType] = Query(None),
     format: Optional[JobFormat] = Query(None),
     company: Optional[str] = Query(None),
-    status_filter: Optional[JobStatus] = Query(JobStatus.APPROVED, alias="status"),
+    status_filter: Optional[JobStatus] = Query(None, alias="status"),
     current_user: Optional[User] = Depends(deps.get_current_user_optional),
 ) -> Any:
     """
@@ -57,9 +66,17 @@ async def list_jobs(
     Admins or Posters seeing their own might want other filters, but public list is Approved only.
     """
     stmt = select(Job)
-    
-    # Filter constraints
-    stmt = stmt.where(Job.status == status_filter)
+    can_moderate = can_moderate_jobs(current_user)
+
+    if can_moderate:
+        if status_filter is not None:
+            stmt = stmt.where(Job.status == status_filter)
+        else:
+            stmt = stmt.where(Job.status.in_([JobStatus.PENDING, JobStatus.APPROVED]))
+    else:
+        if status_filter not in (None, JobStatus.APPROVED):
+            raise HTTPException(status_code=403, detail="Not authorized to view jobs with this status")
+        stmt = stmt.where(Job.status == JobStatus.APPROVED)
     
     if query:
         stmt = stmt.where(
@@ -71,8 +88,9 @@ async def list_jobs(
         )
     if location:
         stmt = stmt.where(Job.location.ilike(f"%{location}%"))
-    if job_type:
-        stmt = stmt.where(Job.employment_type == job_type)
+    effective_employment_type = employment_type or job_type
+    if effective_employment_type:
+        stmt = stmt.where(Job.employment_type == effective_employment_type)
     if format:
         stmt = stmt.where(Job.format == format)
     if company:
@@ -84,8 +102,16 @@ async def list_jobs(
 
     pages = (total + limit - 1) // limit if total else 1
     
-    # Sort by created_at desc
-    stmt = stmt.order_by(Job.created_at.desc()).offset((page - 1) * limit).limit(limit)
+    sort_timestamp = func.coalesce(Job.updated_at, Job.created_at)
+    if can_moderate and status_filter is None:
+        stmt = stmt.order_by(
+            desc(case((Job.status == JobStatus.PENDING, 1), else_=0)),
+            desc(sort_timestamp),
+        )
+    else:
+        stmt = stmt.order_by(desc(sort_timestamp))
+
+    stmt = stmt.offset((page - 1) * limit).limit(limit)
     
     result = await db.execute(stmt)
     jobs = result.scalars().all()
@@ -147,7 +173,7 @@ async def get_job(
     if job.status != JobStatus.APPROVED:
         if not current_user:
             raise HTTPException(status_code=403, detail="Not authorized")
-        if current_user.id != job.created_by and not current_user.is_admin and "JOB_MODERATOR" not in current_user.system_roles:
+        if current_user.id != job.created_by and not can_moderate_jobs(current_user):
              raise HTTPException(status_code=403, detail="Job is not public")
 
     # Get count
@@ -174,8 +200,14 @@ async def update_job(
     if job.created_by != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to edit this job")
         
-    # Update fields
-    for field, value in job_in.dict(exclude_unset=True).items():
+    update_data = job_in.dict(exclude_unset=True)
+    if "status" in update_data:
+        raise HTTPException(
+            status_code=400,
+            detail="Job status can only be changed via workflow endpoints",
+        )
+
+    for field, value in update_data.items():
         setattr(job, field, value)
     
     # If user changes essential fields, maybe reset to DRAFT?
@@ -198,6 +230,8 @@ async def submit_job(
     
     if job.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
+    if job.status != JobStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Only draft jobs can be submitted")
 
     job.status = JobStatus.PENDING
     await db.commit()
@@ -217,6 +251,8 @@ async def approve_job(
     job = result.scalars().first()
     if not job:
          raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != JobStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Only pending jobs can be approved")
          
     job.status = JobStatus.APPROVED
     job.approved_by = current_user.id
@@ -237,6 +273,8 @@ async def reject_job(
     job = result.scalars().first()
     if not job:
          raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != JobStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Only pending jobs can be rejected")
          
     job.status = JobStatus.DRAFT # Or REJECTED? Spec says "reject -> status = draft"
     await db.commit()
@@ -257,6 +295,8 @@ async def close_job(
     
     if job.created_by != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
+    if job.status != JobStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="Only approved jobs can be closed")
         
     job.status = JobStatus.CLOSED
     await db.commit()

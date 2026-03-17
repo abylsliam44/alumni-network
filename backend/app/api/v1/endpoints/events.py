@@ -53,6 +53,20 @@ async def get_event_or_404(db: AsyncSession, event_id: UUID) -> Event:
     return event
 
 
+async def get_event_for_update_or_404(db: AsyncSession, event_id: UUID) -> Event:
+    """Lock an event row for workflows that depend on capacity/order guarantees."""
+    result = await db.execute(
+        select(Event)
+        .options(selectinload(Event.organizer))
+        .where(Event.id == event_id)
+        .with_for_update()
+    )
+    event = result.scalars().first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
 async def get_registration_counts(db: AsyncSession, event_id: UUID) -> tuple[int, int]:
     """Get registered and waitlisted counts for an event."""
     registered = await db.execute(
@@ -170,15 +184,21 @@ async def promote_from_waitlist(db: AsyncSession, event: Event, background_tasks
                 event.start_time.strftime("%B %d, %Y at %I:%M %p")
             )
         
-        # Update remaining waitlist positions
-        await db.execute(
-            select(EventRegistration).where(
-                and_(
-                    EventRegistration.event_id == event.id,
-                    EventRegistration.status == RegistrationStatus.WAITLISTED
+        # Keep positions contiguous after the promoted attendee leaves the queue.
+        remaining_waitlist = (
+            await db.execute(
+                select(EventRegistration)
+                .where(
+                    and_(
+                        EventRegistration.event_id == event.id,
+                        EventRegistration.status == RegistrationStatus.WAITLISTED
+                    )
                 )
+                .order_by(EventRegistration.waitlist_position.asc(), EventRegistration.created_at.asc())
             )
         )
+        for index, queued_registration in enumerate(remaining_waitlist.scalars().all(), start=1):
+            queued_registration.waitlist_position = index
 
 
 # =====================
@@ -641,7 +661,7 @@ async def register_for_event(
     - If capacity available: status = REGISTERED
     - If at capacity: status = WAITLISTED
     """
-    event = await get_event_or_404(db, event_id)
+    event = await get_event_for_update_or_404(db, event_id)
     
     # Check event is open for registration
     if event.status != EventStatus.APPROVED:
@@ -757,7 +777,7 @@ async def unregister_from_event(
     Cancel registration for an event.
     If user was registered (not waitlisted), promotes first waitlisted person.
     """
-    event = await get_event_or_404(db, event_id)
+    event = await get_event_for_update_or_404(db, event_id)
     
     # Find registration
     result = await db.execute(

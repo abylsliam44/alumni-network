@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { profileApi } from '../api/profile';
 import { messagesApi } from '../api/messages';
+import { connectionsApi } from '../api/connections';
 import { useAuth } from '../hooks/useAuth';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
@@ -17,6 +18,8 @@ const Profile = () => {
   const [error, setError] = useState(null);
   const [showMentorshipModal, setShowMentorshipModal] = useState(false);
   const [mentorshipRequested, setMentorshipRequested] = useState(false);
+  const [connection, setConnection] = useState(null);
+  const [connecting, setConnecting] = useState(false);
   const [notice, setNotice] = useState(null);
   const [menuType, setMenuType] = useState(null);
   const avatarInputRef = useRef(null);
@@ -33,6 +36,39 @@ const Profile = () => {
   useEffect(() => {
     loadProfile();
   }, [userId]);
+
+  useEffect(() => {
+    if (!profile?.user_id || !currentUser?.id || currentUser.id === profile.user_id) {
+      setConnection(null);
+      return;
+    }
+
+    const loadConnection = async () => {
+      try {
+        const items = await connectionsApi.list();
+        const existing = (items || []).find(
+          (item) =>
+            (item.requester_id === currentUser.id && item.recipient_id === profile.user_id) ||
+            (item.requester_id === profile.user_id && item.recipient_id === currentUser.id)
+        );
+
+        if (!existing) {
+          setConnection({ status: 'NONE', direction: null, id: null });
+          return;
+        }
+
+        setConnection({
+          id: existing.id,
+          status: existing.status,
+          direction: existing.requester_id === currentUser.id ? 'out' : 'in',
+        });
+      } catch (err) {
+        console.error('Failed to load connection status', err);
+      }
+    };
+
+    loadConnection();
+  }, [profile?.user_id, currentUser?.id]);
 
   const loadProfile = async () => {
     try {
@@ -61,6 +97,40 @@ const Profile = () => {
         type: 'error',
         message: err.response?.data?.detail || 'Unable to start conversation. You need to be friends first.',
       });
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!profile?.user_id || connecting) return;
+
+    setConnecting(true);
+    setNotice(null);
+    try {
+      if (connection?.status === 'PENDING' && connection.direction === 'in' && connection.id) {
+        const updated = await connectionsApi.respond(connection.id, 'ACCEPTED');
+        setConnection({
+          id: updated.id,
+          status: updated.status,
+          direction: 'in',
+        });
+        setNotice({ type: 'success', message: 'Connection request accepted.' });
+        return;
+      }
+
+      const created = await connectionsApi.request(profile.user_id);
+      setConnection({
+        id: created.id,
+        status: created.status,
+        direction: 'out',
+      });
+      setNotice({ type: 'success', message: 'Connection request sent.' });
+    } catch (err) {
+      setNotice({
+        type: 'error',
+        message: err.response?.data?.detail || 'Failed to update connection.',
+      });
+    } finally {
+      setConnecting(false);
     }
   };
 
@@ -153,6 +223,20 @@ const Profile = () => {
   if (loading) return <div className="linkedin-profile-loading"><div className="loading-spinner-ring"></div><p>Loading profile...</p></div>;
   if (error) return <div className="linkedin-profile-error">{error}</div>;
   if (!profile) return <div className="linkedin-profile-error">No profile found</div>;
+
+  const isConnected = connection?.status === 'ACCEPTED';
+  const isPendingOutgoing = connection?.status === 'PENDING' && connection?.direction === 'out';
+  const isPendingIncoming = connection?.status === 'PENDING' && connection?.direction === 'in';
+  const connectLabel = isConnected
+    ? 'Connected'
+    : isPendingOutgoing
+      ? 'Request Sent'
+      : isPendingIncoming
+        ? 'Accept Request'
+        : connecting
+          ? 'Connecting...'
+          : 'Connect';
+  const connectDisabled = connecting || isConnected || isPendingOutgoing;
 
   return (
     <div className="linkedin-profile-container">
@@ -278,23 +362,31 @@ const Profile = () => {
                   <Button
                     variant="primary"
                     className="linkedin-btn-primary"
-                    onClick={() => {
-                      if (!mentorshipRequested) setShowMentorshipModal(true);
-                    }}
-                    disabled={mentorshipRequested}
+                    onClick={handleConnect}
+                    disabled={connectDisabled}
                   >
-                    {mentorshipRequested ? '✓ Request Sent' : 'Connect'}
+                    {connectLabel}
                   </Button>
-                  <Button variant="secondary" className="linkedin-btn-secondary" onClick={startConversation}>
+                  <Button
+                    variant="secondary"
+                    className="linkedin-btn-secondary"
+                    onClick={startConversation}
+                    disabled={!isConnected}
+                  >
                     Message
                   </Button>
-                  <Button variant="secondary" className="linkedin-btn-more">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="19" cy="12" r="2" />
-                      <circle cx="5" cy="12" r="2" />
-                    </svg>
-                  </Button>
+                  {profile.is_mentor && (
+                    <Button
+                      variant="secondary"
+                      className="linkedin-btn-more"
+                      onClick={() => {
+                        if (!mentorshipRequested) setShowMentorshipModal(true);
+                      }}
+                      disabled={mentorshipRequested}
+                    >
+                      {mentorshipRequested ? 'Mentorship Sent' : 'Request Mentorship'}
+                    </Button>
+                  )}
                 </>
               )}
             </div>

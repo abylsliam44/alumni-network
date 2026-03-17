@@ -10,6 +10,9 @@ import VideoCallModal from '../components/VideoCallModal';
 import { resolveUrl } from '../utils/image';
 
 const apiBase = import.meta.env.VITE_API_URL || '';
+const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024;
+const ATTACHMENT_ACCEPT =
+  'image/*,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/ogg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip';
 
 
 const dicebear = (name = 'User') =>
@@ -44,6 +47,47 @@ const timeLabel = (value) => {
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
   return isToday ? 'Today' : date.toLocaleDateString();
+};
+
+const isImageAttachment = (mimeType) => mimeType?.startsWith('image/');
+const isVideoAttachment = (mimeType) => mimeType?.startsWith('video/');
+const isAudioAttachment = (mimeType) => mimeType?.startsWith('audio/');
+
+const formatAttachmentSize = (size) => {
+  if (!size) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const attachmentPreviewLabel = (message) => {
+  if (!message?.attachment_url) return message?.text || '';
+  if (isImageAttachment(message.attachment_mime_type)) return 'Photo';
+  if (isVideoAttachment(message.attachment_mime_type)) return 'Video';
+  if (isAudioAttachment(message.attachment_mime_type)) return 'Audio';
+  return message.attachment_name || 'File';
+};
+
+const conversationPreviewText = (message) => {
+  if (!message) return 'Start a conversation';
+  if (message.text?.startsWith('JOIN_VIDEO_CALL|')) return '📹 Video Call';
+  if (message.attachment_url) {
+    const label = attachmentPreviewLabel(message);
+    return message.text?.trim() ? `📎 ${label} · ${message.text}` : `📎 ${label}`;
+  }
+  return message.text || 'Start a conversation';
+};
+
+const attachmentAccessUrl = (message, download = false) => {
+  if (!message?.id) return '';
+  const base = apiBase?.replace(/\/$/, '') || '';
+  const path = `/api/v1/messages/attachments/${message.id}/download`;
+  const params = new URLSearchParams();
+  const token = localStorage.getItem('token');
+  if (download) params.set('download', 'true');
+  if (token) params.set('token', token);
+  const query = params.toString();
+  return `${base}${path}${query ? `?${query}` : ''}`;
 };
 
 // Icons
@@ -143,6 +187,8 @@ const Messages = () => {
   const [typingState, setTypingState] = useState({});
   const [search, setSearch] = useState('');
   const [mobileView, setMobileView] = useState('list');
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const typingTimeout = useRef(null);
   const sendEventRef = useRef(() => { });
   const [friendIds, setFriendIds] = useState([]);
@@ -150,6 +196,7 @@ const Messages = () => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const attachmentInputRef = useRef(null);
 
   // Video call state
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
@@ -430,20 +477,6 @@ const Messages = () => {
     }
   };
 
-  const handleSend = () => {
-    if (!draft.trim() || !activeId) return;
-    if (!canMessage) return;
-    sendEvent('send_message', {
-      conversation_id: activeId,
-      text: draft.trim(),
-    });
-    setDraft('');
-    sendEvent('typing_stop', { conversation_id: activeId });
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '48px';
-    }
-  };
-
   const handleDraftChange = (value) => {
     setDraft(value);
     if (!activeId) return;
@@ -468,6 +501,87 @@ const Messages = () => {
   const otherUserAvatar = resolveUrl(otherUser?.photo_url) || dicebear(otherUser?.name);
   const canMessage = otherUser ? friendIds.includes(otherUser.id) : false;
   const isOtherUserOnline = otherUser ? onlineUsers.has(otherUser.id) : false;
+  const canSendMessage = Boolean(draft.trim() || selectedAttachment);
+  const sharedMediaMessages = useMemo(
+    () =>
+      currentMessages
+        .filter((msg) => msg.attachment_url)
+        .slice()
+        .reverse(),
+    [currentMessages]
+  );
+
+  const clearSelectedAttachment = useCallback(() => {
+    setSelectedAttachment(null);
+    if (attachmentInputRef.current) {
+      attachmentInputRef.current.value = '';
+    }
+  }, []);
+
+  const uploadAttachment = useCallback(async (file) => {
+    const contentType = file.type || 'application/octet-stream';
+    const upload = await messagesApi.uploadAttachment(file);
+
+    return {
+      attachment_url: upload.file_url,
+      attachment_name: file.name,
+      attachment_mime_type: contentType,
+      attachment_size: file.size,
+    };
+  }, []);
+
+  const handleAttachmentSelect = useCallback(
+    (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > MAX_ATTACHMENT_SIZE) {
+        alert('File is too large. Maximum size is 25 MB.');
+        clearSelectedAttachment();
+        return;
+      }
+
+      setSelectedAttachment(file);
+    },
+    [clearSelectedAttachment]
+  );
+
+  const handleSend = async () => {
+    if (!activeId || !canSendMessage || uploadingAttachment) return;
+    if (!canMessage) return;
+
+    const messageText = draft.trim();
+
+    try {
+      let attachmentPayload = null;
+
+      if (selectedAttachment) {
+        setUploadingAttachment(true);
+        attachmentPayload = await uploadAttachment(selectedAttachment);
+      }
+
+      const message = await messagesApi.sendMessage(activeId, {
+        text: messageText,
+        ...(attachmentPayload || {}),
+      });
+      handleNewMessage({
+        conversation_id: activeId,
+        message,
+      });
+
+      setDraft('');
+      clearSelectedAttachment();
+      sendEvent('typing_stop', { conversation_id: activeId });
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '48px';
+      }
+    } catch (error) {
+      console.error('Failed to send message with attachment', error);
+      alert('Failed to send attachment. Please try again.');
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
 
   // Video call handler
   const startVideoCall = async () => {
@@ -483,7 +597,8 @@ const Messages = () => {
       setIsVideoCallOpen(true);
     } catch (err) {
       console.error('Failed to start video call:', err);
-      alert('Не удалось начать видеозвонок. Проверьте конфигурацию LiveKit.');
+      const msg = err?.response?.data?.detail || err?.message || 'Неизвестная ошибка';
+      alert(`Не удалось начать видеозвонок: ${msg}`);
     } finally {
       setIsStartingCall(false);
     }
@@ -612,9 +727,7 @@ const Messages = () => {
                       </span>
                       <span className="msg-convo-separator">•</span>
                       <span className="msg-convo-last-msg">
-                        {c.last_message?.text.startsWith('JOIN_VIDEO_CALL|')
-                          ? '📹 Video Call'
-                          : c.last_message?.text || 'Start a conversation'}
+                        {conversationPreviewText(c.last_message)}
                       </span>
                     </div>
                   </div>
@@ -708,8 +821,14 @@ const Messages = () => {
 
                     const msg = item.data;
                     const isOwn = msg.sender_id === user?.id;
-                    const isVideoInvite = msg.text.startsWith('JOIN_VIDEO_CALL|');
+                    const isVideoInvite = msg.text?.startsWith('JOIN_VIDEO_CALL|');
                     const roomName = isVideoInvite ? msg.text.split('|')[1] : null;
+                    const hasAttachment = Boolean(msg.attachment_url);
+                    const imageAttachment = isImageAttachment(msg.attachment_mime_type);
+                    const videoAttachment = isVideoAttachment(msg.attachment_mime_type);
+                    const audioAttachment = isAudioAttachment(msg.attachment_mime_type);
+                    const attachmentUrl = attachmentAccessUrl(msg);
+                    const attachmentDownloadUrl = attachmentAccessUrl(msg, true);
 
                     return (
                       <div
@@ -745,7 +864,58 @@ const Messages = () => {
                               </button>
                             </div>
                           ) : (
-                            <p className="msg-bubble-text">{msg.text}</p>
+                            <>
+                              {hasAttachment && (
+                                <div className="msg-bubble-attachment">
+                                  {imageAttachment ? (
+                                    <a href={attachmentUrl} target="_blank" rel="noreferrer">
+                                      <img
+                                        src={attachmentUrl}
+                                        alt={msg.attachment_name || 'Attachment'}
+                                        className="msg-attachment-image"
+                                      />
+                                    </a>
+                                  ) : null}
+                                  {videoAttachment ? (
+                                    <video className="msg-attachment-video" controls preload="metadata">
+                                      <source
+                                        src={attachmentUrl}
+                                        type={msg.attachment_mime_type || 'video/mp4'}
+                                      />
+                                    </video>
+                                  ) : null}
+                                  {audioAttachment ? (
+                                    <audio className="msg-attachment-audio" controls>
+                                      <source
+                                        src={attachmentUrl}
+                                        type={msg.attachment_mime_type || 'audio/mpeg'}
+                                      />
+                                    </audio>
+                                  ) : null}
+                                  {!imageAttachment && !videoAttachment && !audioAttachment ? (
+                                    <a
+                                      className="msg-file-card"
+                                      href={attachmentDownloadUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      <div className="msg-file-icon">FILE</div>
+                                      <div className="msg-file-details">
+                                        <span className="msg-file-name">
+                                          {msg.attachment_name || 'Attachment'}
+                                        </span>
+                                        <span className="msg-file-meta">
+                                          {formatAttachmentSize(msg.attachment_size)}
+                                        </span>
+                                      </div>
+                                    </a>
+                                  ) : null}
+                                </div>
+                              )}
+                              {msg.text?.trim() ? (
+                                <p className="msg-bubble-text">{msg.text}</p>
+                              ) : null}
+                            </>
                           )}
                           <div className="msg-bubble-meta">
                             <span className="msg-bubble-time">{formatTime(msg.created_at)}</span>
@@ -795,39 +965,72 @@ const Messages = () => {
                 </div>
               ) : (
                 <>
-                  <div className="msg-composer-actions">
-                    <button className="msg-composer-btn" title="Add attachment">
-                      <PaperclipIcon />
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept={ATTACHMENT_ACCEPT}
+                    onChange={handleAttachmentSelect}
+                    hidden
+                  />
+                  {selectedAttachment ? (
+                    <div className="msg-attachment-pill">
+                      <div className="msg-attachment-pill-info">
+                        <span className="msg-attachment-pill-name">{selectedAttachment.name}</span>
+                        <span className="msg-attachment-pill-meta">
+                          {formatAttachmentSize(selectedAttachment.size)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="msg-attachment-pill-remove"
+                        onClick={clearSelectedAttachment}
+                        aria-label="Remove attachment"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="msg-composer-main">
+                    <div className="msg-composer-actions">
+                      <button
+                        className="msg-composer-btn"
+                        title="Add attachment"
+                        type="button"
+                        onClick={() => attachmentInputRef.current?.click()}
+                        disabled={uploadingAttachment}
+                      >
+                        <PaperclipIcon />
+                      </button>
+                    </div>
+
+                    <div className="msg-composer-input-wrapper">
+                      <textarea
+                        ref={textareaRef}
+                        className="msg-composer-input"
+                        placeholder="Type a message..."
+                        value={draft}
+                        onChange={handleTextareaChange}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                        rows={1}
+                      />
+                      <button className="msg-emoji-btn" title="Add emoji" type="button">
+                        <SmileIcon />
+                      </button>
+                    </div>
+                    <button
+                      className={`msg-send-btn ${canSendMessage ? 'active' : ''} ${uploadingAttachment ? 'loading' : ''}`}
+                      onClick={handleSend}
+                      disabled={!canSendMessage || uploadingAttachment}
+                      type="button"
+                    >
+                      {uploadingAttachment ? '...' : <SendIcon />}
                     </button>
                   </div>
-
-                  <div className="msg-composer-input-wrapper">
-                    <textarea
-                      ref={textareaRef}
-                      className="msg-composer-input"
-                      placeholder="Type a message..."
-                      value={draft}
-                      onChange={handleTextareaChange}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                      rows={1}
-                    />
-                    <button className="msg-emoji-btn" title="Add emoji">
-                      <SmileIcon />
-                    </button>
-                  </div>
-
-                  <button
-                    className={`msg-send-btn ${draft.trim() ? 'active' : ''}`}
-                    onClick={handleSend}
-                    disabled={!draft.trim()}
-                  >
-                    <SendIcon />
-                  </button>
                 </>
               )}
             </footer>
@@ -896,9 +1099,43 @@ const Messages = () => {
 
           <div className="msg-info-section">
             <h4>Shared Media</h4>
-            <div className="msg-shared-media-empty">
-              <span>No shared media yet</span>
-            </div>
+            {sharedMediaMessages.length ? (
+              <div className="msg-shared-media-list">
+                {sharedMediaMessages.map((msg) => {
+                  const imageAttachment = isImageAttachment(msg.attachment_mime_type);
+                  const attachmentUrl = attachmentAccessUrl(msg);
+                  const attachmentDownloadUrl = attachmentAccessUrl(msg, true);
+
+                  return (
+                    <a
+                      key={msg.id}
+                      className={imageAttachment ? 'msg-shared-media-thumb' : 'msg-shared-media-file'}
+                      href={imageAttachment ? attachmentUrl : attachmentDownloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {imageAttachment ? (
+                        <img
+                          src={attachmentUrl}
+                          alt={msg.attachment_name || 'Shared media'}
+                        />
+                      ) : (
+                        <>
+                          <span className="msg-file-name">{attachmentPreviewLabel(msg)}</span>
+                          <span className="msg-file-meta">
+                            {formatAttachmentSize(msg.attachment_size)}
+                          </span>
+                        </>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="msg-shared-media-empty">
+                <span>No shared media yet</span>
+              </div>
+            )}
           </div>
         </aside>
       )}

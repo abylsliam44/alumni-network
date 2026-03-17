@@ -29,6 +29,10 @@ const EventCreate = () => {
   const [materials, setMaterials] = useState([]);
   const [newSpeaker, setNewSpeaker] = useState({ name: '', link: '' });
   const [newMaterial, setNewMaterial] = useState({ title: '', url: '', type: 'other' });
+  const canSubmit =
+    formData.title.trim() &&
+    formData.topic.trim() &&
+    formData.start_time;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -357,19 +361,25 @@ const EventCreate = () => {
         <div className="form-actions">
           <Button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary event-create-cancel"
             onClick={() => navigate('/events')}
           >
             Cancel
           </Button>
           <Button
             type="submit"
-            className="btn-primary"
-            disabled={loading}
+            className="btn-primary event-create-submit"
+            disabled={loading || !canSubmit}
           >
             {loading ? 'Creating...' : 'Create Event'}
           </Button>
         </div>
+
+        {!canSubmit && (
+          <p className="form-hint">
+            Fill in `Event Title`, `Topic`, and `Start Time` to enable event creation.
+          </p>
+        )}
 
         <p className="form-note">
           Your event will be created as a draft. You'll need to submit it for admin approval before it becomes visible to others.
@@ -487,6 +497,19 @@ const EventCreate = () => {
           justify-content: flex-end;
           gap: 0.75rem;
           margin-top: 1.5rem;
+          position: sticky;
+          bottom: 0;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
+          background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, var(--bg-page) 28%, var(--bg-page) 100%);
+          z-index: 2;
+        }
+
+        .form-hint {
+          margin: 0.75rem 0 0;
+          text-align: right;
+          font-size: 0.84rem;
+          color: var(--text-secondary);
         }
         
         .form-note {
@@ -496,29 +519,40 @@ const EventCreate = () => {
           margin-top: 1rem;
         }
         
-        .btn-primary {
-          background: var(--accent-primary);
-          color: white;
-          border: none;
-          padding: 0.75rem 1.5rem;
-          border-radius: 8px;
-          font-weight: 500;
-          cursor: pointer;
+        .event-create-submit {
+          min-width: 176px;
+          background: #111827;
+          color: #f9fafb;
+          border: 1px solid #0f172a;
+          padding: 0.8rem 1.5rem;
+          font-weight: 600;
         }
         
-        .btn-primary:disabled {
-          opacity: 0.6;
+        .event-create-submit:hover:not(:disabled) {
+          background: #0f172a;
+          border-color: #0b1220;
+        }
+
+        .event-create-submit:disabled {
+          background: #e5e7eb;
+          color: #6b7280;
+          border-color: #d1d5db;
           cursor: not-allowed;
+          opacity: 1;
+          box-shadow: none;
+          transform: none;
         }
         
-        .btn-secondary {
+        .event-create-cancel {
           background: var(--bg-secondary);
           color: var(--text-primary);
           border: 1px solid var(--border-color);
-          padding: 0.75rem 1.5rem;
-          border-radius: 8px;
-          font-weight: 500;
-          cursor: pointer;
+          padding: 0.8rem 1.5rem;
+          font-weight: 600;
+        }
+
+        .event-create-cancel:hover {
+          background: var(--bg-elevated);
         }
       `}</style>
     </div>

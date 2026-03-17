@@ -6,6 +6,15 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
 
+const EVENT_TYPE_STYLES = {
+    career: { label: 'Career', color: '#1d4ed8', background: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.22)' },
+    educational: { label: 'Educational', color: '#047857', background: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.24)' },
+    networking: { label: 'Networking', color: '#7c3aed', background: 'rgba(124, 58, 237, 0.12)', border: 'rgba(124, 58, 237, 0.2)' },
+    recruiting: { label: 'Recruiting', color: '#c2410c', background: 'rgba(249, 115, 22, 0.14)', border: 'rgba(249, 115, 22, 0.22)' },
+    'invite-only': { label: 'Invite Only', color: '#be123c', background: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.22)' },
+    default: { label: 'Event', color: '#334155', background: 'rgba(148, 163, 184, 0.14)', border: 'rgba(148, 163, 184, 0.22)' },
+};
+
 const EventsAdmin = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -108,8 +117,15 @@ const EventsAdmin = () => {
                     {events.map((event) => (
                         <Card key={event.id} className="event-card elevated">
                             <div className="event-card-header">
-                                <span className="event-type-badge" style={{ backgroundColor: 'var(--accent-primary)' }}>
-                                    {event.type}
+                                <span
+                                    className="event-type-badge"
+                                    style={{
+                                        backgroundColor: (EVENT_TYPE_STYLES[event.type] || EVENT_TYPE_STYLES.default).background,
+                                        color: (EVENT_TYPE_STYLES[event.type] || EVENT_TYPE_STYLES.default).color,
+                                        borderColor: (EVENT_TYPE_STYLES[event.type] || EVENT_TYPE_STYLES.default).border,
+                                    }}
+                                >
+                                    {(EVENT_TYPE_STYLES[event.type] || EVENT_TYPE_STYLES.default).label}
                                 </span>
                                 <span className="status-badge badge-warning">
                                     Pending Review
@@ -205,19 +221,24 @@ const EventsAdmin = () => {
           padding: 0.25rem 0.75rem;
           border-radius: 20px;
           font-size: 0.75rem;
-          font-weight: 600;
-          color: white;
+          font-weight: 700;
+          border: 1px solid transparent;
           text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
 
         .status-badge {
           padding: 0.25rem 0.5rem;
           border-radius: 4px;
           font-size: 0.75rem;
-          font-weight: 500;
+          font-weight: 600;
         }
         
-        .badge-warning { background: var(--accent-warning); color: var(--text-on-warning); }
+        .badge-warning {
+          background: rgba(245, 158, 11, 0.14);
+          color: #92400e;
+          border: 1px solid rgba(245, 158, 11, 0.22);
+        }
 
         .event-title {
           font-size: 1.25rem;
@@ -260,13 +281,42 @@ const EventsAdmin = () => {
         }
 
         .btn-success {
-          background-color: var(--accent-success);
+          background-color: #1f2937;
+          border: 1px solid #1f2937;
           color: white;
         }
         
         .btn-danger {
-          background-color: var(--accent-danger);
-          color: white;
+          background-color: #fff1f2;
+          border: 1px solid #fecdd3;
+          color: #be123c;
+        }
+
+        .btn-success:hover:not(:disabled) {
+          background-color: #111827;
+          border-color: #111827;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+          background-color: #ffe4e6;
+          border-color: #fda4af;
+        }
+
+        .event-card-actions button:disabled {
+          cursor: not-allowed;
+          opacity: 0.72;
+        }
+
+        .event-card-actions .btn-success:disabled {
+          background-color: #94a3b8;
+          border-color: #94a3b8;
+          color: #ffffff;
+        }
+
+        .event-card-actions .btn-danger:disabled {
+          background-color: #f8fafc;
+          border-color: #e2e8f0;
+          color: #94a3b8;
         }
 
         .loading-state {

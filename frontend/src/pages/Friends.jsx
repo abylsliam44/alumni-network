@@ -4,6 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Avatar from '../components/ui/Avatar';
+import PageIntro from '../components/PageIntro';
 import { connectionsApi } from '../api/connections';
 import { messagesApi } from '../api/messages';
 import { useAuth } from '../hooks/useAuth';
@@ -141,12 +142,24 @@ const Friends = () => {
 
   return (
     <div className="friends-page">
-      <header className="friends-header">
-        <div className="friends-title-block">
-          <h1>Friends</h1>
-          <p>Manage your connections and friend requests</p>
-        </div>
-      </header>
+      <PageIntro
+        title="Friends"
+        subtitle="Manage your connections and friend requests."
+        side={(
+          <div className="page-intro-side-stack">
+            <div className="page-intro-metrics">
+              <div className="page-intro-metric">
+                <span className="page-intro-metric-value">{friends.length}</span>
+                <span className="page-intro-metric-label">Connections</span>
+              </div>
+              <div className="page-intro-metric">
+                <span className="page-intro-metric-value">{incomingRequests.length}</span>
+                <span className="page-intro-metric-label">Pending</span>
+              </div>
+            </div>
+          </div>
+        )}
+      />
 
       {/* Tabs */}
       <div className="friends-tabs">

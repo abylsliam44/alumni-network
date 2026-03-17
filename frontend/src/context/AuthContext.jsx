@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -47,7 +48,15 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return true;
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        const messages = detail.map(e => e.msg || e.message || 'Validation error').join('. ');
+        setError(messages);
+      } else if (typeof detail === 'string') {
+        setError(detail);
+      } else {
+        setError('Login failed');
+      }
       return false;
     } finally {
       setLoading(false);
@@ -72,7 +81,16 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Registration error:', err);
       if (err.response) {
-        setError(err.response?.data?.detail || 'Registration failed');
+        const detail = err.response?.data?.detail;
+        // Handle Pydantic validation errors (array format)
+        if (Array.isArray(detail)) {
+          const messages = detail.map(e => e.msg || e.message || 'Validation error').join('. ');
+          setError(messages);
+        } else if (typeof detail === 'string') {
+          setError(detail);
+        } else {
+          setError('Registration failed');
+        }
       } else {
         setError('Network Error: Unable to reach backend');
       }
@@ -95,7 +113,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

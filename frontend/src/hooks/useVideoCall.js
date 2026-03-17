@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Hook для управления состоянием видеозвонка.
- * Использует LiveKit для WebRTC соединения.
+ * Использует LiveKit v2 для WebRTC соединения.
  */
 export const useVideoCall = () => {
     const [connectionState, setConnectionState] = useState('disconnected');
@@ -38,7 +38,7 @@ export const useVideoCall = () => {
             setConnectionState('connecting');
             setError(null);
 
-            // Динамический импорт livekit-client
+            // Динамический импорт livekit-client v2
             const { Room, RoomEvent, Track, createLocalTracks } = await import('livekit-client');
 
             // Создаем локальные треки (камера и микрофон)
@@ -56,7 +56,7 @@ export const useVideoCall = () => {
             setLocalVideoTrack(videoTrack || null);
             setLocalAudioTrack(audioTrack || null);
 
-            // Создаем и подключаем комнату
+            // Создаем комнату
             const room = new Room({
                 adaptiveStream: true,
                 dynacast: true,
@@ -64,10 +64,24 @@ export const useVideoCall = () => {
 
             roomRef.current = room;
 
-            // Слушаем события комнаты
-            room.on(RoomEvent.Connected, () => {
+            // ─── Слушаем события комнаты ───────────────────────────────────
+
+            room.on(RoomEvent.Connected, async () => {
                 setConnectionState('connected');
                 startDurationTimer();
+
+                // ВАЖНО: Публикуем треки ТОЛЬКО после Connected в v2.
+                // Публикация до Connected вызывает "publication timed out".
+                try {
+                    if (videoTrack) {
+                        await room.localParticipant.publishTrack(videoTrack);
+                    }
+                    if (audioTrack) {
+                        await room.localParticipant.publishTrack(audioTrack);
+                    }
+                } catch (publishErr) {
+                    console.error('Failed to publish local tracks:', publishErr);
+                }
             });
 
             room.on(RoomEvent.Disconnected, () => {
@@ -76,23 +90,25 @@ export const useVideoCall = () => {
             });
 
             room.on(RoomEvent.ParticipantConnected, (participant) => {
+                if (!participant) return;
                 setRemoteParticipants((prev) => [...prev, participant]);
             });
 
             room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+                if (!participant) return;
                 setRemoteParticipants((prev) =>
-                    prev.filter((p) => p.identity !== participant.identity)
+                    prev.filter((p) => p && p.identity !== participant.identity)
                 );
             });
 
             room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                // Добавляем или обновляем участника с новым треком
+                if (!participant) return;
+                // Обновляем список участников чтобы триггернуть ре-рендер
                 setRemoteParticipants((prev) => {
-                    const exists = prev.some((p) => p.identity === participant.identity);
+                    const exists = prev.some((p) => p && p.identity === participant.identity);
                     if (exists) {
-                        // Создаём новый массив с обновлённым участником для trigger re-render
                         return prev.map((p) =>
-                            p.identity === participant.identity ? participant : p
+                            p && p.identity === participant.identity ? participant : p
                         );
                     } else {
                         return [...prev, participant];
@@ -101,21 +117,18 @@ export const useVideoCall = () => {
             });
 
             room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                // Принудительно обновляем состояние участников для re-render
+                if (!participant) return;
                 setRemoteParticipants((prev) =>
                     prev.map((p) =>
-                        p.identity === participant.identity ? participant : p
+                        p && p.identity === participant.identity ? participant : p
                     )
                 );
             });
 
-            // Handle Subscription Failures
             room.on(RoomEvent.TrackSubscriptionFailed, (trackSid, participant) => {
-                console.error('Failed to subscribe to track:', trackSid, participant);
-                // Optionally notify user via UI if needed, for now just log
+                console.error('Failed to subscribe to track:', trackSid, participant?.identity);
             });
 
-            // Handle Media Device Errors (permisssions, hardware issues)
             room.on(RoomEvent.MediaDevicesError, (e) => {
                 const msg = `Media device error: ${e.message}`;
                 console.error(msg);
@@ -130,23 +143,25 @@ export const useVideoCall = () => {
                     setConnectionState('connected');
                 } else if (state === 'disconnected') {
                     setConnectionState('disconnected');
+                    stopDurationTimer();
                 }
             });
 
-            // Подключаемся к комнате
+            // ─── Подключаемся к комнате ───────────────────────────────────
+            // В LiveKit v2 connect() разрешается когда соединение установлено,
+            // треки публикуем внутри RoomEvent.Connected выше.
             await room.connect(livekitUrl, token);
 
-            // ВАЖНО: Добавляем уже существующих участников в комнате
-            // (они не вызывают ParticipantConnected если уже были там до нашего подключения)
-            const existingParticipants = Array.from(room.remoteParticipants.values());
-            if (existingParticipants.length > 0) {
-                console.log('Found existing participants:', existingParticipants.map(p => p.identity));
-                setRemoteParticipants(existingParticipants);
+            // Добавляем уже существующих участников (они не вызывают ParticipantConnected
+            // если уже были в комнате до нашего подключения)
+            const remoteParticipantsMap = room.remoteParticipants;
+            if (remoteParticipantsMap && typeof remoteParticipantsMap.values === 'function') {
+                const existingParticipants = Array.from(remoteParticipantsMap.values()).filter(Boolean);
+                if (existingParticipants.length > 0) {
+                    console.log('Found existing participants:', existingParticipants.map(p => p?.identity));
+                    setRemoteParticipants(existingParticipants);
+                }
             }
-
-            // Публикуем локальные треки
-            if (videoTrack) await room.localParticipant.publishTrack(videoTrack);
-            if (audioTrack) await room.localParticipant.publishTrack(audioTrack);
 
         } catch (err) {
             console.error('Failed to connect to video call:', err);
@@ -158,7 +173,7 @@ export const useVideoCall = () => {
     const localVideoTrackRef = useRef(null);
     const localAudioTrackRef = useRef(null);
 
-    // Sync refs with state
+    // Синхронизируем рефы со стейтом
     useEffect(() => {
         localVideoTrackRef.current = localVideoTrack;
     }, [localVideoTrack]);
@@ -168,41 +183,65 @@ export const useVideoCall = () => {
     }, [localAudioTrack]);
 
     const disconnect = useCallback(async () => {
-        stopDurationTimer();
+        try {
+            stopDurationTimer();
 
-        if (localVideoTrackRef.current) {
-            localVideoTrackRef.current.stop();
-            setLocalVideoTrack(null);
+            if (localVideoTrackRef.current) {
+                try {
+                    localVideoTrackRef.current.stop();
+                } catch (e) {
+                    console.error('Error stopping video track:', e);
+                }
+                setLocalVideoTrack(null);
+            }
+
+            if (localAudioTrackRef.current) {
+                try {
+                    localAudioTrackRef.current.stop();
+                } catch (e) {
+                    console.error('Error stopping audio track:', e);
+                }
+                setLocalAudioTrack(null);
+            }
+
+            if (roomRef.current) {
+                try {
+                    await roomRef.current.disconnect();
+                } catch (e) {
+                    console.error('Error disconnecting from room:', e);
+                }
+                roomRef.current = null;
+            }
+
+            setRemoteParticipants([]);
+            setConnectionState('disconnected');
+            setCallDuration(0);
+        } catch (e) {
+            console.error('Error in disconnect:', e);
         }
-
-        if (localAudioTrackRef.current) {
-            localAudioTrackRef.current.stop();
-            setLocalAudioTrack(null);
-        }
-
-        if (roomRef.current) {
-            await roomRef.current.disconnect();
-            roomRef.current = null;
-        }
-
-        setRemoteParticipants([]);
-        setConnectionState('disconnected');
-        setCallDuration(0);
     }, [stopDurationTimer]);
 
     const toggleMute = useCallback(async () => {
-        if (roomRef.current && localAudioTrackRef.current) {
-            const newMuteState = !isMuted;
-            await roomRef.current.localParticipant.setMicrophoneEnabled(!newMuteState);
-            setIsMuted(newMuteState);
+        try {
+            if (roomRef.current?.localParticipant) {
+                const newMuteState = !isMuted;
+                await roomRef.current.localParticipant.setMicrophoneEnabled(!newMuteState);
+                setIsMuted(newMuteState);
+            }
+        } catch (e) {
+            console.error('Error toggling mute:', e);
         }
     }, [isMuted]);
 
     const toggleVideo = useCallback(async () => {
-        if (roomRef.current && localVideoTrackRef.current) {
-            const newVideoState = !isVideoOff;
-            await roomRef.current.localParticipant.setCameraEnabled(!newVideoState);
-            setIsVideoOff(newVideoState);
+        try {
+            if (roomRef.current?.localParticipant) {
+                const newVideoState = !isVideoOff;
+                await roomRef.current.localParticipant.setCameraEnabled(!newVideoState);
+                setIsVideoOff(newVideoState);
+            }
+        } catch (e) {
+            console.error('Error toggling video:', e);
         }
     }, [isVideoOff]);
 
@@ -211,7 +250,7 @@ export const useVideoCall = () => {
         return () => {
             disconnect();
         };
-    }, []); // Run only on unmount
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         connectionState,

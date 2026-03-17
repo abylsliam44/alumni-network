@@ -23,6 +23,10 @@ class MessageRead(BaseModel):
     conversation_id: UUID
     sender_id: UUID
     text: str
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
+    attachment_mime_type: Optional[str] = None
+    attachment_size: Optional[int] = None
     is_read: bool
     read_at: Optional[datetime] = None
     is_system: bool = False
@@ -58,3 +62,17 @@ class StartConversationResponse(ConversationSummary):
 
 class MarkConversationReadRequest(BaseModel):
     last_read_message_id: UUID
+
+
+class MessageCreate(BaseModel):
+    text: str = ""
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
+    attachment_mime_type: Optional[str] = None
+    attachment_size: Optional[int] = None
+
+
+class MessageAttachmentUploadResponse(BaseModel):
+    upload_url: str
+    file_url: str
+    object_name: str

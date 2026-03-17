@@ -193,12 +193,20 @@ async def save_message(
     sender_id: uuid.UUID,
     text: str,
     is_system: bool = False,
+    attachment_url: Optional[str] = None,
+    attachment_name: Optional[str] = None,
+    attachment_mime_type: Optional[str] = None,
+    attachment_size: Optional[int] = None,
 ) -> Message:
     message = Message(
         conversation_id=conversation_id,
         sender_id=sender_id,
         text=text,
         is_system=is_system,
+        attachment_url=attachment_url,
+        attachment_name=attachment_name,
+        attachment_mime_type=attachment_mime_type,
+        attachment_size=attachment_size,
     )
     db.add(message)
     await db.commit()
@@ -276,4 +284,3 @@ async def participant_ids(
         )
     )
     return [row[0] for row in result.all()]
-

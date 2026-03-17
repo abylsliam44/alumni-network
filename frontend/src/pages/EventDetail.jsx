@@ -271,9 +271,6 @@ const EventDetail = () => {
                     <Button className="btn-primary" onClick={handleSubmitForApproval}>
                       Submit for Approval
                     </Button>
-                    <Link to={`/events/${eventId}/edit`} className="btn btn-secondary">
-                      Edit Event
-                    </Link>
                   </>
                 )}
                 {event.status !== 'cancelled' && event.status !== 'completed' && (

@@ -30,7 +30,6 @@ class JobUpdate(BaseModel):
     description: Optional[str] = None
     required_skills: Optional[List[str]] = None
     salary_range: Optional[str] = None
-    status: Optional[JobStatus] = None
 
 class JobRead(JobBase):
     id: UUID

@@ -5,6 +5,7 @@ import UserCard from '../components/directory/UserCard';
 import DirectoryFilters from '../components/directory/DirectoryFilters';
 import Pagination from '../components/directory/Pagination';
 import SearchInput from '../components/directory/SearchInput';
+import PageIntro from '../components/PageIntro';
 import { useAuth } from '../hooks/useAuth';
 
 const Directory = () => {
@@ -177,34 +178,30 @@ const Directory = () => {
 
   return (
     <div className="dir-page">
-      {/* Header Section */}
-      <header className="dir-header">
-        <div className="dir-header-content">
-          <div className="dir-title-block">
-            <h1 className="dir-title">Directory</h1>
-            <p className="dir-subtitle">
-              {total} members available to connect
-            </p>
+      <PageIntro
+        title="Directory"
+        subtitle={`${total} members available to connect`}
+        side={(
+          <div className="page-intro-side-stack">
+            <div className="page-intro-actions">
+              <SearchInput
+                value={filters.query}
+                onChange={handleSearchChange}
+                placeholder="Search members..."
+              />
+              <button
+                className={`dir-filter-toggle ${filtersVisible ? 'active' : ''}`}
+                onClick={() => setFiltersVisible(!filtersVisible)}
+              >
+                Filters
+                {activeFiltersCount > 0 && (
+                  <span className="dir-filter-badge">{activeFiltersCount}</span>
+                )}
+              </button>
+            </div>
           </div>
-
-          <div className="dir-header-actions">
-            <SearchInput
-              value={filters.query}
-              onChange={handleSearchChange}
-              placeholder="Search members..."
-            />
-            <button
-              className={`dir-filter-toggle ${filtersVisible ? 'active' : ''}`}
-              onClick={() => setFiltersVisible(!filtersVisible)}
-            >
-              Filters
-              {activeFiltersCount > 0 && (
-                <span className="dir-filter-badge">{activeFiltersCount}</span>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
+        )}
+      />
 
       {/* Filters Panel - Collapsible */}
       <div className={`dir-filters-wrapper ${filtersVisible ? 'visible' : ''}`}>

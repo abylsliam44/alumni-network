@@ -3,6 +3,7 @@ import os
 import uuid
 import shutil
 import boto3
+from urllib.parse import unquote, urlparse, urlunparse
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import UploadFile, HTTPException
@@ -41,17 +42,139 @@ async def save_upload_file(file: UploadFile, sub_dir: str = "misc") -> str:
         
     return f"{STATIC_URL_PREFIX}/{sub_dir}/{unique_filename}"
 
+
+def upload_bytes(
+    content: bytes,
+    file_name: str,
+    file_type: str,
+    bucket: str = None,
+    prefix: str = "uploads",
+) -> dict:
+    if not bucket:
+        bucket = settings.MINIO_BUCKET
+
+    s3_client = get_s3_client()
+
+    try:
+        s3_client.head_bucket(Bucket=bucket)
+    except ClientError:
+        try:
+            s3_client.create_bucket(Bucket=bucket)
+        except Exception as e:
+            logger.error(f"Error creating bucket: {e}")
+
+    normalized_prefix = (prefix or "uploads").strip("/")
+    object_name = f"{normalized_prefix}/{uuid.uuid4()}/{file_name}"
+
+    try:
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=object_name,
+            Body=content,
+            ContentType=file_type,
+        )
+
+        public_endpoint = _public_storage_endpoint()
+        return {
+            "file_url": f"{public_endpoint}/{bucket}/{object_name}",
+            "object_name": object_name,
+        }
+    except Exception as e:
+        logger.error(f"Error uploading object to storage: {e}")
+        raise HTTPException(status_code=500, detail="Could not upload file")
+
 def get_s3_client():
     return boto3.client(
         "s3",
-        endpoint_url=f"http://{settings.MINIO_ENDPOINT}" if not settings.MINIO_ENDPOINT.startswith("http") else settings.MINIO_ENDPOINT,
+        endpoint_url=_normalize_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE),
         aws_access_key_id=settings.MINIO_ACCESS_KEY,
         aws_secret_access_key=settings.MINIO_SECRET_KEY,
         config=Config(signature_version="s3v4"),
         region_name="us-east-1",  # MinIO default
     )
 
-def generate_presigned_url(file_name: str, file_type: str, bucket: str = None) -> dict:
+
+def _normalize_endpoint(endpoint: str, secure: bool = False) -> str:
+    if endpoint.startswith("http://") or endpoint.startswith("https://"):
+        return endpoint.rstrip("/")
+    scheme = "https" if secure else "http"
+    return f"{scheme}://{endpoint.rstrip('/')}"
+
+
+def _public_storage_endpoint() -> str:
+    public_endpoint = settings.MINIO_PUBLIC_ENDPOINT or settings.MINIO_ENDPOINT
+    return _normalize_endpoint(public_endpoint, settings.MINIO_SECURE)
+
+
+def _rewrite_to_public_endpoint(url: str) -> str:
+    public = urlparse(_public_storage_endpoint())
+    parsed = urlparse(url)
+    return urlunparse(parsed._replace(scheme=public.scheme, netloc=public.netloc))
+
+
+def extract_object_name(file_url: str, bucket: str = None) -> str:
+    if not file_url:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    bucket = bucket or settings.MINIO_BUCKET
+    path = unquote(urlparse(file_url).path or "").lstrip("/")
+    bucket_prefix = f"{bucket}/"
+    if not path.startswith(bucket_prefix):
+        raise HTTPException(status_code=400, detail="Invalid attachment path")
+    return path[len(bucket_prefix):]
+
+
+def generate_presigned_download_url(
+    file_url: str,
+    bucket: str = None,
+    download_name: str | None = None,
+    as_attachment: bool = False,
+) -> str:
+    bucket = bucket or settings.MINIO_BUCKET
+    object_name = extract_object_name(file_url, bucket=bucket)
+    s3_client = get_s3_client()
+
+    params = {
+        "Bucket": bucket,
+        "Key": object_name,
+    }
+    if as_attachment and download_name:
+        params["ResponseContentDisposition"] = f'attachment; filename="{download_name}"'
+
+    try:
+        url = s3_client.generate_presigned_url(
+            "get_object",
+            Params=params,
+            ExpiresIn=3600,
+        )
+        return _rewrite_to_public_endpoint(url)
+    except Exception as e:
+        logger.error(f"Error generating download URL: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate download URL")
+
+
+def get_object_stream(file_url: str, bucket: str = None) -> dict:
+    bucket = bucket or settings.MINIO_BUCKET
+    object_name = extract_object_name(file_url, bucket=bucket)
+    s3_client = get_s3_client()
+
+    try:
+        response = s3_client.get_object(Bucket=bucket, Key=object_name)
+        return {
+            "body": response["Body"],
+            "content_type": response.get("ContentType") or "application/octet-stream",
+            "content_length": response.get("ContentLength"),
+        }
+    except Exception as e:
+        logger.error(f"Error fetching object from storage: {e}")
+        raise HTTPException(status_code=404, detail="Attachment file not found")
+
+def generate_presigned_url(
+    file_name: str,
+    file_type: str,
+    bucket: str = None,
+    prefix: str = "resumes",
+) -> dict:
     """
     Generate a presigned URL for PUT object.
     Returns dictionary with 'url' and 'fields' (fields empty for PUT usually, or we use generate_presigned_post).
@@ -71,7 +194,8 @@ def generate_presigned_url(file_name: str, file_type: str, bucket: str = None) -
         except Exception as e:
             logger.error(f"Error creating bucket: {e}")
 
-    object_name = f"resumes/{uuid.uuid4()}/{file_name}"
+    normalized_prefix = (prefix or "uploads").strip("/")
+    object_name = f"{normalized_prefix}/{uuid.uuid4()}/{file_name}"
     
     try:
         url = s3_client.generate_presigned_url(
@@ -83,21 +207,15 @@ def generate_presigned_url(file_name: str, file_type: str, bucket: str = None) -
             },
             ExpiresIn=3600,
         )
-        # Store the final URL where the file will be accessible (publicly or via signed GET)
-        # For MinIO in Docker, the 'url' returned might be internal hostname (http://minio:9000...).
-        # We might need to adjust it for frontend.
-        # But for presigned PUT, the frontend needs to reach minio.
-        # If frontend is browser, it needs localhost:9000.
-        # Simple hack: replace 'minio' with 'localhost' if dev.
-        # But assumes user has mapped ports.
-        
-        # User specified "Frontend uploads directly".
-        
-        final_url = f"{settings.MINIO_ENDPOINT}/{bucket}/{object_name}"
-        if not final_url.startswith("http"):
-             final_url = f"http://{final_url}"
-             
-        return {"upload_url": url, "file_url": final_url, "object_name": object_name}
+
+        public_endpoint = _public_storage_endpoint()
+        final_url = f"{public_endpoint}/{bucket}/{object_name}"
+
+        return {
+            "upload_url": _rewrite_to_public_endpoint(url),
+            "file_url": final_url,
+            "object_name": object_name,
+        }
     except Exception as e:
         logger.error(f"Error generating presigned URL: {e}")
         raise HTTPException(status_code=500, detail="Could not generate upload URL")

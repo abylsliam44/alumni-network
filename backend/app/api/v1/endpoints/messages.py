@@ -1,25 +1,68 @@
 import uuid
+from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.api.ws import manager
+from app.core import security
 from app.core.database import get_db
-from app.models.message import Conversation
+from app.models.message import Conversation, Message
 from app.models.user import User
+from app.schemas.auth import TokenPayload
 from app.schemas.message import (
     ConversationMessages,
     ConversationSummary,
     MarkConversationReadRequest,
+    MessageCreate,
+    MessageAttachmentUploadResponse,
+    MessageRead, 
     StartConversationRequest,
     StartConversationResponse,
 )
+from app.core import storage
 from app.services import messaging as messaging_service
 from app.services import connection as connection_service
 
 router = APIRouter()
+
+MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
+ALLOWED_ATTACHMENT_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/heic",
+    "image/heif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/wav",
+    "audio/ogg",
+    "application/pdf",
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+}
+
+
+def _sanitize_attachment_name(file_name: str) -> str:
+    cleaned_name = Path(file_name or "attachment").name
+    return cleaned_name.replace("/", "_").replace("\\", "_")
 
 
 async def _ensure_participant(
@@ -32,6 +75,30 @@ async def _ensure_participant(
         raise HTTPException(
             status_code=403, detail="Not a participant in this conversation"
         )
+
+
+async def _get_current_active_user_for_attachment(
+    db: AsyncSession,
+    header_user: Optional[User],
+    token: Optional[str],
+) -> User:
+    if header_user:
+        return header_user
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        payload = security.verify_token(token)
+        token_data = TokenPayload(**payload)
+    except Exception:
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+
+    user = await db.scalar(select(User).where(User.id == token_data.sub))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return user
 
 
 @router.get("/conversations", response_model=list[ConversationSummary])
@@ -73,7 +140,7 @@ async def get_conversation_messages(
         messages=messages,
         has_more=has_more,
     )
-
+   
 
 @router.post(
     "/conversations/start",
@@ -135,3 +202,169 @@ async def mark_conversation_read(
     return {"updated": updated, "read_at": read_at}
 
 
+@router.post(
+    "/conversations/{conversation_id}/messages",
+    response_model=MessageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_message(
+    conversation_id: uuid.UUID,
+    payload: MessageCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageRead:
+    conversation = await db.scalar(select(Conversation).where(Conversation.id == conversation_id))
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    await _ensure_participant(db, conversation_id, current_user.id)
+    other_id = await messaging_service.other_participant_id(db, conversation_id, current_user.id)
+    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+
+    text = (payload.text or "").strip()
+    if not text and not payload.attachment_url:
+        raise HTTPException(status_code=400, detail="Message text or attachment is required")
+
+    message = await messaging_service.save_message(
+        db,
+        conversation_id=conversation_id,
+        sender_id=current_user.id,
+        text=text,
+        attachment_url=payload.attachment_url,
+        attachment_name=payload.attachment_name,
+        attachment_mime_type=payload.attachment_mime_type,
+        attachment_size=payload.attachment_size,
+    )
+    message_read = MessageRead.from_orm(message)
+
+    participants = await messaging_service.participant_ids(db, conversation_id)
+    encoded_message = jsonable_encoder(message_read)
+    await manager.broadcast(
+        participants,
+        {
+            "type": "new_message",
+            "payload": {
+                "conversation_id": str(conversation_id),
+                "message": encoded_message,
+            },
+        },
+    )
+
+    return message_read
+
+
+@router.post(
+    "/attachments/presigned-url",
+    response_model=MessageAttachmentUploadResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_attachment_upload_url(
+    filename: str,
+    filetype: str,
+    filesize: int = Query(..., ge=1),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> MessageAttachmentUploadResponse:
+    del current_user
+
+    if filesize > MAX_ATTACHMENT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Attachment exceeds {MAX_ATTACHMENT_SIZE // (1024 * 1024)}MB limit",
+        )
+
+    normalized_type = (filetype or "").lower()
+    if normalized_type not in ALLOWED_ATTACHMENT_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported attachment type")
+
+    upload = storage.generate_presigned_url(
+        file_name=_sanitize_attachment_name(filename),
+        file_type=normalized_type,
+        prefix="messages",
+    )
+    return MessageAttachmentUploadResponse(**upload)
+
+
+@router.post(
+    "/attachments/upload",
+    response_model=MessageAttachmentUploadResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def upload_attachment(
+    file: UploadFile = File(...),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> MessageAttachmentUploadResponse:
+    del current_user
+
+    normalized_type = (file.content_type or "").lower()
+    if normalized_type not in ALLOWED_ATTACHMENT_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported attachment type")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Attachment is empty")
+
+    if len(content) > MAX_ATTACHMENT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Attachment exceeds {MAX_ATTACHMENT_SIZE // (1024 * 1024)}MB limit",
+        )
+
+    upload = storage.upload_bytes(
+        content=content,
+        file_name=_sanitize_attachment_name(file.filename),
+        file_type=normalized_type,
+        prefix="messages",
+    )
+    return MessageAttachmentUploadResponse(
+        upload_url="",
+        file_url=upload["file_url"],
+        object_name=upload["object_name"],
+    )
+
+
+@router.get("/attachments/{message_id}/download", status_code=status.HTTP_200_OK)
+async def download_attachment(
+    message_id: uuid.UUID,
+    download: bool = Query(False),
+    token: Optional[str] = Query(None),
+    header_user: Optional[User] = Depends(deps.get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    current_user = await _get_current_active_user_for_attachment(db, header_user, token)
+
+    message = await db.scalar(select(Message).where(Message.id == message_id))
+    if not message or not message.attachment_url:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    await _ensure_participant(db, message.conversation_id, current_user.id)
+    other_id = await messaging_service.other_participant_id(db, message.conversation_id, current_user.id)
+    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+
+    stored = storage.get_object_stream(message.attachment_url)
+    disposition_type = "attachment" if download else "inline"
+    filename = _sanitize_attachment_name(message.attachment_name or "attachment")
+    headers = {
+        "Content-Disposition": f"{disposition_type}; filename*=UTF-8''{quote(filename)}",
+    }
+    if stored.get("content_length") is not None:
+        headers["Content-Length"] = str(stored["content_length"])
+
+    body = stored["body"]
+
+    def iter_file():
+        try:
+            while True:
+                chunk = body.read(1024 * 1024)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            body.close()
+
+    return StreamingResponse(
+        iter_file(),
+        media_type=stored["content_type"],
+        headers=headers,
+    )

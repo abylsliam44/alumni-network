@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { eventsApi } from '../api/events';
 import { useAuth } from '../context/AuthContext';
+import PageIntro from '../components/PageIntro';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
@@ -103,30 +104,35 @@ const Events = () => {
 
   return (
     <div className="page events-page">
-      <div className="events-hero">
-        <div className="hero-content">
-          <h1>Events & Networking</h1>
-          <p>Connect, learn, and grow with the alumni community.</p>
-        </div>
-        <div className="hero-actions">
-          {canApproveEvents && (
-            <Button
-              className="btn-glass"
-              onClick={() => navigate('/events/admin')}
-            >
-              Review Pending
-            </Button>
-          )}
-          {canCreateEvent && (
-            <Button
-              className="btn-primary"
-              onClick={() => navigate('/events/create')}
-            >
-              + Create Event
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageIntro
+        className="events-page-intro"
+        eyebrow="Community & Networking"
+        title="Events"
+        subtitle="Connect, learn, and grow with the alumni community."
+        side={(
+          <div className="page-intro-side-stack">
+            <div className="page-intro-actions">
+              {canApproveEvents && (
+                <Button
+                  variant="secondary"
+                  className="page-intro-button page-intro-button-secondary"
+                  onClick={() => navigate('/events/admin')}
+                >
+                  Review Pending
+                </Button>
+              )}
+              {canCreateEvent && (
+                <Button
+                  className="page-intro-button"
+                  onClick={() => navigate('/events/create')}
+                >
+                  + Create Event
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      />
 
       {/* Modern Filter Bar */}
       <div className="events-filters-bar elevated">
@@ -309,56 +315,27 @@ const Events = () => {
 
       <style>{`
         .events-page {
-          /* Layout handled by AppShell */
-        }
-
-        /* Hero Section */
-        .events-hero {
-          background: var(--bg-primary);
-          padding: 2rem 0;
-          margin-bottom: 2rem;
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          flex-wrap: wrap;
-          gap: 1.5rem;
-          border-bottom: 1px solid var(--border-color);
-        }
-        
-        .hero-content h1 {
-          font-size: 1.875rem;
-          font-weight: 700;
-          margin: 0 0 0.5rem;
-          color: var(--text-primary);
-        }
-        
-        .hero-content p {
-          font-size: 1rem;
-          color: var(--text-secondary);
+          flex-direction: column;
+          gap: 24px;
+          padding-bottom: 3rem;
         }
 
-        .hero-actions {
-          display: flex;
-          gap: 1rem;
-        }
-
-        .btn-glass {
-          background: rgba(255,255,255,0.7);
-          backdrop-filter: blur(10px);
-          border: 1px solid var(--border-color);
-          color: var(--text-primary);
+        .events-page-intro .page-intro-title {
+          font-size: clamp(2.2rem, 4vw, 2.95rem);
         }
 
         /* Filters Bar */
         .events-filters-bar {
           background: var(--bg-elevated);
           padding: 1rem;
-          border-radius: 16px;
+          border-radius: 20px;
           display: flex;
           gap: 1.5rem;
           align-items: center;
-          margin-bottom: 2.5rem;
-          border: 1px solid var(--border-subtle);
+          margin-bottom: 0;
+          border: 1px solid var(--border-color);
+          box-shadow: var(--shadow-sm);
           flex-wrap: wrap;
         }
 
@@ -369,8 +346,9 @@ const Events = () => {
 
         .search-wrapper input {
            width: 100%;
+           min-height: 48px;
            padding: 0.75rem 1rem;
-          border-radius: 12px;
+          border-radius: 14px;
           border: 1px solid var(--border-color);
           background: var(--bg-secondary);
           transition: all 0.2s;
@@ -391,8 +369,9 @@ const Events = () => {
         }
 
         .filter-select {
+          min-height: 48px;
           padding: 0.75rem 2rem 0.75rem 1rem;
-          border-radius: 12px;
+          border-radius: 14px;
           border: 1px solid var(--border-color);
           background: var(--bg-secondary);
           color: var(--text-primary);
@@ -596,16 +575,13 @@ const Events = () => {
         .empty-state-card {
            text-align: center;
            padding: 4rem;
-           border-radius: 20px;
+           border-radius: 24px;
            background: var(--bg-elevated);
+           border: 1px solid var(--border-color);
+           box-shadow: var(--shadow-sm);
         }
 
         @media (max-width: 768px) {
-          .events-hero {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1.5rem;
-          }
           .events-filters-bar {
             flex-direction: column;
             align-items: stretch;

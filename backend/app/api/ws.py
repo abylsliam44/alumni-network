@@ -130,6 +130,22 @@ async def _validate_membership(conversation_id: uuid.UUID, user_id: uuid.UUID) -
 
 
 async def _store_message(conversation_id: uuid.UUID, sender_id: uuid.UUID, text: str) -> MessageRead:
+    return await _store_message_with_attachment(
+        conversation_id=conversation_id,
+        sender_id=sender_id,
+        text=text,
+    )
+
+
+async def _store_message_with_attachment(
+    conversation_id: uuid.UUID,
+    sender_id: uuid.UUID,
+    text: str,
+    attachment_url: Optional[str] = None,
+    attachment_name: Optional[str] = None,
+    attachment_mime_type: Optional[str] = None,
+    attachment_size: Optional[int] = None,
+) -> MessageRead:
     async with AsyncSessionLocal() as db:
         exists = await db.scalar(
             select(Conversation).where(Conversation.id == conversation_id)
@@ -139,7 +155,14 @@ async def _store_message(conversation_id: uuid.UUID, sender_id: uuid.UUID, text:
         if not await messaging_service.ensure_participant(db, conversation_id, sender_id):
             raise PermissionError("Not a participant")
         message = await messaging_service.save_message(
-            db, conversation_id=conversation_id, sender_id=sender_id, text=text
+            db,
+            conversation_id=conversation_id,
+            sender_id=sender_id,
+            text=text,
+            attachment_url=attachment_url,
+            attachment_name=attachment_name,
+            attachment_mime_type=attachment_mime_type,
+            attachment_size=attachment_size,
         )
         return MessageRead.from_orm(message)
 
@@ -172,10 +195,19 @@ async def chat_socket(websocket: WebSocket) -> None:
             data = payload.get("payload") or {}
 
             if event_type == "send_message":
-                conversation_id = uuid.UUID(data.get("conversation_id"))
-                text = data.get("text")
-                if not text:
-                    await websocket.send_json({"type": "error", "payload": {"message": "Message text is required"}})
+                try:
+                    conversation_id = uuid.UUID(data.get("conversation_id"))
+                except (TypeError, ValueError):
+                    await websocket.send_json({"type": "error", "payload": {"message": "Invalid conversation id"}})
+                    continue
+
+                text = (data.get("text") or "").strip()
+                attachment_url = data.get("attachment_url")
+                attachment_name = data.get("attachment_name")
+                attachment_mime_type = data.get("attachment_mime_type")
+                attachment_size = data.get("attachment_size")
+                if not text and not attachment_url:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Message text or attachment is required"}})
                     continue
                 try:
                     participants = await _conversation_participants(conversation_id)
@@ -185,7 +217,15 @@ async def chat_socket(websocket: WebSocket) -> None:
                             if not await connection_service.are_friends(db=db, user_a=user.id, user_b=other_id):
                                 await websocket.send_json({"type": "error", "payload": {"message": "Messaging allowed only between friends"}})
                                 continue
-                    message = await _store_message(conversation_id, user.id, text)
+                    message = await _store_message_with_attachment(
+                        conversation_id=conversation_id,
+                        sender_id=user.id,
+                        text=text,
+                        attachment_url=attachment_url,
+                        attachment_name=attachment_name,
+                        attachment_mime_type=attachment_mime_type,
+                        attachment_size=attachment_size,
+                    )
                 except PermissionError:
                     await websocket.send_json({"type": "error", "payload": {"message": "Not a participant"}})
                     continue
