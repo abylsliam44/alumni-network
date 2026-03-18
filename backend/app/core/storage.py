@@ -1,12 +1,12 @@
 import logging
 import os
-import uuid
 import shutil
+import uuid
 import boto3
 from urllib.parse import unquote, urlparse, urlunparse
 from botocore.client import Config
 from botocore.exceptions import ClientError
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException, Request, UploadFile
 from pathlib import Path
 from app.core.config import settings
 
@@ -49,6 +49,7 @@ def upload_bytes(
     file_type: str,
     bucket: str = None,
     prefix: str = "uploads",
+    public_endpoint: str | None = None,
 ) -> dict:
     if not bucket:
         bucket = settings.MINIO_BUCKET
@@ -74,7 +75,7 @@ def upload_bytes(
             ContentType=file_type,
         )
 
-        public_endpoint = _public_storage_endpoint()
+        public_endpoint = _public_storage_endpoint(public_endpoint)
         return {
             "file_url": f"{public_endpoint}/{bucket}/{object_name}",
             "object_name": object_name,
@@ -83,8 +84,12 @@ def upload_bytes(
         logger.error(f"Error uploading object to storage: {e}")
         raise HTTPException(status_code=500, detail="Could not upload file")
 
-def get_s3_client(public: bool = False):
-    endpoint_url = _public_storage_endpoint() if public else _normalize_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE)
+def get_s3_client(public: bool = False, public_endpoint: str | None = None):
+    endpoint_url = (
+        _public_storage_endpoint(public_endpoint)
+        if public
+        else _normalize_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE)
+    )
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,
@@ -102,9 +107,30 @@ def _normalize_endpoint(endpoint: str, secure: bool = False) -> str:
     return f"{scheme}://{endpoint.rstrip('/')}"
 
 
-def _public_storage_endpoint() -> str:
-    public_endpoint = settings.MINIO_PUBLIC_ENDPOINT or settings.MINIO_ENDPOINT
+def _public_storage_endpoint(public_endpoint: str | None = None) -> str:
+    public_endpoint = public_endpoint or settings.MINIO_PUBLIC_ENDPOINT or settings.MINIO_ENDPOINT
     return _normalize_endpoint(public_endpoint, settings.MINIO_SECURE)
+
+
+def infer_public_storage_endpoint(request: Request) -> str:
+    origin = (request.headers.get("origin") or "").strip()
+    if origin:
+        parsed = urlparse(origin)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}/storage"
+
+    referer = (request.headers.get("referer") or "").strip()
+    if referer:
+        parsed = urlparse(referer)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}/storage"
+
+    forwarded_host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").strip()
+    if forwarded_host:
+        forwarded_proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "http").strip()
+        return f"{forwarded_proto}://{forwarded_host}/storage"
+
+    return _public_storage_endpoint()
 
 
 def _rewrite_to_public_endpoint(url: str) -> str:
@@ -120,9 +146,10 @@ def extract_object_name(file_url: str, bucket: str = None) -> str:
     bucket = bucket or settings.MINIO_BUCKET
     path = unquote(urlparse(file_url).path or "").lstrip("/")
     bucket_prefix = f"{bucket}/"
-    if not path.startswith(bucket_prefix):
+    bucket_start = path.find(bucket_prefix)
+    if bucket_start == -1:
         raise HTTPException(status_code=400, detail="Invalid attachment path")
-    return path[len(bucket_prefix):]
+    return path[bucket_start + len(bucket_prefix):]
 
 
 def generate_presigned_download_url(
@@ -130,10 +157,11 @@ def generate_presigned_download_url(
     bucket: str = None,
     download_name: str | None = None,
     as_attachment: bool = False,
+    public_endpoint: str | None = None,
 ) -> str:
     bucket = bucket or settings.MINIO_BUCKET
     object_name = extract_object_name(file_url, bucket=bucket)
-    s3_client = get_s3_client(public=True)
+    s3_client = get_s3_client(public=True, public_endpoint=public_endpoint)
 
     params = {
         "Bucket": bucket,
@@ -175,6 +203,7 @@ def generate_presigned_url(
     file_type: str,
     bucket: str = None,
     prefix: str = "resumes",
+    public_endpoint: str | None = None,
 ) -> dict:
     """
     Generate a presigned URL for PUT object.
@@ -199,7 +228,7 @@ def generate_presigned_url(
     object_name = f"{normalized_prefix}/{uuid.uuid4()}/{file_name}"
     
     try:
-        presign_client = get_s3_client(public=True)
+        presign_client = get_s3_client(public=True, public_endpoint=public_endpoint)
         url = presign_client.generate_presigned_url(
             "put_object",
             Params={
@@ -210,7 +239,7 @@ def generate_presigned_url(
             ExpiresIn=3600,
         )
 
-        public_endpoint = _public_storage_endpoint()
+        public_endpoint = _public_storage_endpoint(public_endpoint)
         final_url = f"{public_endpoint}/{bucket}/{object_name}"
 
         return {

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -72,6 +72,7 @@ def _serialize_import(session: ResumeImportSession) -> ResumeImportRead:
 
 @router.post("/presigned-url", response_model=ResumeUploadUrlResponse)
 async def get_resume_upload_url(
+    request: Request,
     filename: str = Query(..., min_length=1),
     filetype: str = Query(..., min_length=1),
     current_user: User = Depends(deps.get_current_active_user),
@@ -83,6 +84,7 @@ async def get_resume_upload_url(
         file_name=filename,
         file_type=filetype,
         prefix="resume-imports",
+        public_endpoint=storage.infer_public_storage_endpoint(request),
     )
 
 

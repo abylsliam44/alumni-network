@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -260,6 +260,7 @@ async def send_message(
     status_code=status.HTTP_200_OK,
 )
 async def get_attachment_upload_url(
+    request: Request,
     filename: str,
     filetype: str,
     filesize: int = Query(..., ge=1),
@@ -281,6 +282,7 @@ async def get_attachment_upload_url(
         file_name=_sanitize_attachment_name(filename),
         file_type=normalized_type,
         prefix="messages",
+        public_endpoint=storage.infer_public_storage_endpoint(request),
     )
     return MessageAttachmentUploadResponse(**upload)
 
@@ -291,6 +293,7 @@ async def get_attachment_upload_url(
     status_code=status.HTTP_200_OK,
 )
 async def upload_attachment(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> MessageAttachmentUploadResponse:
@@ -315,6 +318,7 @@ async def upload_attachment(
         file_name=_sanitize_attachment_name(file.filename),
         file_type=normalized_type,
         prefix="messages",
+        public_endpoint=storage.infer_public_storage_endpoint(request),
     )
     return MessageAttachmentUploadResponse(
         upload_url="",

@@ -32,11 +32,32 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: always
+
+  resume-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: alumni-resume-worker-prod
+    command: ["python", "-m", "app.workers.resume_worker"]
+    env_file:
+      - .env.prod
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - backend_uploads_prod:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: always
 
   frontend:
@@ -76,7 +97,6 @@ services:
       - .env.prod
     environment:
       - BACKEND_URL=http://backend:8000
-      - BACKEND_API_SECRET=${BACKEND_API_SECRET:-agent-secret-key}
     volumes:
       - ./.env.prod:/app/.env
     depends_on:
@@ -92,8 +112,8 @@ services:
       - "9000"
       - "9001"
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
     volumes:
       - minio_data_prod:/data
     healthcheck:

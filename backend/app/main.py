@@ -38,7 +38,7 @@ allow_origins = env_origins or default_cors_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow all origins for dev to fix CORS issues
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

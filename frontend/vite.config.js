@@ -15,6 +15,16 @@ export default defineConfig({
         target: 'http://backend:8000',
         changeOrigin: true,
       },
+      '/ws': {
+        target: 'ws://backend:8000',
+        ws: true,
+        changeOrigin: true,
+      },
+      '/storage': {
+        target: 'http://minio:9000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/storage/, ''),
+      },
     },
   },
 })

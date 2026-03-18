@@ -33,6 +33,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
       interval: 10s
@@ -97,7 +99,6 @@ services:
       - .env
     environment:
       - BACKEND_URL=http://backend:8000
-      - BACKEND_API_SECRET=${BACKEND_API_SECRET:-agent-secret-key}
     volumes:
       - ./.env:/app/.env
     depends_on:
@@ -113,8 +114,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
     volumes:
       - minio_data:/data
     healthcheck:

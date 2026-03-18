@@ -1,5 +1,5 @@
 from typing import Any, Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select, func, or_, desc, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -307,6 +307,7 @@ async def close_job(
 
 @router.post("/presigned-url")
 async def get_upload_url(
+    request: Request,
     filename: str,
     filetype: str,
     current_user: User = Depends(deps.get_current_active_user),
@@ -314,7 +315,11 @@ async def get_upload_url(
     """
     Get a presigned URL to upload resume to MinIO directly.
     """
-    return storage.generate_presigned_url(filename, filetype)
+    return storage.generate_presigned_url(
+        filename,
+        filetype,
+        public_endpoint=storage.infer_public_storage_endpoint(request),
+    )
 
 @router.post("/{job_id}/apply", response_model=JobApplicationRead, status_code=status.HTTP_201_CREATED)
 async def apply_to_job(

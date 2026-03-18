@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 from app.api import deps
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.message import Conversation
 from app.models.user import User
@@ -38,7 +39,10 @@ router = APIRouter()
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "").strip().rstrip("/")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip()
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "").strip()
-BACKEND_API_SECRET = os.getenv("BACKEND_API_SECRET", "agent-secret-key").strip()
+
+
+def _agent_secret() -> str:
+    return (settings.BACKEND_API_SECRET or settings.SECRET_KEY).strip()
 
 
 class CreateRoomRequest(BaseModel):
@@ -240,7 +244,7 @@ async def save_call_summary(
     Этот эндпоинт вызывается только AI-агентом.
     """
     # Проверяем секретный ключ агента
-    if x_agent_secret != BACKEND_API_SECRET:
+    if x_agent_secret != _agent_secret():
         raise HTTPException(status_code=401, detail="Invalid agent secret")
     
     try:
@@ -290,6 +294,6 @@ async def get_videocall_config(
     Возвращает конфигурацию видеозвонков для клиента.
     """
     return {
-        "enabled": bool(LIVEKIT_URL and LIVEKIT_API_KEY),
+        "enabled": bool(LIVEKIT_URL and LIVEKIT_API_KEY and LIVEKIT_API_SECRET),
         "livekit_url": LIVEKIT_URL if LIVEKIT_URL else None,
     }

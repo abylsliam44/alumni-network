@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     
     # Security
     SECRET_KEY: str
+    BACKEND_API_SECRET: Optional[str] = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     GOOGLE_AI_API_KEY: Optional[str] = None
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
     
     # MinIO (S3-compatible storage)
     MINIO_ENDPOINT: str = "minio:9000"
-    MINIO_PUBLIC_ENDPOINT: Optional[str] = "http://localhost:9000"
+    MINIO_PUBLIC_ENDPOINT: Optional[str] = None
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "alumni-files"

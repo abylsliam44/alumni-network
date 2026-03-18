@@ -34,7 +34,7 @@ logger = logging.getLogger("videocall-agent")
 
 # URL бэкенда для сохранения результатов
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
-BACKEND_API_SECRET = os.getenv("BACKEND_API_SECRET", "")
+BACKEND_API_SECRET = os.getenv("BACKEND_API_SECRET") or os.getenv("SECRET_KEY", "")
 
 # Debug: проверяем что переменные окружения загружены
 _lk_url = os.getenv("LIVEKIT_URL", "")

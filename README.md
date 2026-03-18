@@ -21,8 +21,8 @@ cd alumni-social-network
 
 # Подготовить окружение
 cp .env.example .env
-# Заполните .env: POSTGRES_* / DATABASE_URL / SECRET_KEY / OPENAI_API_KEY / QDRANT_URL (пробрасывается по умолчанию) / при необходимости QDRANT_API_KEY и EMBEDDING_MODEL
-# Для фронтенда при необходимости установите VITE_API_URL (по умолчанию http://localhost:8010)
+# Заполните .env: POSTGRES_* / DATABASE_URL / SECRET_KEY / OPENAI_API_KEY / при необходимости QDRANT_* / SMTP_* / LIVEKIT_*.
+# VITE_API_URL обычно оставляем пустым: dev/prod прокси уже пробрасывают /api, /ws и /storage через frontend.
 
 # Сборка и запуск всех сервисов
 docker compose up -d --build
@@ -40,7 +40,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 # Миграции в prod-стэке
 docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
 ```
-Главные переменные в `.env.prod`: `DATABASE_URL` с хостом `postgres`, `SECRET_KEY`, `OPENAI_API_KEY`, `BACKEND_CORS_ORIGINS`, `VITE_API_URL` (указывает на публичный backend `8010`), `POSTGRES_*`.
+Главные переменные в `.env.prod`: `DATABASE_URL` с хостом `postgres`, `SECRET_KEY`, `OPENAI_API_KEY`, `BACKEND_CORS_ORIGINS`, `POSTGRES_*`, при необходимости `BACKEND_API_SECRET`, `LIVEKIT_*`, `DEEPGRAM_API_KEY`, `SMTP_*`.
 
 ## Деплой на один DigitalOcean droplet (Docker Compose)
 1. Подготовить код и конфиг:
@@ -53,8 +53,9 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alem
    - `DATABASE_URL=postgresql+psycopg2://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>` (хост именно `postgres`, не `localhost`).
    - `SECRET_KEY=<случайная_строка>` (обязателен).
    - `OPENAI_API_KEY=<ключ>` (если нужны AI-рекомендации).
-   - `BACKEND_CORS_ORIGINS=http://<ваш-домен-или-ip>:3030` (можно перечислением через запятую).
-   - `VITE_API_URL=http://<ваш-домен-или-ip>:8010` (URL API, который увидит браузер).
+   - `BACKEND_CORS_ORIGINS=https://<ваш-домен>` (можно перечислением через запятую).
+   - `MINIO_PUBLIC_ENDPOINT=` можно оставить пустым, если используете встроенный proxy `/storage` через frontend nginx.
+   - `BACKEND_API_SECRET=<отдельный_секрет>` опционален; если пусто, agent использует `SECRET_KEY`.
 3. Запустить стэк:
    ```bash
    docker compose up -d --build
@@ -68,7 +69,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alem
 - По умолчанию наружу публикуются только `8010` (backend API) и `3030` (frontend). Postgres и Qdrant остаются внутри сети Compose — откройте их наружу только при явной необходимости.
 - Настройте firewall на дроплете: разрешите вход только на нужные порты (обычно 80/443 с прокси или 3030/8010, если без прокси).
 - Храните `SECRET_KEY`, `POSTGRES_PASSWORD`, `OPENAI_API_KEY` в `.env`, не коммитьте их в репозиторий.
-- При смене домена не забудьте обновить `BACKEND_CORS_ORIGINS` и `VITE_API_URL`, затем пересобрать `frontend`.
+- При смене домена обновите `BACKEND_CORS_ORIGINS`; `VITE_API_URL` нужен только если вы сознательно обходите встроенный proxy.
 
 ## Порты и сервисы
 | Сервис      | URL/порт                   |
@@ -94,5 +95,5 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alem
 ```
 
 ## Минимальный набор переменных окружения
-- Backend: `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SECRET_KEY`, `OPENAI_API_KEY`, `QDRANT_URL` (+ `QDRANT_API_KEY` если нужен), `EMBEDDING_MODEL` (по умолчанию all-MiniLM-L6-v2). Дополнительно можно задать `BACKEND_CORS_ORIGINS`.
-- Frontend: `VITE_API_URL` (если отличный от http://localhost:8010).
+- Backend: `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SECRET_KEY`, `OPENAI_API_KEY`. По необходимости: `BACKEND_CORS_ORIGINS`, `QDRANT_*`, `SMTP_*`, `LIVEKIT_*`, `DEEPGRAM_API_KEY`, `BACKEND_API_SECRET`.
+- Frontend: обычно без обязательных env; `VITE_API_URL` и `VITE_WS_URL` нужны только при прямом подключении без встроенных proxy.
