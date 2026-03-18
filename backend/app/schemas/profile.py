@@ -26,6 +26,24 @@ class SkillItem(BaseModel):
     name: str
     level: Optional[str] = None # Beginner, Intermediate, Expert
 
+
+class CareerTrajectoryStep(BaseModel):
+    type: str
+    label: str
+    company: Optional[str] = None
+    role: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    current: bool = False
+
+
+class OpportunityGenerationRead(BaseModel):
+    status: str
+    requested_interest: Optional[str] = None
+    active_interest: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
 class ProfileBase(BaseModel):
     headline: Optional[str] = None
     location: Optional[str] = None
@@ -63,6 +81,15 @@ class ProfileRead(ProfileBase):
     is_admin: bool = False
     photo_url: Optional[str] = None
     is_verified: bool
+    career_university: Optional[str] = None
+    career_faculty: Optional[str] = None
+    career_program: Optional[str] = None
+    career_companies: List[str] = []
+    career_roles: List[str] = []
+    career_projects: List[str] = []
+    career_path: List[str] = []
+    career_trajectory: List[CareerTrajectoryStep] = []
+    opportunity_generation: Optional[OpportunityGenerationRead] = None
     
     class Config:
         from_attributes = True

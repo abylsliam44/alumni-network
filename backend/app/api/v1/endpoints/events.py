@@ -311,7 +311,7 @@ async def create_event(
     """
     Create a new event.
     Only Alumni and Admin users can create events.
-    Events start in 'draft' status.
+    Alumni/admin-created events are published immediately.
     """
     # Check if user can create events (Alumni or Admin)
     if current_user.role != UserRole.ALUMNI and not current_user.is_admin:
@@ -327,7 +327,7 @@ async def create_event(
         topic=event_in.topic,
         type=EventType(event_in.type.value),
         format=EventFormat(event_in.format.value),
-        status=EventStatus.DRAFT,
+        status=EventStatus.APPROVED,
         start_time=event_in.start_time,
         end_time=event_in.end_time,
         capacity=event_in.capacity,
@@ -335,6 +335,8 @@ async def create_event(
         online_link=event_in.online_link,
         company_name=event_in.company_name,
         organizer_id=current_user.id,
+        approved_by=current_user.id if current_user.is_admin else None,
+        approved_at=datetime.utcnow(),
         is_public=event_in.type != EventTypeEnum.INVITE_ONLY
     )
     db.add(event)
@@ -361,6 +363,26 @@ async def create_event(
                 type=MaterialType(material_data.type.value)
             )
             db.add(material)
+
+    recipients_result = await db.execute(
+        select(User.id).where(
+            and_(
+                User.is_active.is_(True),
+                User.id != current_user.id,
+            )
+        )
+    )
+    for recipient_id in recipients_result.scalars():
+        db.add(
+            Notification(
+                user_id=recipient_id,
+                type=NotificationType.EVENT_APPROVED,
+                title="New Event Published",
+                message=f"{current_user.name} published '{event.title}'.",
+                reference_id=event.id,
+                actor_id=current_user.id,
+            )
+        )
     
     await db.commit()
     await db.refresh(event)

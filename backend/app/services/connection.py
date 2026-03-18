@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import List, Optional
 
@@ -10,6 +11,8 @@ from sqlalchemy.orm import selectinload
 from app.models.connection import Connection, ConnectionStatus
 from app.models.user import User
 from app.services import notification as notification_service
+
+logger = logging.getLogger(__name__)
 
 
 async def are_friends(db: AsyncSession, user_a: uuid.UUID, user_b: uuid.UUID) -> bool:
@@ -62,12 +65,18 @@ async def create_request(
     
     # Create notification for the recipient
     if requester:
-        await notification_service.create_friend_request_notification(
-            db=db,
-            recipient_id=recipient_id,
-            requester=requester,
-            connection_id=connection.id,
-        )
+        try:
+            await notification_service.create_friend_request_notification(
+                db=db,
+                recipient_id=recipient_id,
+                requester=requester,
+                connection_id=connection.id,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to create friend request notification for connection %s",
+                connection.id,
+            )
     
     return connection
 
@@ -91,12 +100,18 @@ async def respond_request(
     
     # Create notification for the requester if accepted
     if status == ConnectionStatus.ACCEPTED and connection.recipient:
-        await notification_service.create_friend_accepted_notification(
-            db=db,
-            requester_id=connection.requester_id,
-            accepter=connection.recipient,
-            connection_id=connection.id,
-        )
+        try:
+            await notification_service.create_friend_accepted_notification(
+                db=db,
+                requester_id=connection.requester_id,
+                accepter=connection.recipient,
+                connection_id=connection.id,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to create friend accepted notification for connection %s",
+                connection.id,
+            )
     
     return connection
 

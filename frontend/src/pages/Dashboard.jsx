@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { connectionsApi } from '../api/connections';
 import { mentorshipApi } from '../api/mentorship';
@@ -8,6 +8,7 @@ import { jobsApi } from '../api/jobs';
 import { messagesApi } from '../api/messages';
 import { recommendationsApi } from '../api/recommendations';
 import { profileApi } from '../api/profile';
+import aituBackground from '../../images/aitu.jpg';
 
 const apiBase = import.meta.env.VITE_API_URL || '';
 const resolveUrl = (path) => {
@@ -143,6 +144,7 @@ const formatEventDate = (dateStr) => {
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // State for all dashboard data
   const [loading, setLoading] = useState(true);
@@ -251,7 +253,7 @@ const Dashboard = () => {
 
         // Set recommendations
         if (recsData.status === 'fulfilled') {
-          setRecommendations((recsData.value.recommendations || []).slice(0, 4));
+          setRecommendations((recsData.value.items || []).slice(0, 4));
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -302,6 +304,35 @@ const Dashboard = () => {
   };
 
   const profileCompletion = calculateProfileCompletion();
+  const hasRecommendationProfileSignals = Boolean(
+    profile?.skills?.length ||
+    profile?.interests?.length ||
+    profile?.mentor_areas_of_help?.length
+  );
+  const opportunityGeneration = profile?.opportunity_generation;
+  const opportunityGenerationPending =
+    profile
+      ? opportunityGeneration?.status === 'PENDING'
+      : Boolean(location.state?.opportunityGenerationStarted);
+  const opportunityGenerationInterest =
+    opportunityGeneration?.requested_interest || location.state?.opportunityInterest;
+
+  useEffect(() => {
+    if (opportunityGeneration?.status !== 'PENDING') {
+      return undefined;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const latestProfile = await profileApi.getMe();
+        setProfile(latestProfile);
+      } catch (err) {
+        console.error('Failed to refresh opportunity generation status:', err);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [opportunityGeneration?.status]);
 
   // Calendar Logic
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -340,7 +371,7 @@ const Dashboard = () => {
 
   const hasEvent = (day) => {
     return upcomingEvents.some(e => {
-      const d = new Date(e.event_date);
+      const d = new Date(e.start_time);
       return d.getDate() === day &&
         d.getMonth() === currentDate.getMonth() &&
         d.getFullYear() === currentDate.getFullYear();
@@ -349,7 +380,7 @@ const Dashboard = () => {
 
   const getEventsForSelectedDate = () => {
     return upcomingEvents.filter(e => {
-      const d = new Date(e.event_date);
+      const d = new Date(e.start_time);
       return d.getDate() === selectedDate.getDate() &&
         d.getMonth() === selectedDate.getMonth() &&
         d.getFullYear() === selectedDate.getFullYear();
@@ -360,7 +391,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="dash-page">
+      <div className="dash-page dash-page-loading" style={{ '--dash-bg-image': `url(${aituBackground})` }}>
         <div className="dash-loading">
           <div className="dash-loader" />
           <span>Loading your dashboard...</span>
@@ -370,7 +401,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="dash-page">
+    <div className="dash-page" style={{ '--dash-bg-image': `url(${aituBackground})` }}>
       {/* Welcome Section */}
       <header className="dash-header">
         <div className="dash-welcome">
@@ -399,6 +430,22 @@ const Dashboard = () => {
       </header>
 
       {/* Profile Completion Banner */}
+      {opportunityGenerationPending && (
+        <div className="dash-opportunity-banner">
+          <div className="dash-opportunity-copy">
+            <AlertCircleIcon />
+            <div>
+              <span className="dash-opportunity-title">Your roadmap is being generated</span>
+              <span className="dash-opportunity-desc">
+                {opportunityGenerationInterest
+                  ? `Your roadmap and opportunities for "${opportunityGenerationInterest}" are being generated. You'll get a notification when it's ready.`
+                  : `Your roadmap and opportunities are being generated. You'll get a notification when it's ready.`}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {profileCompletion < 100 && (
         <div className="dash-completion-banner">
           <div className="dash-completion-content">
@@ -655,7 +702,7 @@ const Dashboard = () => {
                   <div className="dash-event-info">
                     <span className="dash-event-title">{event.title}</span>
                     <div className="dash-event-meta">
-                      <span><ClockIcon /> {formatEventDate(event.event_date)}</span>
+                      <span><ClockIcon /> {formatEventDate(event.start_time)}</span>
                     </div>
                   </div>
                 </Link>
@@ -716,7 +763,7 @@ const Dashboard = () => {
           ) : (
             <div className="dash-empty">
               <UsersIcon />
-              {profileCompletion > 50 ? (
+              {hasRecommendationProfileSignals ? (
                 <>
                   <span>No new matches found</span>
                   <p>Check back later for new alumni connections</p>
@@ -724,7 +771,7 @@ const Dashboard = () => {
               ) : (
                 <>
                   <span>No recommendations yet</span>
-                  <p>Connect with more people to get personalized recommendations</p>
+                  <p>Complete your profile with skills and interests to get personalized recommendations</p>
                 </>
               )}
             </div>

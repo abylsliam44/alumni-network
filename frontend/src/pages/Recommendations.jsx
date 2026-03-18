@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { recommendationsApi } from '../api/recommendations';
 import { connectionsApi } from '../api/connections';
+import { profileApi } from '../api/profile';
 import PageIntro from '../components/PageIntro';
 
 const apiBase = import.meta.env.VITE_API_URL || '';
@@ -101,7 +102,7 @@ const Recommendations = () => {
       // Fetch both recommendations and profile to know if we should tell them to complete it
       const [recRes, profileRes] = await Promise.all([
         recommendationsApi.getPeople(),
-        import('../api/profile').then(m => m.profileApi.getMe())
+        profileApi.getMe(),
       ]);
       setData(recRes);
       setProfile(profileRes);
@@ -130,16 +131,16 @@ const Recommendations = () => {
   };
 
   const summary = useMemo(() => {
-    if (!data?.recommendations?.length && !data?.items?.length) {
+    if (!data?.items?.length) {
       return { total: 0, best: 0 };
     }
-    const items = data.recommendations || data.items || [];
+    const items = data.items;
     const sorted = [...items].sort((a, b) => (b.match_score || b.score || 0) - (a.match_score || a.score || 0));
     const best = sorted[0]?.match_score || sorted[0]?.score || 0;
     return { total: items.length, best };
   }, [data]);
 
-  const recommendations = data?.recommendations || data?.items || [];
+  const recommendations = data?.items || [];
 
   return (
     <div className="rec-page">

@@ -83,10 +83,11 @@ def upload_bytes(
         logger.error(f"Error uploading object to storage: {e}")
         raise HTTPException(status_code=500, detail="Could not upload file")
 
-def get_s3_client():
+def get_s3_client(public: bool = False):
+    endpoint_url = _public_storage_endpoint() if public else _normalize_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE)
     return boto3.client(
         "s3",
-        endpoint_url=_normalize_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE),
+        endpoint_url=endpoint_url,
         aws_access_key_id=settings.MINIO_ACCESS_KEY,
         aws_secret_access_key=settings.MINIO_SECRET_KEY,
         config=Config(signature_version="s3v4"),
@@ -132,7 +133,7 @@ def generate_presigned_download_url(
 ) -> str:
     bucket = bucket or settings.MINIO_BUCKET
     object_name = extract_object_name(file_url, bucket=bucket)
-    s3_client = get_s3_client()
+    s3_client = get_s3_client(public=True)
 
     params = {
         "Bucket": bucket,
@@ -147,7 +148,7 @@ def generate_presigned_download_url(
             Params=params,
             ExpiresIn=3600,
         )
-        return _rewrite_to_public_endpoint(url)
+        return url
     except Exception as e:
         logger.error(f"Error generating download URL: {e}")
         raise HTTPException(status_code=500, detail="Could not generate download URL")
@@ -198,7 +199,8 @@ def generate_presigned_url(
     object_name = f"{normalized_prefix}/{uuid.uuid4()}/{file_name}"
     
     try:
-        url = s3_client.generate_presigned_url(
+        presign_client = get_s3_client(public=True)
+        url = presign_client.generate_presigned_url(
             "put_object",
             Params={
                 "Bucket": bucket,
@@ -212,7 +214,7 @@ def generate_presigned_url(
         final_url = f"{public_endpoint}/{bucket}/{object_name}"
 
         return {
-            "upload_url": _rewrite_to_public_endpoint(url),
+            "upload_url": url,
             "file_url": final_url,
             "object_name": object_name,
         }

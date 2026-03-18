@@ -227,6 +227,20 @@ const Profile = () => {
   const isConnected = connection?.status === 'ACCEPTED';
   const isPendingOutgoing = connection?.status === 'PENDING' && connection?.direction === 'out';
   const isPendingIncoming = connection?.status === 'PENDING' && connection?.direction === 'in';
+  const careerFacts = [
+    { label: 'University', values: profile.career_university ? [profile.career_university] : [] },
+    { label: 'Faculty', values: profile.career_faculty ? [profile.career_faculty] : [] },
+    { label: 'Skills', values: profile.skills || [] },
+    { label: 'Companies', values: profile.career_companies || [] },
+    { label: 'Roles', values: profile.career_roles || [] },
+    { label: 'Projects', values: profile.career_projects || [] },
+  ];
+  const hasCareerTrajectory = careerFacts.some((section) => section.values.length > 0) || (profile.career_path || []).length > 0;
+  const trajectoryStats = [
+    { label: 'Stops', value: Math.max((profile.career_trajectory || []).length, (profile.career_path || []).length) },
+    { label: 'Companies', value: (profile.career_companies || []).length },
+    { label: 'Skills', value: (profile.skills || []).length },
+  ];
   const connectLabel = isConnected
     ? 'Connected'
     : isPendingOutgoing
@@ -355,7 +369,9 @@ const Profile = () => {
                   <Link to="/profile/edit">
                     <Button variant="primary" className="linkedin-btn-primary">Edit profile</Button>
                   </Link>
-                  <Button variant="secondary" className="linkedin-btn-secondary">Add section</Button>
+                  <Link to="/profile/resume-import">
+                    <Button variant="secondary" className="linkedin-btn-secondary">Import Resume</Button>
+                  </Link>
                 </>
               ) : (
                 <>
@@ -446,6 +462,100 @@ const Profile = () => {
           </p>
         )}
       </div>
+
+      {hasCareerTrajectory && (
+        <div className="linkedin-section-card">
+          <div className="linkedin-trajectory-shell">
+            <div className="linkedin-trajectory-overview">
+              <span className="linkedin-trajectory-kicker">Verified Alumni Route</span>
+              <div className="linkedin-trajectory-heading-row">
+                <div>
+                  <h2 className="linkedin-section-title">Career Trajectory</h2>
+                  <p className="linkedin-section-subtitle">A confirmed path built from structured career records, not raw resume text.</p>
+                </div>
+                <div className="linkedin-trajectory-stat-strip">
+                  {trajectoryStats.map((item) => (
+                    <div key={item.label} className="linkedin-trajectory-stat-pill">
+                      <strong>{item.value}</strong>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {(profile.career_path || []).length > 0 && (
+                <div className="linkedin-trajectory-ribbon">
+                  {(profile.career_path || []).map((step, index) => (
+                    <div key={`${step}-${index}`} className="linkedin-trajectory-ribbon-step">
+                      <span>{step}</span>
+                      {index < profile.career_path.length - 1 && <i aria-hidden="true">→</i>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="linkedin-trajectory-grid">
+              <div className="linkedin-trajectory-facts">
+                {careerFacts.map((section) => (
+                  <div key={section.label} className="linkedin-trajectory-fact-card">
+                    <div className="linkedin-trajectory-fact-header">
+                      <h3>{section.label}</h3>
+                      {section.values.length > 0 && <span>{section.values.length}</span>}
+                    </div>
+                    {section.values.length > 0 ? (
+                      <div className="linkedin-trajectory-chip-list">
+                        {section.values.map((value) => (
+                          <span key={`${section.label}-${value}`} className="linkedin-trajectory-chip">{value}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="linkedin-trajectory-empty">No confirmed data yet</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="linkedin-trajectory-preview">
+                <div className="linkedin-trajectory-preview-header">
+                  <div>
+                    <span className="linkedin-trajectory-preview-eyebrow">Path Preview</span>
+                    <h3>{profile.name}</h3>
+                    <p>{profile.headline || 'Structured career graph preview'}</p>
+                  </div>
+                </div>
+
+                {profile.career_trajectory?.length > 0 && (
+                  <div className="linkedin-trajectory-map">
+                    {profile.career_trajectory.map((step, index) => (
+                      <div
+                        key={`${step.label}-${index}`}
+                        className={`linkedin-trajectory-map-item ${step.type === 'UNIVERSITY' ? 'is-origin' : ''} ${step.current ? 'is-current' : ''}`}
+                      >
+                        <div className="linkedin-trajectory-node">
+                          <span>{index + 1}</span>
+                        </div>
+                        <div className="linkedin-trajectory-node-card">
+                          <div className="linkedin-trajectory-node-meta">
+                            <em>{step.type === 'UNIVERSITY' ? 'Academic base' : (step.current ? 'Current role' : 'Career move')}</em>
+                            {step.company && <small>{step.company}</small>}
+                          </div>
+                          <strong>{step.label}</strong>
+                          {(step.start_date || step.end_date || step.current) && (
+                            <span>
+                              {step.start_date || 'Unknown'} - {step.current ? 'Present' : (step.end_date || 'Unknown')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Experience Section */}
       <div className="linkedin-section-card">

@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "alumni-files"
     MINIO_SECURE: bool = False
+
+    # Resume processing
+    RESUME_WORKER_POLL_INTERVAL_SECONDS: float = 3.0
     
     # Email (SMTP)
     SMTP_HOST: Optional[str] = None

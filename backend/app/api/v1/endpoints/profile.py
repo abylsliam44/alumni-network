@@ -9,6 +9,7 @@ from app.api import deps
 from app.ai.people_recommendations import upsert_user_embedding
 from app.core.database import get_db
 from app.core import storage
+from app.models.resume import AlumniCareerProfile, ResumeImportSession
 from app.models.user import User, UserProfile
 from app.schemas.profile import ProfileRead, ProfileUpdate
 
@@ -47,7 +48,163 @@ def _normalize_experience(raw_exp):
         )
     return normalized
 
-async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
+
+def _clean_text(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        value = str(value)
+    compact = " ".join(value.split()).strip()
+    return compact or None
+
+
+def _sort_employment_records(records):
+    return sorted(
+        records or [],
+        key=lambda item: (
+            item.start_date or "",
+            item.end_date or "",
+            item.created_at.isoformat(),
+        ),
+    )
+
+
+def _unique_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(value)
+    return result
+
+
+async def _build_career_profile_data(
+    user: User,
+    viewer: User | None,
+    db: AsyncSession,
+) -> dict[str, Any]:
+    result = await db.execute(
+        select(AlumniCareerProfile)
+        .options(
+            selectinload(AlumniCareerProfile.education_records),
+            selectinload(AlumniCareerProfile.employment_records),
+            selectinload(AlumniCareerProfile.skill_records),
+        )
+        .where(AlumniCareerProfile.user_id == user.id)
+    )
+    career_profile = result.scalars().first()
+    if not career_profile:
+        return {}
+
+    is_own_profile = viewer is not None and viewer.id == user.id
+    can_publish = False
+    if career_profile.source_import_session_id:
+        can_publish = bool(
+            await db.scalar(
+                select(ResumeImportSession.profile_publish_consent).where(
+                    ResumeImportSession.id == career_profile.source_import_session_id
+                )
+            )
+        )
+
+    if not is_own_profile and not can_publish:
+        return {}
+
+    ordered_employment = _sort_employment_records(career_profile.employment_records)
+    companies = _unique_preserving_order(
+        [
+            company
+            for company in (_clean_text(item.company_raw) for item in ordered_employment)
+            if company
+        ]
+    )
+    roles = _unique_preserving_order(
+        [
+            role
+            for role in (_clean_text(item.role_raw) for item in ordered_employment)
+            if role
+        ]
+    )
+
+    skills = _unique_preserving_order(
+        [
+            skill
+            for skill in (_clean_text(item.skill_raw) for item in career_profile.skill_records)
+            if skill
+        ]
+    )
+
+    education_records = career_profile.education_records or []
+    primary_school = None
+    if education_records:
+        primary_school = _clean_text(education_records[0].school_name)
+
+    faculty = _clean_text(career_profile.faculty_raw) or next(
+        (_clean_text(item.faculty_raw) for item in education_records if _clean_text(item.faculty_raw)),
+        None,
+    )
+    program = _clean_text(career_profile.program_raw) or next(
+        (_clean_text(item.program_raw) for item in education_records if _clean_text(item.program_raw)),
+        None,
+    )
+    if faculty and primary_school and faculty.lower() == primary_school.lower():
+        faculty = None
+    if program and primary_school and program.lower() == primary_school.lower():
+        program = None
+
+    path = []
+    if primary_school:
+        path.append(primary_school)
+    elif education_records or faculty or program or career_profile.graduation_year:
+        path.append("Astana IT University")
+
+    trajectory = []
+    if path:
+        trajectory.append(
+            {
+                "type": "UNIVERSITY",
+                "label": path[0],
+            }
+        )
+
+    for item in ordered_employment:
+        company = _clean_text(item.company_raw)
+        role = _clean_text(item.role_raw)
+        if role and company:
+            label = f"{role} at {company}"
+        else:
+            label = role or company
+        if not label:
+            continue
+        path.append(label)
+        trajectory.append(
+            {
+                "type": "EMPLOYMENT",
+                "label": label,
+                "company": company,
+                "role": role,
+                "start_date": item.start_date,
+                "end_date": item.end_date,
+                "current": item.is_current,
+            }
+        )
+
+    return {
+        "career_university": primary_school or (path[0] if path else None),
+        "career_faculty": faculty,
+        "career_program": program,
+        "career_companies": companies,
+        "career_roles": roles,
+        "career_projects": [],
+        "career_path": path,
+        "career_trajectory": trajectory,
+        "skills": skills if skills else (user.profile.skills or []),
+    }
+
+async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = None) -> ProfileRead:
     # Reload with profile eagerly to avoid MissingGreenlet on lazy load
     result = await db.execute(
         select(User).options(selectinload(User.profile)).where(User.id == user.id)
@@ -67,6 +224,8 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         )
         user = result.scalars().first()
     
+    career_profile_data = await _build_career_profile_data(user, viewer, db)
+
     # Construct response
     profile_data = {
         "id": user.profile.id,
@@ -82,7 +241,7 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         "bio": user.bio,
         "education": user.profile.education or [],
         "experience": _normalize_experience(user.profile.experience),
-        "skills": user.profile.skills or [],
+        "skills": career_profile_data.get("skills", user.profile.skills or []),
         "location": user.profile.location,
         "graduation_year": user.profile.graduation_year,
         "linkedin_url": user.profile.linkedin_url,
@@ -96,6 +255,19 @@ async def get_profile_data(user: User, db: AsyncSession) -> ProfileRead:
         "mentor_max_mentees": user.profile.mentor_max_mentees,
         "mentor_availability_note": user.profile.mentor_availability_note,
         "mentor_consent": user.profile.mentor_consent,
+        "career_university": career_profile_data.get("career_university"),
+        "career_faculty": career_profile_data.get("career_faculty"),
+        "career_program": career_profile_data.get("career_program"),
+        "career_companies": career_profile_data.get("career_companies", []),
+        "career_roles": career_profile_data.get("career_roles", []),
+        "career_projects": career_profile_data.get("career_projects", []),
+        "career_path": career_profile_data.get("career_path", []),
+        "career_trajectory": career_profile_data.get("career_trajectory", []),
+        "opportunity_generation": (
+            user.profile.visibility_settings.get("opportunity_generation")
+            if isinstance(user.profile.visibility_settings, dict)
+            else None
+        ),
     }
     return ProfileRead(**profile_data)
 
@@ -112,7 +284,7 @@ async def read_own_profile(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)
 
 @router.put("/me", response_model=ProfileRead)
 async def update_own_profile(
@@ -160,7 +332,7 @@ async def update_own_profile(
     # Keep embeddings fresh for recommendations
     await upsert_user_embedding(user, user.profile)
     
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)
 
 @router.patch("/me/photo", response_model=ProfileRead)
 async def upload_photo(
@@ -186,7 +358,7 @@ async def upload_photo(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)
 
 
 @router.patch("/me/cover", response_model=ProfileRead)
@@ -221,7 +393,7 @@ async def upload_cover(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)
 
 @router.delete("/me/photo", response_model=ProfileRead)
 async def delete_photo(
@@ -241,7 +413,7 @@ async def delete_photo(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)
 
 @router.delete("/me/cover", response_model=ProfileRead)
 async def delete_cover(
@@ -263,7 +435,7 @@ async def delete_cover(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)
 
 @router.get("/{user_id}", response_model=ProfileRead)
 async def read_user_profile(
@@ -282,4 +454,4 @@ async def read_user_profile(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    return await get_profile_data(user, db)
+    return await get_profile_data(user, db, viewer=current_user)

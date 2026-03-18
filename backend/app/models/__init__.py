@@ -10,4 +10,28 @@ from .event import (
 from .job import Job, JobApplication, JobChatMessage
 from .ai_chat import AiChatMessage
 from .notification import Notification, NotificationType
+from .resume import (
+    AlumniCareerProfile,
+    AlumniEducationRecord,
+    AlumniEmploymentRecord,
+    AlumniSkillRecord,
+    CanonicalCompany,
+    CanonicalFaculty,
+    CanonicalProgram,
+    CanonicalRole,
+    CanonicalSkill,
+    CareerGraphEdge,
+    CareerGraphNode,
+    GraphNodeType,
+    GraphRelationType,
+    ResumeConfirmationStatus,
+    ResumeDocument,
+    ResumeDocumentStatus,
+    ResumeExtractionDraft,
+    ResumeImportSession,
+    ResumeJobStatus,
+    ResumeJobType,
+    ResumeProcessingJob,
+    ResumeProcessingStatus,
+)
 

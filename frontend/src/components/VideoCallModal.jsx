@@ -172,10 +172,13 @@ const VideoCallModal = ({
         isVideoOff,
         callDuration,
         error,
+        isAudioPlaybackBlocked,
+        isVideoPlaybackBlocked,
         connect,
         disconnect,
         toggleMute,
         toggleVideo,
+        resumeMediaPlayback,
     } = useVideoCall();
 
     const localVideoRef = useRef(null);
@@ -238,7 +241,11 @@ const VideoCallModal = ({
 
             if (videoTrack) {
                 console.log(`Attaching remote video from ${videoParticipant.identity}`);
+                videoEl.muted = true;
                 videoTrack.attach(videoEl);
+                videoEl.play().catch((e) => {
+                    console.error('Remote video autoplay failed:', e);
+                });
                 return () => {
                     console.log(`Detaching remote video from ${videoParticipant.identity}`);
                     if (videoEl) {
@@ -418,6 +425,13 @@ const VideoCallModal = ({
                     <div className="videocall-error">
                         <span>Ошибка: {error}</span>
                         <button onClick={() => connect(livekitUrl, token)}>Попробовать снова</button>
+                    </div>
+                )}
+
+                {!error && (isAudioPlaybackBlocked || isVideoPlaybackBlocked) && (
+                    <div className="videocall-error">
+                        <span>Браузер заблокировал воспроизведение медиа. Нажмите, чтобы включить звонок.</span>
+                        <button onClick={resumeMediaPlayback}>Включить медиа</button>
                     </div>
                 )}
             </div>

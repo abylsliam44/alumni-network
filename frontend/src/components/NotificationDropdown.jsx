@@ -86,6 +86,14 @@ const NotificationDropdown = () => {
         return '/friends';
       case 'NEW_MESSAGE':
         return '/messages';
+      case 'EVENT_APPROVED':
+        return notification.reference_id ? `/events/${notification.reference_id}` : '/opportunities';
+      case 'EVENT_CANCELLED':
+      case 'EVENT_REGISTRATION':
+      case 'EVENT_WAITLIST':
+      case 'EVENT_WAITLIST_PROMOTED':
+      case 'EVENT_REMINDER':
+        return notification.reference_id ? `/events/${notification.reference_id}` : '/events';
       default:
         return '#';
     }

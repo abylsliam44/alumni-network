@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { directoryApi } from '../api/directory';
 import { connectionsApi } from '../api/connections';
 import UserCard from '../components/directory/UserCard';
@@ -17,6 +17,7 @@ const Directory = () => {
   const [connections, setConnections] = useState({});
   const [requesting, setRequesting] = useState({});
   const [filtersVisible, setFiltersVisible] = useState(true);
+  const connectionsFetchSeq = useRef(0);
 
   const [filters, setFilters] = useState({
     query: '',
@@ -62,8 +63,15 @@ const Directory = () => {
   };
 
   const fetchConnections = async () => {
+    const requestSeq = connectionsFetchSeq.current + 1;
+    connectionsFetchSeq.current = requestSeq;
+
     try {
       const list = await connectionsApi.list();
+      if (requestSeq !== connectionsFetchSeq.current) {
+        return;
+      }
+
       const map = {};
       list.forEach((conn) => {
         const otherId = conn.requester_id === currentUser.id ? conn.recipient_id : conn.requester_id;
@@ -132,11 +140,7 @@ const Directory = () => {
       fetchConnections();
     } catch (err) {
       console.error('Failed to send request', err);
-      setConnections((prev) => {
-        const copy = { ...prev };
-        delete copy[targetId];
-        return copy;
-      });
+      await fetchConnections();
     } finally {
       setRequesting((prev) => {
         const copy = { ...prev };
@@ -175,6 +179,15 @@ const Directory = () => {
     filters.graduation_year,
     filters.mentor_only
   ].filter(Boolean).length;
+
+  const activeDirectoryChips = [
+    filters.query ? `Search: ${filters.query}` : null,
+    filters.role ? `Role: ${filters.role === 'ALUMNI' ? 'Alumni' : filters.role === 'STUDENT' ? 'Student' : filters.role}` : null,
+    filters.skills ? `Skills: ${filters.skills}` : null,
+    filters.location ? `Location: ${filters.location}` : null,
+    filters.graduation_year ? `Class of ${filters.graduation_year}` : null,
+    filters.mentor_only ? 'Mentors only' : null,
+  ].filter(Boolean);
 
   return (
     <div className="dir-page">
@@ -221,34 +234,62 @@ const Directory = () => {
           </div>
         ) : users.length > 0 ? (
           <>
-            <div className="dir-grid">
-              {users.map((user, index) => (
-                <UserCard
-                  key={user.id}
-                  user={user}
-                  index={index}
-                  isSelf={currentUser?.id === user.user_id}
-                  status={
-                    connectionStatus[user.user_id]
-                      ? connectionStatus[user.user_id].status === 'ACCEPTED'
-                        ? 'friends'
-                        : connectionStatus[user.user_id].direction === 'out'
-                          ? 'pending_out'
-                          : 'pending_in'
-                      : 'none'
-                  }
-                  addLoading={requesting[user.user_id]}
-                  onAddFriend={() => handleAddFriend(user.user_id)}
-                  onAccept={() => {
-                    const c = connectionStatus[user.user_id];
-                    if (c) handleRespond(c.id, 'ACCEPTED');
-                  }}
-                  onDecline={() => {
-                    const c = connectionStatus[user.user_id];
-                    if (c) handleRespond(c.id, 'DECLINED');
-                  }}
-                />
-              ))}
+            <div className="dir-list-shell">
+              <div className="dir-list-header">
+                <div>
+                  <span className="dir-list-kicker">People</span>
+                  <h2>{total} members available to connect</h2>
+                </div>
+                <p>
+                  Browse alumni and students in a cleaner list view, then open profiles or send connection requests directly.
+                </p>
+              </div>
+
+              <div className="dir-list-toolbar">
+                <div className="dir-list-summary">
+                  <strong>{users.length} people on this page</strong>
+                </div>
+
+                <div className="dir-list-tags">
+                  {activeDirectoryChips.length > 0 ? (
+                    activeDirectoryChips.map((chip) => (
+                      <span key={chip} className="dir-list-tag">{chip}</span>
+                    ))
+                  ) : (
+                    <span className="dir-list-tag dir-list-tag-muted">All members</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="dir-grid">
+                {users.map((user, index) => (
+                  <UserCard
+                    key={user.id}
+                    user={user}
+                    index={index}
+                    isSelf={currentUser?.id === user.user_id}
+                    status={
+                      connectionStatus[user.user_id]
+                        ? connectionStatus[user.user_id].status === 'ACCEPTED'
+                          ? 'friends'
+                          : connectionStatus[user.user_id].direction === 'out'
+                            ? 'pending_out'
+                            : 'pending_in'
+                        : 'none'
+                    }
+                    addLoading={requesting[user.user_id]}
+                    onAddFriend={() => handleAddFriend(user.user_id)}
+                    onAccept={() => {
+                      const c = connectionStatus[user.user_id];
+                      if (c) handleRespond(c.id, 'ACCEPTED');
+                    }}
+                    onDecline={() => {
+                      const c = connectionStatus[user.user_id];
+                      if (c) handleRespond(c.id, 'DECLINED');
+                    }}
+                  />
+                ))}
+              </div>
             </div>
 
             <Pagination

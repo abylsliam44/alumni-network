@@ -39,6 +39,26 @@ services:
       timeout: 5s
       retries: 5
 
+  resume-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alumni-resume-worker
+    command: ["python", "-m", "app.workers.resume_worker"]
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend

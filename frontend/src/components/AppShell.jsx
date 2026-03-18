@@ -16,10 +16,14 @@ const AppShell = () => {
     { to: '/messages', label: 'Messages' },
     { to: '/friends', label: 'Friends' },
     { to: '/recommendations', label: 'Recommendations' },
-    { to: '/ai', label: 'AI Assistant' },
+    ...(!user?.is_admin && user?.role !== 'STAFF'
+      ? [{ to: '/opportunities', label: 'Find Opportunities' }]
+      : []),
+    { to: '/ai', label: 'AqyldyAI' },
   ];
 
   const secondaryNav = [
+    { to: '/profile/resume-import', label: 'Resume Import' },
     ...(user?.role === 'ALUMNI' && !user?.is_mentor
       ? [{ to: '/become-mentor', label: 'Become a Mentor' }]
       : []),
@@ -100,4 +104,3 @@ const AppShell = () => {
 };
 
 export default AppShell;
-

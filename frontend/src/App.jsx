@@ -10,6 +10,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import ResumeImport from './pages/ResumeImport';
 import Directory from './pages/Directory';
 import Feed from './pages/Feed';
 import Jobs from './pages/Jobs';
@@ -21,6 +22,7 @@ import EventCreate from './pages/EventCreate';
 import EventsAdmin from './pages/EventsAdmin';
 import Messages from './pages/Messages';
 import Recommendations from './pages/Recommendations';
+import Opportunities from './pages/Opportunities';
 import Settings from './pages/Settings';
 import AiChat from './pages/AiChat';
 import BecomeMentor from './pages/BecomeMentor';
@@ -60,9 +62,11 @@ function App() {
               <Route path="/messages" element={<Messages />} />
               <Route path="/friends" element={<Friends />} />
               <Route path="/recommendations" element={<Recommendations />} />
+              <Route path="/opportunities" element={<Opportunities />} />
               <Route path="/ai" element={<AiChat />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/edit" element={<EditProfile />} />
+              <Route path="/profile/resume-import" element={<ResumeImport />} />
               <Route path="/profile/:userId" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
             </Route>

@@ -214,6 +214,11 @@ const EditProfile = () => {
         <div className="profile-edit-header">
           <h1>Edit Profile</h1>
           <p>Customize your profile to stand out to recruiters and peers.</p>
+          <div className="profile-edit-actions">
+            <Button type="button" variant="secondary" onClick={() => navigate('/profile/resume-import')}>
+              Import from Resume
+            </Button>
+          </div>
 
           {/* Profile Completion Progress */}
           <div className="profile-completion-card">

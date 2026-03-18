@@ -382,7 +382,7 @@ const EventCreate = () => {
         )}
 
         <p className="form-note">
-          Your event will be created as a draft. You'll need to submit it for admin approval before it becomes visible to others.
+          Your event will be published right after creation and become visible to all roles.
         </p>
       </form>
 

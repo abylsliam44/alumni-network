@@ -13,6 +13,8 @@ export const useVideoCall = () => {
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [callDuration, setCallDuration] = useState(0);
     const [error, setError] = useState(null);
+    const [isAudioPlaybackBlocked, setIsAudioPlaybackBlocked] = useState(false);
+    const [isVideoPlaybackBlocked, setIsVideoPlaybackBlocked] = useState(false);
 
     const roomRef = useRef(null);
     const callStartTimeRef = useRef(null);
@@ -69,6 +71,8 @@ export const useVideoCall = () => {
             room.on(RoomEvent.Connected, async () => {
                 setConnectionState('connected');
                 startDurationTimer();
+                setIsAudioPlaybackBlocked(typeof room.canPlaybackAudio === 'boolean' ? !room.canPlaybackAudio : false);
+                setIsVideoPlaybackBlocked(typeof room.canPlaybackVideo === 'boolean' ? !room.canPlaybackVideo : false);
 
                 // ВАЖНО: Публикуем треки ТОЛЬКО после Connected в v2.
                 // Публикация до Connected вызывает "publication timed out".
@@ -134,6 +138,26 @@ export const useVideoCall = () => {
                 console.error(msg);
                 setError(msg);
             });
+
+            if (RoomEvent.AudioPlaybackStatusChanged) {
+                room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+                    const blocked = typeof room.canPlaybackAudio === 'boolean' ? !room.canPlaybackAudio : false;
+                    setIsAudioPlaybackBlocked(blocked);
+                    if (blocked) {
+                        console.warn('LiveKit audio playback is blocked until a user gesture resumes it.');
+                    }
+                });
+            }
+
+            if (RoomEvent.VideoPlaybackStatusChanged) {
+                room.on(RoomEvent.VideoPlaybackStatusChanged, () => {
+                    const blocked = typeof room.canPlaybackVideo === 'boolean' ? !room.canPlaybackVideo : false;
+                    setIsVideoPlaybackBlocked(blocked);
+                    if (blocked) {
+                        console.warn('LiveKit video playback is blocked until a user gesture resumes it.');
+                    }
+                });
+            }
 
             room.on(RoomEvent.ConnectionStateChanged, (state) => {
                 console.log('LiveKit connection state changed:', state);
@@ -216,10 +240,35 @@ export const useVideoCall = () => {
             setRemoteParticipants([]);
             setConnectionState('disconnected');
             setCallDuration(0);
+            setError(null);
+            setIsAudioPlaybackBlocked(false);
+            setIsVideoPlaybackBlocked(false);
+            setIsMuted(false);
+            setIsVideoOff(false);
         } catch (e) {
             console.error('Error in disconnect:', e);
         }
     }, [stopDurationTimer]);
+
+    const resumeMediaPlayback = useCallback(async () => {
+        const room = roomRef.current;
+        if (!room) return;
+
+        try {
+            if (typeof room.startAudio === 'function') {
+                await room.startAudio();
+            }
+            if (typeof room.startVideo === 'function') {
+                await room.startVideo();
+            }
+
+            setIsAudioPlaybackBlocked(typeof room.canPlaybackAudio === 'boolean' ? !room.canPlaybackAudio : false);
+            setIsVideoPlaybackBlocked(typeof room.canPlaybackVideo === 'boolean' ? !room.canPlaybackVideo : false);
+        } catch (e) {
+            console.error('Failed to resume media playback:', e);
+            setError(e.message || 'Failed to resume media playback');
+        }
+    }, []);
 
     const toggleMute = useCallback(async () => {
         try {
@@ -261,9 +310,12 @@ export const useVideoCall = () => {
         isVideoOff,
         callDuration,
         error,
+        isAudioPlaybackBlocked,
+        isVideoPlaybackBlocked,
         connect,
         disconnect,
         toggleMute,
         toggleVideo,
+        resumeMediaPlayback,
     };
 };
