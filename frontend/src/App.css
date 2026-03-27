@@ -4,54 +4,54 @@
 :root {
   /* Primary Colors - Light Mode (Default) */
   --bg-primary: #FFFFFF;
-  --bg-secondary: #F8F9FA;
-  --text-primary: #1F2937;
-  --text-secondary: #6B7280;
+  --bg-secondary: #F4F7FA;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
 
   /* Accent Colors */
-  --accent-primary: #f5f5f5;
-  --accent-hover: #e5e7eb;
-  --accent-light: rgba(0, 0, 0, 0.05);
+  --accent-primary: #4F46E5;
+  --accent-hover: #4338CA;
+  --accent-light: rgba(79, 70, 229, 0.1);
 
   /* Functional Colors */
-  --border-color: #E5E7EB;
-  --border-subtle: #F3F4F6;
+  --border-color: #E2E8F0;
+  --border-subtle: #F1F5F9;
   --error-color: #EF4444;
   --success-color: #10B981;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 2px 0 rgba(79, 70, 229, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(79, 70, 229, 0.1), 0 2px 4px -1px rgba(79, 70, 229, 0.06);
 
   /* Shell / Layout Specifics (Merged from legacy) */
-  --bg-page: #f7f8fb;
+  --bg-page: #EEF2F6;
   --bg-elevated: #ffffff;
-  --bg-elevated-soft: #f0f2f5;
-  --accent-gradient: linear-gradient(135deg, #111827, #374151);
+  --bg-elevated-soft: #E2E8F0;
+  --accent-gradient: linear-gradient(135deg, #4F46E5, #EC4899);
 }
 
 [data-theme='dark'] {
   /* Primary Colors - Dark Mode */
-  --bg-primary: #111827;
+  --bg-primary: #0F172A;
   /* Gray 900 */
-  --bg-secondary: #0f172a;
+  --bg-secondary: #1E293B;
   /* Slate 900 */
-  --text-primary: #F9FAFB;
+  --text-primary: #F8FAFC;
   /* Gray 50 */
-  --text-secondary: #9CA3AF;
+  --text-secondary: #94A3B8;
   /* Gray 400 */
 
   /* Accent Colors */
-  --accent-primary: #1F2937;
+  --accent-primary: #818CF8;
   /* Gray 800 */
-  --accent-hover: #374151;
+  --accent-hover: #6366F1;
   /* Gray 700 */
-  --accent-light: rgba(255, 255, 255, 0.05);
+  --accent-light: rgba(129, 140, 248, 0.15);
 
   /* Functional Colors */
-  --border-color: #374151;
+  --border-color: #334155;
   /* Gray 700 */
-  --border-subtle: #1F2937;
+  --border-subtle: #1E293B;
   /* Gray 800 */
 
   /* Shadows */
@@ -59,11 +59,11 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
 
   /* Shell / Layout Specifics - Dark Mode */
-  --bg-page: #0f172a;
-  --bg-elevated: #1e293b;
+  --bg-page: #0F172A;
+  --bg-elevated: #1E293B;
   /* Slightly lighter than page for distinction, or #111827 */
-  --bg-elevated-soft: #374151;
-  --accent-gradient: linear-gradient(135deg, #3b82f6, #60a5fa);
+  --bg-elevated-soft: #334155;
+  --accent-gradient: linear-gradient(135deg, #8B5CF6, #D946EF);
 }
 
 body {
@@ -187,12 +187,12 @@ body {
   background: white;
   /* Force light theme colors for auth pages */
   --bg-primary: #FFFFFF;
-  --bg-secondary: #F8F9FA;
-  --text-primary: #1F2937;
-  --text-secondary: #6B7280;
-  --border-color: #E5E7EB;
-  --border-subtle: #F3F4F6;
-  --accent-light: rgba(0, 0, 0, 0.05);
+  --bg-secondary: #F4F7FA;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --border-color: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --accent-light: rgba(79, 70, 229, 0.1);
 }
 
 .auth-form-container {
@@ -386,7 +386,7 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  background: #000000;
+  background: var(--accent-gradient);
   border: none;
   border-radius: 8px;
   cursor: pointer;
