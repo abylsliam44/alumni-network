@@ -7,6 +7,7 @@ const fallbackAvatar = 'https://via.placeholder.com/50?text=U';
 
 const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel }) => {
   const otherUser = type === 'incoming' ? request.sender : request.receiver;
+  const goals = request.goals || [];
 
   return (
     <div className="mentorship-card card">
@@ -36,10 +37,27 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel })
       </div>
 
       <div className="mentorship-card-body">
+        {goals.length > 0 && (
+          <div className="mentorship-chip-row">
+            {goals.map((goal) => (
+              <span key={goal} className="mentorship-chip">{goal}</span>
+            ))}
+          </div>
+        )}
+        <div className="mentorship-meta-grid">
+          <span>{request.expected_duration || 'Duration TBD'}</span>
+          <span>{request.preferred_format || 'Format TBD'}</span>
+        </div>
         <p className="mentorship-body-label">Message:</p>
         <p className="mentorship-goals-box">
           {request.message || "No message provided."}
         </p>
+        {request.decline_reason && (
+          <>
+            <p className="mentorship-body-label">Decline reason:</p>
+            <p className="mentorship-goals-box">{request.decline_reason}</p>
+          </>
+        )}
         <p className="mentorship-start-date">
           Sent on {new Date(request.created_at).toLocaleDateString()}
         </p>

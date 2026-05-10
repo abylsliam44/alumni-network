@@ -41,6 +41,22 @@ export const mentorshipApi = {
     const response = await api.get(`/api/v1/mentorship/relationships/${relationshipId}/feedback`);
     return response.data;
   },
+  updateRelationshipStatus: async (relationshipId, status) => {
+    const response = await api.patch(`/api/v1/mentorship/relationships/${relationshipId}/status`, { status });
+    return response.data;
+  },
+  updatePlan: async (relationshipId, data) => {
+    const response = await api.put(`/api/v1/mentorship/relationships/${relationshipId}/plan`, data);
+    return response.data;
+  },
+  createSession: async (relationshipId, data) => {
+    const response = await api.post(`/api/v1/mentorship/relationships/${relationshipId}/sessions`, data);
+    return response.data;
+  },
+  updateSession: async (sessionId, data) => {
+    const response = await api.patch(`/api/v1/mentorship/sessions/${sessionId}`, data);
+    return response.data;
+  },
   getReceivedFeedback: async () => {
     const response = await api.get('/api/v1/mentorship/feedback/received');
     return response.data;

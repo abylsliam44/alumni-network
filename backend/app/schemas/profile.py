@@ -91,6 +91,8 @@ class ProfileRead(ProfileBase):
     career_trajectory: List[CareerTrajectoryStep] = []
     mentee_average_rating: Optional[float] = None
     mentee_feedback_count: int = 0
+    mentor_active_mentees: int = 0
+    mentor_capacity_status: Optional[str] = None
     opportunity_generation: Optional[OpportunityGenerationRead] = None
     
     class Config:

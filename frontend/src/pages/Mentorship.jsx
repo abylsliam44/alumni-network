@@ -13,30 +13,27 @@ const Mentorship = () => {
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchData();
-  }, [activeTab, user]);
+  }, [user?.id, user?.is_mentor]);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      if (activeTab === 'active') {
-        const data = await mentorshipApi.getRelationships();
-        setRelationships(data);
-      } else if (activeTab === 'incoming') {
-        if (!user?.is_mentor) {
-          setIncomingRequests([]);
-          return;
-        }
-        const data = await mentorshipApi.getIncomingRequests();
-        setIncomingRequests(data);
-      } else if (activeTab === 'outgoing') {
-        const data = await mentorshipApi.getOutgoingRequests();
-        setOutgoingRequests(data);
-      }
+      const [relationshipsData, outgoingData, incomingData] = await Promise.all([
+        mentorshipApi.getRelationships(),
+        mentorshipApi.getOutgoingRequests(),
+        user?.is_mentor ? mentorshipApi.getIncomingRequests() : Promise.resolve([]),
+      ]);
+      setRelationships(relationshipsData);
+      setOutgoingRequests(outgoingData);
+      setIncomingRequests(incomingData);
     } catch (err) {
       console.error('Failed to fetch mentorship data', err);
+      setError(err.response?.data?.detail || 'Failed to fetch mentorship data');
     } finally {
       setLoading(false);
     }
@@ -48,6 +45,7 @@ const Mentorship = () => {
       fetchData(); // Refresh list
     } catch (err) {
       console.error('Failed to accept request', err);
+      setError(err.response?.data?.detail || 'Failed to accept request');
     }
   };
 
@@ -57,6 +55,7 @@ const Mentorship = () => {
       fetchData(); // Refresh list
     } catch (err) {
       console.error('Failed to decline request', err);
+      setError(err.response?.data?.detail || 'Failed to decline request');
     }
   };
 
@@ -66,14 +65,25 @@ const Mentorship = () => {
       fetchData(); // Refresh list
     } catch (err) {
       console.error('Failed to cancel request', err);
+      setError(err.response?.data?.detail || 'Failed to cancel request');
     }
   };
+
+  const activeRelationships = relationships.filter((item) => item.status === 'ACTIVE');
+  const completedRelationships = relationships.filter((item) => item.status === 'COMPLETED');
+  const activeCount = activeRelationships.length;
+  const completedCount = completedRelationships.length;
 
   return (
     <div className="mentorship-container">
       <div className="mentorship-header">
         <h1>Mentorship</h1>
         <p className="text-secondary">Manage your mentorships and requests.</p>
+        <div className="mentorship-kpi-row">
+          <span>{activeCount} active</span>
+          <span>{completedCount} completed</span>
+          <span>{incomingRequests.length} incoming</span>
+        </div>
         {!user?.is_mentor && (
           <div className="mentorship-cta-wrap">
             <Link to="/directory">
@@ -89,6 +99,12 @@ const Mentorship = () => {
           onClick={() => setActiveTab('active')}
         >
           Active Mentorships
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'completed' ? 'active' : ''}`}
+          onClick={() => setActiveTab('completed')}
+        >
+          Completed
         </button>
         {user?.is_mentor && (
           <button
@@ -107,22 +123,41 @@ const Mentorship = () => {
       </div>
 
       <div className="mentorship-content">
+        {error && <div className="error-message mentorship-error">{error}</div>}
         {loading ? (
           <div className="loading-spinner">Loading...</div>
         ) : (
           <>
             {activeTab === 'active' && (
               <div className="mentorship-grid">
-                {relationships.length > 0 ? (
-                  relationships.map(rel => (
+                {activeRelationships.length > 0 ? (
+                  activeRelationships.map(rel => (
                     <MentorshipRelationshipCard
                       key={rel.id}
                       relationship={rel}
                       currentUserId={user.id}
+                      onChanged={fetchData}
                     />
                   ))
                 ) : (
                   <p className="mentorship-empty">No active mentorships found.</p>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'completed' && (
+              <div className="mentorship-grid">
+                {completedRelationships.length > 0 ? (
+                  completedRelationships.map(rel => (
+                    <MentorshipRelationshipCard
+                      key={rel.id}
+                      relationship={rel}
+                      currentUserId={user.id}
+                      onChanged={fetchData}
+                    />
+                  ))
+                ) : (
+                  <p className="mentorship-empty">No completed mentorships yet.</p>
                 )}
               </div>
             )}

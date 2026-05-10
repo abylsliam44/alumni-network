@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { profileApi } from '../api/profile';
 import { messagesApi } from '../api/messages';
 import { connectionsApi } from '../api/connections';
+import { mentorshipApi } from '../api/mentorship';
 import { useAuth } from '../hooks/useAuth';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
@@ -68,6 +69,29 @@ const Profile = () => {
     };
 
     loadConnection();
+  }, [profile?.user_id, currentUser?.id]);
+
+  useEffect(() => {
+    if (!profile?.user_id || !currentUser?.id || currentUser.id === profile.user_id) {
+      setMentorshipRequested(false);
+      return;
+    }
+
+    const loadMentorshipState = async () => {
+      try {
+        const requests = await mentorshipApi.getOutgoingRequests();
+        const hasActiveRequest = (requests || []).some(
+          (item) =>
+            item.receiver_id === profile.user_id &&
+            ['PENDING', 'ACCEPTED'].includes(item.status)
+        );
+        setMentorshipRequested(hasActiveRequest);
+      } catch (err) {
+        console.error('Failed to load mentorship state', err);
+      }
+    };
+
+    loadMentorshipState();
   }, [profile?.user_id, currentUser?.id]);
 
   const loadProfile = async () => {
@@ -251,6 +275,16 @@ const Profile = () => {
           ? 'Connecting...'
           : 'Connect';
   const connectDisabled = connecting || isConnected || isPendingOutgoing;
+  const mentorIsFull = profile?.mentor_capacity_status === 'FULL';
+  const mentorshipDisabled = mentorshipRequested || mentorIsFull;
+  const mentorshipLabel = mentorIsFull
+    ? 'Mentor Full'
+    : mentorshipRequested
+      ? 'Mentorship Sent'
+      : 'Request Mentorship';
+  const mentorCapacityText = profile?.mentor_max_mentees
+    ? `${profile.mentor_active_mentees || 0}/${profile.mentor_max_mentees} active mentees`
+    : 'Open mentorship capacity';
   const isStudentProfile = profile.role === 'STUDENT';
   const hasMenteeRating = isStudentProfile && (profile.mentee_feedback_count || 0) > 0;
   const menteeAverageRating = Number(profile.mentee_average_rating || 0);
@@ -346,6 +380,16 @@ const Profile = () => {
                   </div>
                 </div>
               )}
+              {profile.is_mentor && (
+                <div className="linkedin-mentor-summary">
+                  <span className={`linkedin-mentor-capacity ${mentorIsFull ? 'full' : ''}`}>
+                    {mentorIsFull ? 'Full' : mentorCapacityText}
+                  </span>
+                  {profile.mentor_availability_note && (
+                    <span>{profile.mentor_availability_note}</span>
+                  )}
+                </div>
+              )}
               <p className="linkedin-location">
                 {profile.location && (
                   <>
@@ -424,11 +468,11 @@ const Profile = () => {
                       variant="secondary"
                       className="linkedin-btn-more"
                       onClick={() => {
-                        if (!mentorshipRequested) setShowMentorshipModal(true);
+                        if (!mentorshipDisabled) setShowMentorshipModal(true);
                       }}
-                      disabled={mentorshipRequested}
+                      disabled={mentorshipDisabled}
                     >
-                      {mentorshipRequested ? 'Mentorship Sent' : 'Request Mentorship'}
+                      {mentorshipLabel}
                     </Button>
                   )}
                 </>

@@ -3848,6 +3848,26 @@ h3 {
   margin-top: 0.75rem;
 }
 
+.mentorship-kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mentorship-kpi-row span {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.mentorship-error {
+  margin-bottom: 1rem;
+}
+
 .mentorship-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3936,6 +3956,60 @@ h3 {
   margin-top: 0.9rem;
 }
 
+.mentorship-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.mentorship-chip,
+.mentor-goal-chip {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.mentor-goal-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mentor-goal-chip {
+  cursor: pointer;
+}
+
+.mentor-goal-chip.selected {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.mentor-request-grid,
+.mentorship-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.mentorship-meta-grid {
+  margin-bottom: 0.75rem;
+}
+
+.mentorship-meta-grid span {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
 .mentorship-body-label {
   margin: 0 0 0.45rem;
   font-size: 0.92rem;
@@ -3958,6 +4032,72 @@ h3 {
   margin: 0.55rem 0 0;
   font-size: 0.84rem;
   color: var(--text-secondary);
+}
+
+.mentorship-workflow-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.mentorship-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.mentorship-section-header strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.mentorship-plan-form,
+.mentorship-session-form,
+.mentorship-plan-read,
+.mentorship-session-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.mentorship-session-form {
+  margin-top: 0.85rem;
+}
+
+.mentorship-session-item {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+
+.mentorship-session-item > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mentorship-session-item span:not(.status-badge) {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.mentorship-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mentorship-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .mentorship-card-actions {
@@ -3999,6 +4139,17 @@ h3 {
   color: #2563EB;
 }
 
+.status-completed,
+.status-done {
+  background-color: #E0E7FF;
+  color: #4338CA;
+}
+
+.status-cancelled {
+  background-color: #F3F4F6;
+  color: #6B7280;
+}
+
 @media (max-width: 920px) {
   .mentorship-grid {
     grid-template-columns: 1fr;
@@ -4021,6 +4172,11 @@ h3 {
 
   .mentorship-card-actions {
     justify-content: flex-start;
+  }
+
+  .mentor-request-grid,
+  .mentorship-meta-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -8144,6 +8300,44 @@ button:focus-visible {
 [data-theme='dark'] .linkedin-rating-copy strong,
 [data-theme='dark'] .linkedin-rating-copy span {
   color: #fcd34d;
+}
+
+.linkedin-mentor-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.linkedin-mentor-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(10, 102, 194, 0.18);
+  background: rgba(239, 246, 255, 0.8);
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.linkedin-mentor-capacity.full {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(254, 226, 226, 0.9);
+  color: #b91c1c;
+}
+
+[data-theme='dark'] .linkedin-mentor-summary span {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(30, 41, 59, 0.88);
+  color: #bfdbfe;
+}
+
+[data-theme='dark'] .linkedin-mentor-capacity.full {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
 }
 
 .linkedin-location {

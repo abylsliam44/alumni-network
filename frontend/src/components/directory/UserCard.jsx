@@ -30,6 +30,9 @@ const UserCard = ({
   const photoUrl = resolveUrl(user.photo_url);
   const roleLabel = roleLabelMap[user.role] || user.role;
   const primaryHeadline = user.mentor_headline || user.headline || `${roleLabel} community member`;
+  const capacityLabel = user.is_mentor && user.mentor_max_mentees
+    ? `${user.mentor_active_mentees || 0}/${user.mentor_max_mentees} mentees`
+    : null;
 
   const renderStatus = () => {
     if (isSelf) {
@@ -138,6 +141,11 @@ const UserCard = ({
                 <span className="ucard-role-pill">{roleLabel}</span>
                 {user.is_mentor && (
                   <span className="ucard-mentor-badge">Mentor</span>
+                )}
+                {capacityLabel && (
+                  <span className={`ucard-status ${user.mentor_capacity_status === 'FULL' ? 'ucard-status-pending' : 'ucard-status-connected'}`}>
+                    {user.mentor_capacity_status === 'FULL' ? 'Full' : capacityLabel}
+                  </span>
                 )}
                 {renderStatus()}
               </div>

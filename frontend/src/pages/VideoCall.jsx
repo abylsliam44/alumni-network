@@ -13,6 +13,7 @@ const VideoCall = () => {
   const conversationId = searchParams.get('conversation');
   const roomName = normalizeJitsiRoomName(routeRoomName);
   const returnTo = location.state?.from || (conversationId ? `/messages?chat=${conversationId}` : '/messages');
+  const backLabel = returnTo.startsWith('/mentorship') ? 'Back to mentorship' : 'Back to messages';
   const displayName = user?.name || user?.email || 'Guest';
 
   const handleReadyToClose = useCallback(() => {
@@ -24,7 +25,7 @@ const VideoCall = () => {
       <header className="video-call-header">
         <div>
           <Link to={returnTo} className="video-call-back">
-            Back to messages
+            {backLabel}
           </Link>
           <h1>Video Call</h1>
         </div>

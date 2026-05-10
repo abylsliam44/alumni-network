@@ -9,7 +9,7 @@ from app.api import deps
 from app.ai.people_recommendations import upsert_user_embedding
 from app.core.database import get_db
 from app.core import storage
-from app.models.mentorship import MentorFeedback
+from app.models.mentorship import MentorFeedback, MentorshipRelationship, MentorshipRelationshipStatus
 from app.models.resume import AlumniCareerProfile, ResumeImportSession
 from app.models.user import User, UserProfile
 from app.schemas.profile import ProfileRead, ProfileUpdate
@@ -245,6 +245,25 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
     
     career_profile_data = await _build_career_profile_data(user, viewer, db)
     mentee_rating_data = await _build_mentee_rating_data(user.id, db)
+    mentor_active_mentees = 0
+    mentor_capacity_status = None
+    if user.is_mentor:
+        mentor_active_mentees = await db.scalar(
+            select(func.count(MentorshipRelationship.id)).where(
+                MentorshipRelationship.mentor_id == user.id,
+                MentorshipRelationship.status == MentorshipRelationshipStatus.ACTIVE,
+            )
+        ) or 0
+        max_mentees = user.profile.mentor_max_mentees
+        if max_mentees and max_mentees > 0:
+            if mentor_active_mentees >= max_mentees:
+                mentor_capacity_status = "FULL"
+            elif mentor_active_mentees >= max_mentees - 1:
+                mentor_capacity_status = "LIMITED"
+            else:
+                mentor_capacity_status = "AVAILABLE"
+        else:
+            mentor_capacity_status = "AVAILABLE"
 
     # Construct response
     profile_data = {
@@ -275,6 +294,8 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
         "mentor_max_mentees": user.profile.mentor_max_mentees,
         "mentor_availability_note": user.profile.mentor_availability_note,
         "mentor_consent": user.profile.mentor_consent,
+        "mentor_active_mentees": mentor_active_mentees,
+        "mentor_capacity_status": mentor_capacity_status,
         "career_university": career_profile_data.get("career_university"),
         "career_faculty": career_profile_data.get("career_faculty"),
         "career_program": career_profile_data.get("career_program"),
