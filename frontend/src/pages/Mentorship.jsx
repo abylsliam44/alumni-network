@@ -71,11 +71,11 @@ const Mentorship = () => {
 
   return (
     <div className="mentorship-container">
-      <div className="mentorship-header mb-8">
+      <div className="mentorship-header">
         <h1>Mentorship</h1>
         <p className="text-secondary">Manage your mentorships and requests.</p>
         {!user?.is_mentor && (
-          <div className="mt-4">
+          <div className="mentorship-cta-wrap">
             <Link to="/directory">
               <Button variant="primary">Find a Mentor</Button>
             </Link>
@@ -112,7 +112,7 @@ const Mentorship = () => {
         ) : (
           <>
             {activeTab === 'active' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="mentorship-grid">
                 {relationships.length > 0 ? (
                   relationships.map(rel => (
                     <MentorshipRelationshipCard
@@ -122,13 +122,13 @@ const Mentorship = () => {
                     />
                   ))
                 ) : (
-                  <p className="text-gray-500 col-span-2 text-center py-8">No active mentorships found.</p>
+                  <p className="mentorship-empty">No active mentorships found.</p>
                 )}
               </div>
             )}
 
             {activeTab === 'incoming' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="mentorship-grid">
                 {incomingRequests.length > 0 ? (
                   incomingRequests.map(req => (
                     <MentorshipRequestCard
@@ -140,13 +140,13 @@ const Mentorship = () => {
                     />
                   ))
                 ) : (
-                  <p className="text-gray-500 col-span-2 text-center py-8">No incoming requests.</p>
+                  <p className="mentorship-empty">No incoming requests.</p>
                 )}
               </div>
             )}
 
             {activeTab === 'outgoing' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="mentorship-grid">
                 {outgoingRequests.length > 0 ? (
                   outgoingRequests.map(req => (
                     <MentorshipRequestCard
@@ -157,7 +157,7 @@ const Mentorship = () => {
                     />
                   ))
                 ) : (
-                  <p className="text-gray-500 col-span-2 text-center py-8">No outgoing requests.</p>
+                  <p className="mentorship-empty">No outgoing requests.</p>
                 )}
               </div>
             )}

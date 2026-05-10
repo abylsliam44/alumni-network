@@ -1,5 +1,7 @@
 from typing import Any, List
 from datetime import datetime
+from uuid import UUID
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,18 +10,21 @@ from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.core.database import get_db
 from app.models.user import User, UserRole, UserProfile
-from app.models.mentorship import MentorshipRequest, MentorshipRelationship, MentorshipStatus
+from app.models.mentorship import MentorshipRequest, MentorshipRelationship, MentorshipStatus, MentorFeedback
 from app.schemas.mentorship import (
     MentorshipRequestCreate,
     MentorshipRequestRead,
     MentorshipRelationshipRead,
     BecomeMentorRequest,
+    MentorFeedbackCreate,
+    MentorFeedbackRead,
 )
 from app.api.v1.endpoints.profile import get_profile_data
 from app.schemas.profile import ProfileRead
 from app.services import notification as notification_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/become", response_model=ProfileRead)
 async def become_mentor(
@@ -312,6 +317,132 @@ async def cancel_request(
     await db.refresh(request)
     
     return request
+
+@router.post("/relationships/{relationship_id}/feedback", response_model=MentorFeedbackRead)
+async def submit_feedback(
+    relationship_id: UUID,
+    feedback_in: MentorFeedbackCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Mentor submits a 5-star rating with comment for their mentee."""
+    stmt = select(MentorshipRelationship).where(MentorshipRelationship.id == relationship_id)
+    result = await db.execute(stmt)
+    rel = result.scalars().first()
+
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    if rel.mentor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the mentor can submit feedback")
+
+    # Check if feedback already exists for this relationship
+    existing_stmt = select(MentorFeedback).where(
+        MentorFeedback.relationship_id == rel.id,
+        MentorFeedback.mentor_id == current_user.id,
+    )
+    existing_result = await db.execute(existing_stmt)
+    existing = existing_result.scalars().first()
+
+    if existing:
+        # Update existing feedback
+        existing.rating = feedback_in.rating
+        existing.comment = feedback_in.comment
+        existing.updated_at = datetime.utcnow()
+        db.add(existing)
+        await db.commit()
+        await db.refresh(existing)
+        feedback = existing
+    else:
+        feedback = MentorFeedback(
+            mentor_id=current_user.id,
+            mentee_id=rel.mentee_id,
+            relationship_id=rel.id,
+            rating=feedback_in.rating,
+            comment=feedback_in.comment,
+        )
+        db.add(feedback)
+        await db.commit()
+        await db.refresh(feedback)
+
+        try:
+            await notification_service.create_mentor_feedback_notification(
+                db=db,
+                mentee_id=rel.mentee_id,
+                mentor=current_user,
+                feedback_id=feedback.id,
+                rating=feedback_in.rating,
+            )
+        except Exception:
+            # Feedback is already saved; do not fail the request if notification write fails.
+            await db.rollback()
+            logger.exception(
+                "Failed to create mentor feedback notification for feedback_id=%s",
+                feedback.id,
+            )
+
+    item = MentorFeedbackRead.model_validate(feedback)
+    # Populate mentor profile
+    mentor_user_stmt = select(User).options(selectinload(User.profile)).where(User.id == feedback.mentor_id)
+    mentor_result = await db.execute(mentor_user_stmt)
+    mentor_user = mentor_result.scalars().first()
+    if mentor_user:
+        item.mentor = await get_profile_data(mentor_user, db)
+    return item
+
+
+@router.get("/relationships/{relationship_id}/feedback", response_model=MentorFeedbackRead)
+async def get_feedback(
+    relationship_id: UUID,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Get feedback for a specific mentorship relationship."""
+    stmt = select(MentorshipRelationship).where(MentorshipRelationship.id == relationship_id)
+    result = await db.execute(stmt)
+    rel = result.scalars().first()
+
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    if current_user.id not in (rel.mentor_id, rel.mentee_id):
+        raise HTTPException(status_code=403, detail="Not a participant of this relationship")
+
+    feedback_stmt = select(MentorFeedback).where(MentorFeedback.relationship_id == rel.id)
+    feedback_result = await db.execute(feedback_stmt)
+    feedback = feedback_result.scalars().first()
+
+    if not feedback:
+        raise HTTPException(status_code=404, detail="No feedback yet for this relationship")
+
+    item = MentorFeedbackRead.model_validate(feedback)
+    mentor_user_stmt = select(User).options(selectinload(User.profile)).where(User.id == feedback.mentor_id)
+    mentor_result = await db.execute(mentor_user_stmt)
+    mentor_user = mentor_result.scalars().first()
+    if mentor_user:
+        item.mentor = await get_profile_data(mentor_user, db)
+    return item
+
+
+@router.get("/feedback/received", response_model=List[MentorFeedbackRead])
+async def get_received_feedback(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Get all feedback received by the current user as a mentee."""
+    stmt = select(MentorFeedback).where(MentorFeedback.mentee_id == current_user.id).order_by(MentorFeedback.created_at.desc())
+    result = await db.execute(stmt)
+    feedbacks = result.scalars().all()
+
+    items = []
+    for fb in feedbacks:
+        item = MentorFeedbackRead.model_validate(fb)
+        mentor_user_stmt = select(User).options(selectinload(User.profile)).where(User.id == fb.mentor_id)
+        mentor_result = await db.execute(mentor_user_stmt)
+        mentor_user = mentor_result.scalars().first()
+        if mentor_user:
+            item.mentor = await get_profile_data(mentor_user, db)
+        items.append(item)
+    return items
+
 
 @router.get("/relationships", response_model=List[MentorshipRelationshipRead])
 async def get_relationships(

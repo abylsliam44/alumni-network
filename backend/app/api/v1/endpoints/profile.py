@@ -1,7 +1,7 @@
 from typing import Any, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from app.api import deps
 from app.ai.people_recommendations import upsert_user_embedding
 from app.core.database import get_db
 from app.core import storage
+from app.models.mentorship import MentorFeedback
 from app.models.resume import AlumniCareerProfile, ResumeImportSession
 from app.models.user import User, UserProfile
 from app.schemas.profile import ProfileRead, ProfileUpdate
@@ -204,6 +205,24 @@ async def _build_career_profile_data(
         "skills": skills if skills else (user.profile.skills or []),
     }
 
+
+async def _build_mentee_rating_data(
+    user_id: UUID,
+    db: AsyncSession,
+) -> dict[str, Any]:
+    result = await db.execute(
+        select(
+            func.avg(MentorFeedback.rating).label("avg_rating"),
+            func.count(MentorFeedback.id).label("feedback_count"),
+        ).where(MentorFeedback.mentee_id == user_id)
+    )
+    avg_rating, feedback_count = result.one()
+    count = int(feedback_count or 0)
+    return {
+        "mentee_average_rating": round(float(avg_rating), 2) if avg_rating is not None else None,
+        "mentee_feedback_count": count,
+    }
+
 async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = None) -> ProfileRead:
     # Reload with profile eagerly to avoid MissingGreenlet on lazy load
     result = await db.execute(
@@ -225,6 +244,7 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
         user = result.scalars().first()
     
     career_profile_data = await _build_career_profile_data(user, viewer, db)
+    mentee_rating_data = await _build_mentee_rating_data(user.id, db)
 
     # Construct response
     profile_data = {
@@ -263,6 +283,8 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
         "career_projects": career_profile_data.get("career_projects", []),
         "career_path": career_profile_data.get("career_path", []),
         "career_trajectory": career_profile_data.get("career_trajectory", []),
+        "mentee_average_rating": mentee_rating_data.get("mentee_average_rating"),
+        "mentee_feedback_count": mentee_rating_data.get("mentee_feedback_count", 0),
         "opportunity_generation": (
             user.profile.visibility_settings.get("opportunity_generation")
             if isinstance(user.profile.visibility_settings, dict)

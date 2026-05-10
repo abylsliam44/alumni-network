@@ -21,10 +21,12 @@ import EventDetail from './pages/EventDetail';
 import EventCreate from './pages/EventCreate';
 import EventsAdmin from './pages/EventsAdmin';
 import Messages from './pages/Messages';
+import VideoCall from './pages/VideoCall';
 import Recommendations from './pages/Recommendations';
 import Opportunities from './pages/Opportunities';
 import Settings from './pages/Settings';
 import AiChat from './pages/AiChat';
+import Mentorship from './pages/Mentorship';
 import BecomeMentor from './pages/BecomeMentor';
 import Friends from './pages/Friends';
 import AppShell from './components/AppShell';
@@ -51,6 +53,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/directory" element={<Directory />} />
+              <Route path="/mentorship" element={<Mentorship />} />
               <Route path="/become-mentor" element={<BecomeMentor />} />
               <Route path="/jobs" element={<Jobs />} />
               <Route path="/jobs/create" element={<JobCreate />} />
@@ -60,6 +63,7 @@ function App() {
               <Route path="/events/create" element={<EventCreate />} />
               <Route path="/events/:eventId" element={<EventDetail />} />
               <Route path="/messages" element={<Messages />} />
+              <Route path="/video-call/:roomName" element={<VideoCall />} />
               <Route path="/friends" element={<Friends />} />
               <Route path="/recommendations" element={<Recommendations />} />
               <Route path="/opportunities" element={<Opportunities />} />

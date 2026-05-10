@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     
     # Security
     SECRET_KEY: str
-    BACKEND_API_SECRET: Optional[str] = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     GOOGLE_AI_API_KEY: Optional[str] = None

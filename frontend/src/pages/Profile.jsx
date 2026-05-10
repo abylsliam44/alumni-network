@@ -251,6 +251,14 @@ const Profile = () => {
           ? 'Connecting...'
           : 'Connect';
   const connectDisabled = connecting || isConnected || isPendingOutgoing;
+  const isStudentProfile = profile.role === 'STUDENT';
+  const hasMenteeRating = isStudentProfile && (profile.mentee_feedback_count || 0) > 0;
+  const menteeAverageRating = Number(profile.mentee_average_rating || 0);
+  const displayedMenteeRating = Number.isFinite(menteeAverageRating)
+    ? Math.round(menteeAverageRating * 10) / 10
+    : 0;
+  const roundedStars = Math.round(displayedMenteeRating);
+  const ratingStars = [1, 2, 3, 4, 5];
 
   return (
     <div className="linkedin-profile-container">
@@ -318,6 +326,26 @@ const Profile = () => {
                 )}
               </div>
               <p className="linkedin-headline">{profile.headline || profile.role || 'Add a headline'}</p>
+              {hasMenteeRating && (
+                <div className="linkedin-rating-card" title="Mentor feedback summary">
+                  <div className="linkedin-rating-stars" aria-hidden="true">
+                    {ratingStars.map((star) => (
+                      <span
+                        key={star}
+                        className={star <= roundedStars ? 'linkedin-rating-star filled' : 'linkedin-rating-star'}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <div className="linkedin-rating-copy">
+                    <strong>{displayedMenteeRating.toFixed(1)}/5</strong>
+                    <span>
+                      {profile.mentee_feedback_count} mentor review{profile.mentee_feedback_count === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                </div>
+              )}
               <p className="linkedin-location">
                 {profile.location && (
                   <>

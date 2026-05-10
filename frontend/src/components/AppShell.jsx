@@ -11,6 +11,7 @@ const AppShell = () => {
   const primaryNav = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/directory', label: user?.role === 'STUDENT' ? 'Mentors' : 'Directory' },
+    { to: '/mentorship', label: 'Mentorship' },
     { to: '/jobs', label: 'Jobs' },
     { to: '/events', label: 'Events' },
     { to: '/messages', label: 'Messages' },
@@ -89,7 +90,7 @@ const AppShell = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
               className={
-                location.pathname.startsWith('/messages')
+                location.pathname.startsWith('/messages') || location.pathname.startsWith('/video-call')
                   ? 'page-container-full'
                   : 'page-container'
               }

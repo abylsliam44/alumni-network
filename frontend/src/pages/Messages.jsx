@@ -5,7 +5,6 @@ import { videocallApi } from '../api/videocall';
 import { connectionsApi } from '../api/connections';
 import { useAuth } from '../hooks/useAuth';
 import { useChatSocket } from '../hooks/useChatSocket';
-import VideoCallModal from '../components/VideoCallModal';
 
 import { resolveUrl } from '../utils/image';
 
@@ -49,6 +48,26 @@ const timeLabel = (value) => {
   return isToday ? 'Today' : date.toLocaleDateString();
 };
 
+const formatRelativeTime = (value) => {
+  if (!value) return 'Offline';
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.max(1, Math.floor(diffMs / 60000));
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+};
+
+const roleLabel = (person) => {
+  if (!person) return 'Member';
+  if (person.is_mentor) return 'Mentor';
+  return person.role || 'Member';
+};
+
 const isImageAttachment = (mimeType) => mimeType?.startsWith('image/');
 const isVideoAttachment = (mimeType) => mimeType?.startsWith('video/');
 const isAudioAttachment = (mimeType) => mimeType?.startsWith('audio/');
@@ -70,7 +89,7 @@ const attachmentPreviewLabel = (message) => {
 
 const conversationPreviewText = (message) => {
   if (!message) return 'Start a conversation';
-  if (message.text?.startsWith('JOIN_VIDEO_CALL|')) return '📹 Video Call';
+  if (message.text?.startsWith('JOIN_VIDEO_CALL|')) return 'Video Call';
   if (message.attachment_url) {
     const label = attachmentPreviewLabel(message);
     return message.text?.trim() ? `📎 ${label} · ${message.text}` : `📎 ${label}`;
@@ -91,13 +110,6 @@ const attachmentAccessUrl = (message, download = false) => {
 };
 
 // Icons
-const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-);
-
 const SendIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="22" y1="2" x2="11" y2="13" />
@@ -106,13 +118,13 @@ const SendIcon = () => (
 );
 
 const PhoneIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
 
 const VideoIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="23 7 16 12 23 17 23 7" />
     <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
   </svg>
@@ -136,7 +148,7 @@ const SmileIcon = () => (
 );
 
 const PaperclipIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
@@ -193,17 +205,24 @@ const Messages = () => {
   const sendEventRef = useRef(() => { });
   const [friendIds, setFriendIds] = useState([]);
   const [friends, setFriends] = useState([]);
-  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [presenceByUser, setPresenceByUser] = useState({});
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const attachmentInputRef = useRef(null);
 
   // Video call state
-  const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
-  const [videoCallData, setVideoCallData] = useState({ livekitUrl: '', token: '' });
   const [isStartingCall, setIsStartingCall] = useState(false);
 
   const currentMessages = messagesById[activeId]?.messages || [];
+  const onlineUsers = useMemo(
+    () =>
+      new Set(
+        Object.entries(presenceByUser)
+          .filter(([, value]) => value?.isOnline)
+          .map(([userId]) => userId)
+      ),
+    [presenceByUser]
+  );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -302,26 +321,45 @@ const Messages = () => {
 
   // Handle presence updates (user goes online/offline)
   const handlePresenceEvent = useCallback(
-    ({ user_id, is_online }) => {
+    ({ user_id, is_online, last_seen }) => {
       if (!user_id) return;
-      setOnlineUsers((prev) => {
-        const newSet = new Set(prev);
-        if (is_online) {
-          newSet.add(user_id);
-        } else {
-          newSet.delete(user_id);
-        }
-        return newSet;
-      });
+      setPresenceByUser((prev) => ({
+        ...prev,
+        [user_id]: {
+          isOnline: Boolean(is_online),
+          lastSeen: last_seen || prev[user_id]?.lastSeen || null,
+        },
+      }));
     },
     []
   );
 
   // Handle initial list of online friends when connecting
   const handleOnlineUsers = useCallback(
-    ({ user_ids }) => {
-      if (!user_ids) return;
-      setOnlineUsers(new Set(user_ids));
+    ({ user_ids, users }) => {
+      setPresenceByUser((prev) => {
+        const next = { ...prev };
+        if (Array.isArray(users) && users.length) {
+          users.forEach((entry) => {
+            if (!entry?.user_id) return;
+            next[entry.user_id] = {
+              isOnline: Boolean(entry.is_online),
+              lastSeen: entry.last_seen || next[entry.user_id]?.lastSeen || null,
+            };
+          });
+          return next;
+        }
+
+        if (Array.isArray(user_ids)) {
+          user_ids.forEach((userId) => {
+            next[userId] = {
+              isOnline: true,
+              lastSeen: next[userId]?.lastSeen || null,
+            };
+          });
+        }
+        return next;
+      });
     },
     []
   );
@@ -393,12 +431,29 @@ const Messages = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const chatId = params.get('chat');
+    const chatId = params.get('chat') || params.get('conversation');
     if (chatId) {
       setActiveId(chatId);
       if (window.innerWidth < 900) setMobileView('chat');
     }
   }, [location.search]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    const params = new URLSearchParams(location.search);
+    const currentChat = params.get('chat');
+    const legacyChat = params.get('conversation');
+    if (currentChat === activeId && !legacyChat) return;
+    params.set('chat', activeId);
+    params.delete('conversation');
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${params.toString()}`,
+      },
+      { replace: true }
+    );
+  }, [activeId, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     const loadFriends = async () => {
@@ -500,8 +555,10 @@ const Messages = () => {
   const otherUser = activeConversation?.other_user;
   const otherUserAvatar = resolveUrl(otherUser?.photo_url) || dicebear(otherUser?.name);
   const canMessage = otherUser ? friendIds.includes(otherUser.id) : false;
-  const isOtherUserOnline = otherUser ? onlineUsers.has(otherUser.id) : false;
+  const otherPresence = otherUser ? presenceByUser[otherUser.id] : null;
+  const isOtherUserOnline = Boolean(otherPresence?.isOnline);
   const canSendMessage = Boolean(draft.trim() || selectedAttachment);
+  const canStartVideoCall = Boolean(canMessage);
   const sharedMediaMessages = useMemo(
     () =>
       currentMessages
@@ -510,6 +567,22 @@ const Messages = () => {
         .reverse(),
     [currentMessages]
   );
+  const unreadConversationCount = useMemo(
+    () => conversations.filter((item) => item.unread_count > 0).length,
+    [conversations]
+  );
+  const activeNowCount = useMemo(
+    () =>
+      filteredConversations.filter((item) => item.other_user?.id && onlineUsers.has(item.other_user.id)).length,
+    [filteredConversations, onlineUsers]
+  );
+  const otherPresenceLabel = showTyping
+    ? 'Typing...'
+    : isOtherUserOnline
+      ? 'Active now'
+      : otherPresence?.lastSeen
+        ? `Last seen ${formatRelativeTime(otherPresence.lastSeen)}`
+        : 'Offline';
 
   const clearSelectedAttachment = useCallback(() => {
     setSelectedAttachment(null);
@@ -590,11 +663,9 @@ const Messages = () => {
     try {
       setIsStartingCall(true);
       const data = await videocallApi.createRoom(activeId);
-      setVideoCallData({
-        livekitUrl: data.livekit_url,
-        token: data.token,
+      navigate(`/video-call/${encodeURIComponent(data.room_name)}?conversation=${activeId}`, {
+        state: { from: `/messages?chat=${activeId}` },
       });
-      setIsVideoCallOpen(true);
     } catch (err) {
       console.error('Failed to start video call:', err);
       const msg = err?.response?.data?.detail || err?.message || 'Неизвестная ошибка';
@@ -605,31 +676,11 @@ const Messages = () => {
   };
 
   // Join video call handler
-  const joinVideoCall = async (roomName) => {
+  const joinVideoCall = (roomName) => {
     if (!roomName || isStartingCall) return;
-
-    try {
-      setIsStartingCall(true);
-      const data = await videocallApi.joinRoom(roomName);
-      setVideoCallData({
-        livekitUrl: data.livekit_url,
-        token: data.token,
-      });
-      setIsVideoCallOpen(true);
-    } catch (err) {
-      console.error('Failed to join video call:', err);
-    } finally {
-      setIsStartingCall(false);
-    }
-  };
-
-  const handleCallEnded = (duration) => {
-    setIsVideoCallOpen(false);
-    setVideoCallData({ livekitUrl: '', token: '' });
-    // После завершения звонка обновляем сообщения, чтобы увидеть AI-саммари
-    if (activeId) {
-      fetchMessages(activeId);
-    }
+    navigate(`/video-call/${encodeURIComponent(roomName)}?conversation=${activeId}`, {
+      state: { from: `/messages?chat=${activeId}` },
+    });
   };
 
   // Group messages by date
@@ -654,17 +705,32 @@ const Messages = () => {
       {/* Sidebar - Conversations List */}
       <aside className={`msg-sidebar ${mobileView === 'chat' ? 'msg-sidebar-hidden' : ''}`}>
         <div className="msg-sidebar-header">
-          <h1 className="msg-title">Messages</h1>
-          <div className="msg-connection-status">
+          <div>
+            <h1 className="msg-title">Messages</h1>
+            <p className="msg-subtitle">Direct chat, files, read receipts, and quick calls.</p>
+          </div>
+          <div className="msg-connection-status" title={socketStatus === 'connected' ? 'Realtime connected' : 'Realtime reconnecting'}>
             <span className={`msg-status-indicator ${socketStatus === 'connected' ? 'online' : ''}`} />
+          </div>
+        </div>
+
+        <div className="msg-sidebar-stats">
+          <div className="msg-sidebar-stat">
+            <span className="msg-sidebar-stat-value">{filteredConversations.length}</span>
+            <span className="msg-sidebar-stat-label">Threads</span>
+          </div>
+          <div className="msg-sidebar-stat">
+            <span className="msg-sidebar-stat-value">{activeNowCount}</span>
+            <span className="msg-sidebar-stat-label">Active now</span>
+          </div>
+          <div className="msg-sidebar-stat">
+            <span className="msg-sidebar-stat-value">{unreadConversationCount}</span>
+            <span className="msg-sidebar-stat-label">Unread</span>
           </div>
         </div>
 
         {/* Search */}
         <div className="msg-search-wrapper">
-          <div className="msg-search-icon">
-            <SearchIcon />
-          </div>
           <input
             type="text"
             className="msg-search-input"
@@ -694,6 +760,12 @@ const Messages = () => {
               const other = c.other_user;
               const avatarSrc = resolveUrl(other?.photo_url) || dicebear(other?.name);
               const hasUnread = c.unread_count > 0;
+              const presence = other?.id ? presenceByUser[other.id] : null;
+              const previewLabel = presence?.isOnline
+                ? 'Active now'
+                : presence?.lastSeen
+                  ? `Seen ${formatRelativeTime(presence.lastSeen)}`
+                  : roleLabel(other);
 
               return (
                 <button
@@ -722,8 +794,8 @@ const Messages = () => {
                       </span>
                     </div>
                     <div className="msg-convo-preview">
-                      <span className="msg-convo-role">
-                        {other?.is_mentor ? 'Mentor' : other?.role || 'Member'}
+                      <span className={`msg-convo-role ${presence?.isOnline ? 'online' : ''}`}>
+                        {previewLabel}
                       </span>
                       <span className="msg-convo-separator">•</span>
                       <span className="msg-convo-last-msg">
@@ -778,20 +850,20 @@ const Messages = () => {
                 <div className="msg-chat-user-info">
                   <span className="msg-chat-user-name">{otherUser.name}</span>
                   <span className={`msg-chat-user-status ${isOtherUserOnline ? 'online' : 'offline'}`}>
-                    {showTyping ? 'Typing...' : (isOtherUserOnline ? 'Active now' : 'Offline')}
+                    {otherPresenceLabel}
                   </span>
                 </div>
               </div>
 
               <div className="msg-chat-actions">
-                <button className="msg-action-btn" title="Voice call">
+                <button className="msg-action-btn" title="Voice calls are not available yet" disabled>
                   <PhoneIcon />
                 </button>
                 <button
                   className={`msg-action-btn ${isStartingCall ? 'loading' : ''}`}
-                  title="Video call"
+                  title={canStartVideoCall ? 'Start video call' : 'Video calls are available between friends'}
                   onClick={startVideoCall}
-                  disabled={!canMessage || isStartingCall}
+                  disabled={!canStartVideoCall || isStartingCall}
                 >
                   <VideoIcon />
                 </button>
@@ -844,23 +916,17 @@ const Messages = () => {
                         )}
                         <div className={`msg-bubble ${isOwn ? 'outgoing' : 'incoming'}`}>
                           {isVideoInvite ? (
-                            <div className="flex flex-col gap-2 items-start">
-                              <span className="font-semibold">📹 Входящий видеозвонок</span>
+                            <div className="msg-system-card">
+                              <span className="msg-system-card-label">Video call invite</span>
+                              <strong>Video room is ready</strong>
+                              <p>Join the Jitsi room to continue this conversation face to face.</p>
                               <button
+                                type="button"
+                                className="msg-system-card-btn"
                                 onClick={() => joinVideoCall(roomName)}
-                                style={{
-                                  backgroundColor: '#3b82f6',
-                                  color: 'white',
-                                  padding: '8px 16px',
-                                  borderRadius: '8px',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  marginTop: '8px',
-                                  fontWeight: '500'
-                                }}
                                 disabled={isStartingCall}
                               >
-                                Присоединиться
+                                {isStartingCall ? 'Joining...' : 'Join call'}
                               </button>
                             </div>
                           ) : (
@@ -1049,7 +1115,7 @@ const Messages = () => {
       {/* Right Panel - User Info */}
       {activeId && otherUser && (
         <aside className="msg-info-panel">
-          <div className="msg-info-header">
+            <div className="msg-info-header">
             <img
               src={otherUserAvatar}
               alt={otherUser.name}
@@ -1057,7 +1123,7 @@ const Messages = () => {
             />
             <h3 className="msg-info-name">{otherUser.name}</h3>
             <span className="msg-info-role">
-              {otherUser.is_mentor ? 'Mentor' : otherUser.role || 'Member'}
+              {roleLabel(otherUser)}
             </span>
 
             <div className="msg-info-actions">
@@ -1067,8 +1133,12 @@ const Messages = () => {
               >
                 View Profile
               </button>
-              <button className="msg-info-btn secondary">
-                Add Note
+              <button
+                className="msg-info-btn secondary"
+                onClick={startVideoCall}
+                disabled={!canStartVideoCall || isStartingCall}
+              >
+                {isStartingCall ? 'Starting...' : 'Start Call'}
               </button>
             </div>
           </div>
@@ -1077,12 +1147,12 @@ const Messages = () => {
             <h4>Chat Info</h4>
             <div className="msg-info-item">
               <span className="msg-info-label">Status</span>
-              <span className="msg-info-value">
-                <span className={`msg-status-badge ${isOtherUserOnline ? 'online' : 'offline'}`}>
-                  {isOtherUserOnline ? 'Active' : 'Offline'}
+                <span className="msg-info-value">
+                  <span className={`msg-status-badge ${isOtherUserOnline ? 'online' : 'offline'}`}>
+                    {isOtherUserOnline ? 'Active now' : (otherPresence?.lastSeen ? `Seen ${formatRelativeTime(otherPresence.lastSeen)}` : 'Offline')}
+                  </span>
                 </span>
-              </span>
-            </div>
+              </div>
             <div className="msg-info-item">
               <span className="msg-info-label">Last message</span>
               <span className="msg-info-value">
@@ -1140,15 +1210,6 @@ const Messages = () => {
         </aside>
       )}
 
-      {/* Video Call Modal */}
-      <VideoCallModal
-        isOpen={isVideoCallOpen}
-        onClose={() => setIsVideoCallOpen(false)}
-        livekitUrl={videoCallData.livekitUrl}
-        token={videoCallData.token}
-        otherUser={otherUser}
-        onCallEnded={handleCallEnded}
-      />
     </div>
   );
 };

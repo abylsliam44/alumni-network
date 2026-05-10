@@ -1,7 +1,7 @@
 from .base import Base
 from .user import User, UserProfile
 from .connection import Connection
-from .mentorship import MentorshipRelationship, MentorshipRequest, MentorshipStatus
+from .mentorship import MentorshipRelationship, MentorshipRequest, MentorshipStatus, MentorFeedback
 from .message import Message, Conversation, ConversationParticipant
 from .event import (
     Event, EventRegistration, EventSpeaker, EventMaterial, EventReview, EventMessage,

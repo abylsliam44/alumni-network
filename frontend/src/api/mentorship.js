@@ -33,4 +33,16 @@ export const mentorshipApi = {
     const response = await api.put(`/api/v1/mentorship/requests/${requestId}/cancel`);
     return response.data;
   },
+  submitFeedback: async (relationshipId, data) => {
+    const response = await api.post(`/api/v1/mentorship/relationships/${relationshipId}/feedback`, data);
+    return response.data;
+  },
+  getFeedback: async (relationshipId) => {
+    const response = await api.get(`/api/v1/mentorship/relationships/${relationshipId}/feedback`);
+    return response.data;
+  },
+  getReceivedFeedback: async () => {
+    const response = await api.get('/api/v1/mentorship/feedback/received');
+    return response.data;
+  },
 };

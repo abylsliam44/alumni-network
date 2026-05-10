@@ -8,6 +8,8 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
   const [status, setStatus] = useState('disconnected');
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
+  const pingRef = useRef(null);
+  const shouldReconnectRef = useRef(true);
 
   const getWsUrl = () => {
     const token = localStorage.getItem('token');
@@ -26,6 +28,13 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
   const sendEvent = useCallback((type, payload) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type, payload }));
+    }
+  }, []);
+
+  const clearPing = useCallback(() => {
+    if (pingRef.current) {
+      clearInterval(pingRef.current);
+      pingRef.current = null;
     }
   }, []);
 
@@ -111,22 +120,37 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
     const wsUrl = `${sanitizedBase}/ws/chat?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
-    ws.onopen = () => setStatus('connected');
+    ws.onopen = () => {
+      setStatus('connected');
+      ws.send(JSON.stringify({ type: 'get_online_users', payload: {} }));
+      clearPing();
+      pingRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping', payload: {} }));
+        }
+      }, 20000);
+    };
     ws.onclose = () => {
       setStatus('disconnected');
-      reconnectRef.current = setTimeout(connect, 3000);
+      clearPing();
+      if (shouldReconnectRef.current) {
+        reconnectRef.current = setTimeout(connect, 3000);
+      }
     };
     ws.onerror = () => setStatus('error');
     ws.onmessage = handleMessage;
-  }, [handleMessage]);
+  }, [clearPing, handleMessage]);
 
   useEffect(() => {
+    shouldReconnectRef.current = true;
     connect();
     return () => {
+      shouldReconnectRef.current = false;
+      clearPing();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [connect]);
+  }, [clearPing, connect]);
 
   return { status, sendEvent };
 };

@@ -1,4 +1,5 @@
 import uuid
+import logging
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote
@@ -29,8 +30,10 @@ from app.schemas.message import (
 from app.core import storage
 from app.services import messaging as messaging_service
 from app.services import connection as connection_service
+from app.services import notification as notification_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
 ALLOWED_ATTACHMENT_MIME_TYPES = {
@@ -239,6 +242,24 @@ async def send_message(
     message_read = MessageRead.from_orm(message)
 
     participants = await messaging_service.participant_ids(db, conversation_id)
+
+    for participant_id in participants:
+        if participant_id == current_user.id:
+            continue
+        try:
+            await notification_service.create_new_message_notification(
+                db=db,
+                recipient_id=participant_id,
+                sender=current_user,
+                conversation_id=conversation_id,
+                message_preview=text or payload.attachment_name,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to create new message notification for conversation %s",
+                conversation_id,
+            )
+
     encoded_message = jsonable_encoder(message_read)
     await manager.broadcast(
         participants,

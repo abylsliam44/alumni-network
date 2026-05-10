@@ -21,7 +21,7 @@ cd alumni-social-network
 
 # Подготовить окружение
 cp .env.example .env
-# Заполните .env: POSTGRES_* / DATABASE_URL / SECRET_KEY / OPENAI_API_KEY / при необходимости QDRANT_* / SMTP_* / LIVEKIT_*.
+# Заполните .env: POSTGRES_* / DATABASE_URL / SECRET_KEY / OPENAI_API_KEY / при необходимости QDRANT_* / SMTP_*.
 # VITE_API_URL обычно оставляем пустым: dev/prod прокси уже пробрасывают /api, /ws и /storage через frontend.
 
 # Сборка и запуск всех сервисов
@@ -40,7 +40,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 # Миграции в prod-стэке
 docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
 ```
-Главные переменные в `.env.prod`: `DATABASE_URL` с хостом `postgres`, `SECRET_KEY`, `OPENAI_API_KEY`, `BACKEND_CORS_ORIGINS`, `POSTGRES_*`, при необходимости `BACKEND_API_SECRET`, `LIVEKIT_*`, `DEEPGRAM_API_KEY`, `SMTP_*`.
+Главные переменные в `.env.prod`: `DATABASE_URL` с хостом `postgres`, `SECRET_KEY`, `OPENAI_API_KEY`, `BACKEND_CORS_ORIGINS`, `POSTGRES_*`, при необходимости `SMTP_*`.
 
 ## Деплой на один DigitalOcean droplet (Docker Compose)
 1. Подготовить код и конфиг:
@@ -55,7 +55,6 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alem
    - `OPENAI_API_KEY=<ключ>` (если нужны AI-рекомендации).
    - `BACKEND_CORS_ORIGINS=https://<ваш-домен>` (можно перечислением через запятую).
    - `MINIO_PUBLIC_ENDPOINT=` можно оставить пустым, если используете встроенный proxy `/storage` через frontend nginx.
-   - `BACKEND_API_SECRET=<отдельный_секрет>` опционален; если пусто, agent использует `SECRET_KEY`.
 3. Запустить стэк:
    ```bash
    docker compose up -d --build
@@ -95,5 +94,5 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alem
 ```
 
 ## Минимальный набор переменных окружения
-- Backend: `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SECRET_KEY`, `OPENAI_API_KEY`. По необходимости: `BACKEND_CORS_ORIGINS`, `QDRANT_*`, `SMTP_*`, `LIVEKIT_*`, `DEEPGRAM_API_KEY`, `BACKEND_API_SECRET`.
+- Backend: `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SECRET_KEY`, `OPENAI_API_KEY`. По необходимости: `BACKEND_CORS_ORIGINS`, `QDRANT_*`, `SMTP_*`.
 - Frontend: обычно без обязательных env; `VITE_API_URL` и `VITE_WS_URL` нужны только при прямом подключении без встроенных proxy.

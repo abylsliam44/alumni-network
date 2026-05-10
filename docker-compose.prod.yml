@@ -88,22 +88,6 @@ services:
       retries: 1
     restart: always
 
-  agent:
-    build:
-      context: ./agent
-      dockerfile: Dockerfile
-    container_name: alumni-agent-prod
-    env_file:
-      - .env.prod
-    environment:
-      - BACKEND_URL=http://backend:8000
-    volumes:
-      - ./.env.prod:/app/.env
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: always
-
   minio:
     image: minio/minio:latest
     container_name: alumni-minio-prod

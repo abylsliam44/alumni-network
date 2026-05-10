@@ -70,15 +70,23 @@ class ConnectionManager:
         for user_id in set(user_ids):
             await self.send_to_user(user_id, message)
 
+    def presence_payload(self, user_id: uuid.UUID) -> Dict[str, Any]:
+        last_seen = self.last_seen.get(user_id)
+        return {
+            "user_id": str(user_id),
+            "is_online": self.is_online(user_id),
+            "last_seen": last_seen.isoformat() if last_seen else None,
+        }
+
     async def broadcast_presence(self, user_id: uuid.UUID, is_online: bool, to_user_ids: List[uuid.UUID]) -> None:
         """Broadcast presence change to specified users."""
         message = {
             "type": "presence",
             "payload": {
-                "user_id": str(user_id),
+                **self.presence_payload(user_id),
                 "is_online": is_online,
                 "timestamp": datetime.utcnow().isoformat(),
-            }
+            },
         }
         await self.broadcast(to_user_ids, message)
 
@@ -175,18 +183,24 @@ async def chat_socket(websocket: WebSocket) -> None:
     user = await _authenticate(websocket)
     was_offline = await manager.connect(user.id, websocket)
 
+    async with AsyncSessionLocal() as db:
+        friend_ids = await connection_service.friend_ids_for_user(db, user.id)
+
     # Notify friends that user is online
     if was_offline:
         async with AsyncSessionLocal() as db:
             friend_ids = await connection_service.friend_ids_for_user(db, user.id)
             await manager.broadcast_presence(user.id, True, friend_ids)
-            
-            # Send current online friends to this user
-            online_friends = [str(fid) for fid in friend_ids if manager.is_online(fid)]
-            await websocket.send_json({
-                "type": "online_users",
-                "payload": {"user_ids": online_friends}
-            })
+
+    snapshots = [manager.presence_payload(fid) for fid in friend_ids]
+    online_friends = [item["user_id"] for item in snapshots if item["is_online"]]
+    await websocket.send_json({
+        "type": "online_users",
+        "payload": {
+            "user_ids": online_friends,
+            "users": snapshots,
+        },
+    })
 
     try:
         while True:
@@ -316,10 +330,14 @@ async def chat_socket(websocket: WebSocket) -> None:
                 # Get list of online friends
                 async with AsyncSessionLocal() as db:
                     friend_ids = await connection_service.friend_ids_for_user(db, user.id)
-                    online_friends = [str(fid) for fid in friend_ids if manager.is_online(fid)]
+                    snapshots = [manager.presence_payload(fid) for fid in friend_ids]
+                    online_friends = [item["user_id"] for item in snapshots if item["is_online"]]
                     await websocket.send_json({
                         "type": "online_users",
-                        "payload": {"user_ids": online_friends}
+                        "payload": {
+                            "user_ids": online_friends,
+                            "users": snapshots,
+                        },
                     })
 
             else:

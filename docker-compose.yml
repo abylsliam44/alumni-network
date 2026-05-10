@@ -90,22 +90,6 @@ services:
       timeout: 5s
       retries: 1
 
-  agent:
-    build:
-      context: ./agent
-      dockerfile: Dockerfile
-    container_name: alumni-agent
-    env_file:
-      - .env
-    environment:
-      - BACKEND_URL=http://backend:8000
-    volumes:
-      - ./.env:/app/.env
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-
   minio:
     image: minio/minio:latest
     container_name: alumni-minio

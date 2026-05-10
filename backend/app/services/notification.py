@@ -96,6 +96,26 @@ async def create_mentorship_request_notification(
     )
 
 
+async def create_mentor_feedback_notification(
+    db: AsyncSession,
+    mentee_id: uuid.UUID,
+    mentor: User,
+    feedback_id: uuid.UUID,
+    rating: int,
+) -> Notification:
+    """Create a notification when a mentor leaves feedback for their mentee."""
+    stars = "★" * rating + "☆" * (5 - rating)
+    return await create_notification(
+        db=db,
+        user_id=mentee_id,
+        notification_type=NotificationType.MENTOR_FEEDBACK,
+        title="New Feedback from Your Mentor",
+        message=f"{mentor.name} rated you {stars} ({rating}/5)",
+        actor_id=mentor.id,
+        reference_id=feedback_id,
+    )
+
+
 async def create_mentorship_accepted_notification(
     db: AsyncSession,
     mentee_id: uuid.UUID,
@@ -111,6 +131,34 @@ async def create_mentorship_accepted_notification(
         message=f"{mentor.name} accepted your mentorship request",
         actor_id=mentor.id,
         reference_id=relationship_id,
+    )
+
+
+async def create_new_message_notification(
+    db: AsyncSession,
+    recipient_id: uuid.UUID,
+    sender: User,
+    conversation_id: uuid.UUID,
+    message_preview: Optional[str] = None,
+) -> Notification:
+    """Create a notification for a newly received direct message."""
+    preview = (message_preview or "").strip()
+    if preview:
+        preview = preview[:120]
+        if len(message_preview or "") > 120:
+            preview += "..."
+        body = f"{sender.name}: {preview}"
+    else:
+        body = f"{sender.name} sent you a message"
+
+    return await create_notification(
+        db=db,
+        user_id=recipient_id,
+        notification_type=NotificationType.NEW_MESSAGE,
+        title="New Message",
+        message=body,
+        actor_id=sender.id,
+        reference_id=conversation_id,
     )
 
 
