@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { jobsApi } from '../api/jobs';
+import { useAuth } from '../hooks/useAuth';
+import { canPostJobs } from '../utils/jobPermissions';
 import Icon from '../components/ui/Icon';
 import Alert from '../components/ui/Alert';
 
 const JobCreate = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -36,6 +39,19 @@ const JobCreate = () => {
       setError('Failed to create job. Please try again.');
     } finally { setLoading(false); }
   };
+
+  if (!canPostJobs(user)) {
+    return (
+      <div className="page">
+        <div className="empty-block">
+          <Icon name="briefcase" size={28} />
+          <h3>Job posting access required</h3>
+          <p>Ask an administrator to grant the HR or job poster permission for your account.</p>
+          <button className="btn" onClick={() => navigate('/jobs')}>Back to jobs</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

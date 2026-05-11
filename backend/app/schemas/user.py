@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.models.user import UserRole
 
 class UserBase(BaseModel):
@@ -49,6 +49,7 @@ class UserRead(UserBase):
     id: UUID
     photo_url: Optional[str] = None
     bio: Optional[str] = None
+    system_roles: List[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: Optional[datetime] = None
 

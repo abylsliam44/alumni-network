@@ -143,6 +143,7 @@ const Register = () => {
                 <select id="role" name="role" value={formData.role} onChange={handleChange}>
                   <option value="STUDENT">Student — current university student</option>
                   <option value="ALUMNI">Alumni — university graduate</option>
+                  <option value="HR">HR — hiring partner or recruiter</option>
                   <option value="STAFF">Staff — university administration</option>
                 </select>
               </div>

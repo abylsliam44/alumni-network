@@ -98,8 +98,8 @@ async def register(
         )
         
     role_value = user_in.role or UserRole.STUDENT
-    if role_value not in [UserRole.STUDENT, UserRole.ALUMNI, UserRole.STAFF]:
-        raise HTTPException(status_code=400, detail="Invalid role. Choose STUDENT, ALUMNI, or STAFF.")
+    if role_value not in [UserRole.STUDENT, UserRole.ALUMNI, UserRole.STAFF, UserRole.HR]:
+        raise HTTPException(status_code=400, detail="Invalid role. Choose STUDENT, ALUMNI, STAFF, or HR.")
 
     user = User(
         email=user_in.email,
@@ -108,7 +108,7 @@ async def register(
         role=role_value,
         is_mentor=False,
         is_admin=False,
-        system_roles=["JOB_APPLICANT"],
+        system_roles=["JOB_APPLICANT", "JOB_POSTER"] if role_value == UserRole.HR else ["JOB_APPLICANT"],
     )
     
     # Create empty profile for user

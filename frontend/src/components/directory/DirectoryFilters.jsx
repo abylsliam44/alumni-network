@@ -15,6 +15,7 @@ const DirectoryFilters = ({ filters, onChange, onClear }) => {
             <option value="">All</option>
             <option value="STUDENT">Student</option>
             <option value="ALUMNI">Alumni</option>
+            <option value="HR">HR</option>
             <option value="STAFF">Staff</option>
           </select>
         </div>

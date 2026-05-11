@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { jobsApi } from '../api/jobs';
 import { useAuth } from '../hooks/useAuth';
+import { canModerateJobs } from '../utils/jobPermissions';
 import ApplicationChat from '../components/ApplicationChat';
 import Pill from '../components/ui/Pill';
 import Icon from '../components/ui/Icon';
@@ -80,8 +81,8 @@ const JobDetail = () => {
     </div>
   );
 
-  const isCreator = user.id === job.created_by;
-  const isAdmin = user.is_admin || user.role === 'STAFF' || (user.system_roles && user.system_roles.includes('JOB_MODERATOR'));
+  const isCreator = user?.id === job.created_by;
+  const isAdmin = canModerateJobs(user);
   const canApply = !isCreator && !isAdmin && !application && job.status === 'APPROVED';
 
   return (

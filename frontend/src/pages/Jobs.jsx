@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { jobsApi } from '../api/jobs';
 import { useAuth } from '../hooks/useAuth';
+import { canPostJobs } from '../utils/jobPermissions';
 import Pill from '../components/ui/Pill';
 import Icon from '../components/ui/Icon';
 
@@ -10,6 +11,14 @@ const EMPLOYMENT_LABEL = {
   PART_TIME: 'Part-time',
   INTERNSHIP: 'Internship',
   CONTRACT: 'Contract',
+};
+
+const STATUS_TONE = {
+  DRAFT: undefined,
+  PENDING: 'warm',
+  APPROVED: 'ok',
+  REJECTED: 'err',
+  CLOSED: undefined,
 };
 
 const formatDate = (dateStr) => {
@@ -61,7 +70,7 @@ const Jobs = () => {
     loadJobs({});
   };
 
-  const canCreateJob = user && (user.role === 'ALUMNI' || user.is_admin);
+  const canCreateJob = canPostJobs(user);
   const activeFilters = Object.values(filters).filter(Boolean).length;
 
   return (
@@ -113,6 +122,11 @@ const Jobs = () => {
           <Icon name="briefcase" size={28} />
           <h3>No jobs found</h3>
           <p>Try adjusting your filters or check back later for new postings.</p>
+          {canCreateJob && (
+            <button className="btn primary" onClick={() => navigate('/jobs/create')}>
+              <Icon name="plus" size={12} /> Post a job
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -131,8 +145,9 @@ const Jobs = () => {
 
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {job.employment_type && <Pill tone="blue" dot>{EMPLOYMENT_LABEL[job.employment_type] || job.employment_type}</Pill>}
-                  {job.job_format && <Pill>{job.job_format}</Pill>}
+                  {job.format && <Pill>{job.format === 'REMOTE' ? 'Remote' : job.format === 'HYBRID' ? 'Hybrid' : 'On-site'}</Pill>}
                   {job.salary_range && <Pill tone="warm">{job.salary_range}</Pill>}
+                  {job.status && job.status !== 'APPROVED' && <Pill tone={STATUS_TONE[job.status]} dot>{job.status}</Pill>}
                 </div>
 
                 {job.description && (

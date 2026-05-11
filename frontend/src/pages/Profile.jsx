@@ -216,6 +216,7 @@ const Profile = () => {
             {profile.is_mentor && <Pill tone="blue" dot>Mentor · {mentorIsFull ? 'full' : 'accepting'}</Pill>}
             {profile.role === 'ALUMNI' && <Pill tone="warm">Alumni{profile.graduation_year ? ` · ${profile.graduation_year}` : ''}</Pill>}
             {profile.role === 'STUDENT' && <Pill>Student</Pill>}
+            {profile.role === 'HR' && <Pill tone="blue">HR</Pill>}
             {profile.role === 'STAFF' && <Pill>Staff</Pill>}
           </div>
           <div className="dim" style={{ fontSize: 14, marginBottom: 8, maxWidth: 720 }}>

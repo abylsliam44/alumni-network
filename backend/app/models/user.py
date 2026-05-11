@@ -15,6 +15,7 @@ class UserRole(str, enum.Enum):
     STUDENT = "STUDENT"
     ALUMNI = "ALUMNI"
     STAFF = "STAFF"  # University administration - can approve events
+    HR = "HR"  # Company recruiters and hiring partners - can post jobs
 
 class User(Base):
     __tablename__ = "users"

@@ -1,44 +1,56 @@
-from typing import Any, Optional, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select, func, or_, desc, case
+from sqlalchemy import case, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.database import get_db
-from app.models.job import Job, JobApplication, JobStatus, JobFormat, JobEmploymentType, ApplicationStatus
+from app.core import storage
+from app.models.job import ApplicationStatus, Job, JobApplication, JobEmploymentType, JobFormat, JobStatus
 from app.models.user import User, UserRole
 from app.schemas.job import (
-    JobCreate,
-    JobRead,
-    JobUpdate,
-    JobList,
     JobApplicationCreate,
     JobApplicationRead,
     JobApplicationUpdateStatus,
+    JobCreate,
+    JobList,
+    JobRead,
+    JobUpdate,
     MyApplicationsResponse,
 )
-from app.core import storage
 # from app.services import email_service # Todo: Implement email service integration
 
 router = APIRouter()
 
 # --- Role Check Helpers ---
+JOB_POSTER_SYSTEM_ROLES = {"JOB_POSTER", "HR"}
+JOB_MODERATOR_SYSTEM_ROLES = {"JOB_MODERATOR"}
+
+
+def has_system_role(user: Optional[User], allowed_roles: set[str]) -> bool:
+    if not user:
+        return False
+    return bool(set(user.system_roles or []) & allowed_roles)
+
+
+def can_post_jobs(user: Optional[User]) -> bool:
+    if not user:
+        return False
+    return user.is_admin or user.role in [UserRole.ALUMNI, UserRole.HR] or has_system_role(user, JOB_POSTER_SYSTEM_ROLES)
+
+
 def can_moderate_jobs(user: Optional[User]) -> bool:
     if not user:
         return False
-    system_roles = user.system_roles or []
-    return user.is_admin or user.role == UserRole.STAFF or "JOB_MODERATOR" in system_roles
+    return user.is_admin or user.role == UserRole.STAFF or has_system_role(user, JOB_MODERATOR_SYSTEM_ROLES)
+
 
 def check_is_poster(user: User):
-    system_roles = user.system_roles or []
-    if user.is_admin:
-        return
-    if user.role == UserRole.ALUMNI:
-        return
-    if "JOB_POSTER" in system_roles:
+    if can_post_jobs(user):
         return
     raise HTTPException(status_code=403, detail="Not authorized to post jobs")
+
 
 def check_is_admin_or_moderator(user: User):
     if can_moderate_jobs(user):
@@ -67,12 +79,21 @@ async def list_jobs(
     """
     stmt = select(Job)
     can_moderate = can_moderate_jobs(current_user)
+    can_post = can_post_jobs(current_user)
 
     if can_moderate:
         if status_filter is not None:
             stmt = stmt.where(Job.status == status_filter)
         else:
             stmt = stmt.where(Job.status.in_([JobStatus.PENDING, JobStatus.APPROVED]))
+    elif can_post:
+        if status_filter is not None:
+            if status_filter == JobStatus.APPROVED:
+                stmt = stmt.where(Job.status == JobStatus.APPROVED)
+            else:
+                stmt = stmt.where(Job.status == status_filter, Job.created_by == current_user.id)
+        else:
+            stmt = stmt.where(or_(Job.status == JobStatus.APPROVED, Job.created_by == current_user.id))
     else:
         if status_filter not in (None, JobStatus.APPROVED):
             raise HTTPException(status_code=403, detail="Not authorized to view jobs with this status")

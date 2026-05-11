@@ -4,7 +4,7 @@ import Pill from '../ui/Pill';
 import Icon from '../ui/Icon';
 import { resolveUrl } from '../../utils/image';
 
-const ROLE_LABEL = { STUDENT: 'Student', ALUMNI: 'Alumni', STAFF: 'Staff' };
+const ROLE_LABEL = { STUDENT: 'Student', ALUMNI: 'Alumni', STAFF: 'Staff', HR: 'HR' };
 
 const UserCard = ({
   user,

@@ -32,7 +32,7 @@ def _current_origin(headers: Headers, scheme: str) -> Optional[str]:
 
 
 def _is_dev_origin(origin: Optional[str]) -> bool:
-    return bool(origin and any(host in origin for host in ("localhost", "0.0.0.0", "frontend")))
+    return bool(origin and any(host in origin for host in ("localhost", "0.0.0.0", "frontend", "backend")))
 
 
 def allowed_origins(headers: Headers, scheme: str) -> set[str]:

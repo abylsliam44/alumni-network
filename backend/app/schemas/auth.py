@@ -31,7 +31,7 @@ class RegisterRequest(BaseModel):
         try:
             return UserRole(value)
         except ValueError:
-            raise ValueError("Role must be one of STUDENT or ALUMNI")
+            raise ValueError("Role must be one of STUDENT, ALUMNI, STAFF, or HR")
 
     @field_validator("password")
     def validate_password(cls, v):
