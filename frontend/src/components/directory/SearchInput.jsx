@@ -1,50 +1,40 @@
 import { useState, useEffect, useRef } from 'react';
+import Icon from '../ui/Icon';
 
-const SearchInput = ({ value, onChange, placeholder = "Search..." }) => {
+const SearchInput = ({ value, onChange, placeholder = 'Search…' }) => {
   const [localValue, setLocalValue] = useState(value);
-  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
+  useEffect(() => { setLocalValue(value); }, [value]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (localValue !== value) {
-        onChange(localValue);
-      }
+      if (localValue !== value) onChange(localValue);
     }, 400);
-
     return () => clearTimeout(timer);
   }, [localValue, onChange, value]);
 
-  const handleClear = () => {
-    setLocalValue('');
-    onChange('');
-    inputRef.current?.focus();
-  };
-
   return (
-    <div className={`dsearch ${isFocused ? 'focused' : ''} ${localValue ? 'has-value' : ''}`}>
+    <div style={{ position: 'relative', minWidth: 240, flex: 1 }}>
+      <Icon name="search" size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }} />
       <input
         ref={inputRef}
-        type="text"
+        type="search"
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         placeholder={placeholder}
-        className="dsearch-input"
+        style={{ paddingLeft: 34, paddingRight: localValue ? 50 : 12 }}
       />
       {localValue && (
-        <button 
+        <button
           type="button"
-          className="dsearch-clear" 
-          onClick={handleClear}
+          onClick={() => { setLocalValue(''); onChange(''); inputRef.current?.focus(); }}
+          className="iconbtn"
+          style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 24, height: 24 }}
           tabIndex={-1}
+          aria-label="Clear"
         >
-          Clear
+          <Icon name="close" size={12} />
         </button>
       )}
     </div>

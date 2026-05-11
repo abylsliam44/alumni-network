@@ -1,84 +1,73 @@
-import Button from '../ui/Button';
 import { Link } from 'react-router-dom';
+import Avatar from '../ui/Avatar';
+import Pill from '../ui/Pill';
+import { resolveUrl } from '../../utils/image';
 
-const apiBase = import.meta.env.VITE_API_URL || '';
-const resolveUrl = (path) => (path ? (path.startsWith('http') ? path : `${apiBase}${path}`) : null);
-const fallbackAvatar = 'https://via.placeholder.com/50?text=U';
+const STATUS_TONE = { PENDING: 'warm', ACCEPTED: 'ok', DECLINED: 'err', CANCELLED: undefined, COMPLETED: 'blue' };
 
 const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel }) => {
   const otherUser = type === 'incoming' ? request.sender : request.receiver;
   const goals = request.goals || [];
+  const tone = STATUS_TONE[request.status];
 
   return (
-    <div className="mentorship-card card">
-      <div className="mentorship-card-header">
-        <div className="mentorship-user">
-          <img
-            src={resolveUrl(otherUser?.photo_url) || fallbackAvatar}
-            alt={otherUser?.name}
-            className="mentorship-avatar"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = fallbackAvatar;
-            }}
-          />
-          <div className="mentorship-user-meta">
-            <h4 className="mentorship-user-name">
-              <Link to={`/profile/${otherUser?.user_id}`} className="mentorship-user-link">
+    <div className="panel" style={{ padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          <Avatar src={resolveUrl(otherUser?.photo_url)} name={otherUser?.name} size="m" />
+          <div style={{ minWidth: 0 }}>
+            <h4 className="h3">
+              <Link to={`/profile/${otherUser?.user_id}`} style={{ color: 'var(--ink)' }}>
                 {otherUser?.name}
               </Link>
             </h4>
-            <p className="mentorship-user-subtitle">{otherUser?.headline || otherUser?.role}</p>
+            <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>
+              {(otherUser?.headline || otherUser?.role || '').toUpperCase()}
+            </div>
           </div>
         </div>
-        <span className={`status-badge status-${request.status.toLowerCase()}`}>
-          {request.status}
-        </span>
+        <Pill tone={tone} dot>{request.status}</Pill>
       </div>
 
-      <div className="mentorship-card-body">
-        {goals.length > 0 && (
-          <div className="mentorship-chip-row">
-            {goals.map((goal) => (
-              <span key={goal} className="mentorship-chip">{goal}</span>
-            ))}
-          </div>
-        )}
-        <div className="mentorship-meta-grid">
-          <span>{request.expected_duration || 'Duration TBD'}</span>
-          <span>{request.preferred_format || 'Format TBD'}</span>
+      {goals.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+          {goals.map((g) => <span key={g} className="chip skill">{g}</span>)}
         </div>
-        <p className="mentorship-body-label">Message:</p>
-        <p className="mentorship-goals-box">
-          {request.message || "No message provided."}
-        </p>
-        {request.decline_reason && (
-          <>
-            <p className="mentorship-body-label">Decline reason:</p>
-            <p className="mentorship-goals-box">{request.decline_reason}</p>
-          </>
-        )}
-        <p className="mentorship-start-date">
-          Sent on {new Date(request.created_at).toLocaleDateString()}
-        </p>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        <span className="pill">{request.expected_duration || 'Duration TBD'}</span>
+        <span className="pill">{request.preferred_format || 'Format TBD'}</span>
+      </div>
+
+      <div className="eyebrow" style={{ marginBottom: 6 }}>MESSAGE</div>
+      <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line-soft)', padding: 10, borderRadius: 7, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+        {request.message || 'No message provided.'}
+      </div>
+
+      {request.decline_reason && (
+        <>
+          <div className="eyebrow" style={{ margin: '12px 0 6px' }}>DECLINE REASON</div>
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line-soft)', padding: 10, borderRadius: 7, fontSize: 12.5, color: 'var(--ink-2)' }}>
+            {request.decline_reason}
+          </div>
+        </>
+      )}
+
+      <div className="mono mute" style={{ fontSize: 10, marginTop: 12 }}>
+        SENT · {new Date(request.created_at).toLocaleDateString()}
       </div>
 
       {type === 'incoming' && request.status === 'PENDING' && (
-        <div className="mentorship-card-actions">
-          <Button variant="secondary" size="sm" onClick={() => onDecline(request.id)}>
-            Decline
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => onAccept(request.id)}>
-            Accept
-          </Button>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 14 }}>
+          <button className="btn sm ghost" onClick={() => onDecline(request.id)}>Decline</button>
+          <button className="btn sm primary" onClick={() => onAccept(request.id)}>Accept</button>
         </div>
       )}
 
       {type === 'outgoing' && request.status === 'PENDING' && onCancel && (
-        <div className="mentorship-card-actions">
-          <Button variant="secondary" size="sm" onClick={() => onCancel(request.id)}>
-            Cancel Request
-          </Button>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 14 }}>
+          <button className="btn sm ghost" onClick={() => onCancel(request.id)}>Cancel</button>
         </div>
       )}
     </div>
@@ -86,4 +75,3 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel })
 };
 
 export default MentorshipRequestCard;
-

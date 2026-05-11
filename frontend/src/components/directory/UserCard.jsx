@@ -1,5 +1,10 @@
 import { Link } from 'react-router-dom';
+import Avatar from '../ui/Avatar';
+import Pill from '../ui/Pill';
+import Icon from '../ui/Icon';
 import { resolveUrl } from '../../utils/image';
+
+const ROLE_LABEL = { STUDENT: 'Student', ALUMNI: 'Alumni', STAFF: 'Staff' };
 
 const UserCard = ({
   user,
@@ -11,172 +16,85 @@ const UserCard = ({
   onDecline,
   isSelf = false,
 }) => {
-  const roleLabelMap = {
-    STUDENT: 'Student',
-    ALUMNI: 'Alumni',
-    STAFF: 'Staff',
-  };
-
-  const getInitials = (name) => {
-    if (!name) return '?';
-    return name
-      .split(' ')
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   const photoUrl = resolveUrl(user.photo_url);
-  const roleLabel = roleLabelMap[user.role] || user.role;
-  const primaryHeadline = user.mentor_headline || user.headline || `${roleLabel} community member`;
-  const capacityLabel = user.is_mentor && user.mentor_max_mentees
-    ? `${user.mentor_active_mentees || 0}/${user.mentor_max_mentees} mentees`
+  const roleLabel = ROLE_LABEL[user.role] || user.role;
+  const headline = user.mentor_headline || user.headline || `${roleLabel} · Alumni Networking Platform`;
+  const capacity = user.is_mentor && user.mentor_max_mentees
+    ? `${user.mentor_active_mentees || 0}/${user.mentor_max_mentees}`
     : null;
-
-  const renderStatus = () => {
-    if (isSelf) {
-      return <span className="ucard-status ucard-status-self">You</span>;
-    }
-
-    if (status === 'friends') {
-      return <span className="ucard-status ucard-status-connected">Connected</span>;
-    }
-    if (status === 'pending_out') {
-      return <span className="ucard-status ucard-status-pending">Request Sent</span>;
-    }
-    if (status === 'pending_in') {
-      return <span className="ucard-status ucard-status-incoming">Incoming Request</span>;
-    }
-    return null;
-  };
 
   const renderActions = () => {
     if (isSelf) {
-      return (
-        <Link to={`/profile/${user.user_id}`} className="ucard-btn ucard-btn-secondary">
-          Open Profile
-        </Link>
-      );
+      return <Link to={`/profile/${user.user_id}`} className="btn sm">Open profile</Link>;
     }
-
     if (status === 'friends') {
       return (
         <>
-          <span className="ucard-action-note">Already in your network</span>
-          <Link to={`/profile/${user.user_id}`} className="ucard-btn ucard-btn-secondary">
-            View Profile
-          </Link>
+          <Link to={`/profile/${user.user_id}`} className="btn sm">View profile</Link>
         </>
       );
     }
-
     if (status === 'pending_in') {
       return (
         <>
-          <span className="ucard-action-note">This person sent you a connection request</span>
-          <div className="ucard-actions-row">
-            <button className="ucard-btn ucard-btn-primary" onClick={onAccept}>
-              Accept
-            </button>
-            <button className="ucard-btn ucard-btn-ghost" onClick={onDecline}>
-              Decline
-            </button>
-          </div>
+          <button className="btn sm ghost" onClick={onDecline}>Decline</button>
+          <button className="btn sm primary" onClick={onAccept}>Accept</button>
         </>
       );
     }
-
     if (status === 'pending_out') {
-      return (
-        <>
-          <span className="ucard-action-note">Your request is waiting for a response</span>
-          <Link to={`/profile/${user.user_id}`} className="ucard-btn ucard-btn-secondary">
-            View Profile
-          </Link>
-        </>
-      );
+      return <Link to={`/profile/${user.user_id}`} className="btn sm">Pending · view profile</Link>;
     }
-
     return (
       <>
-        <span className="ucard-action-note">Reach out or review the full profile first</span>
-        <div className="ucard-actions-row">
-          <button
-            className="ucard-btn ucard-btn-primary"
-            onClick={onAddFriend}
-            disabled={addLoading}
-          >
-            {addLoading ? 'Sending...' : 'Connect'}
-          </button>
-          <Link to={`/profile/${user.user_id}`} className="ucard-btn ucard-btn-ghost">
-            Profile
-          </Link>
-        </div>
+        <Link to={`/profile/${user.user_id}`} className="btn sm">Profile</Link>
+        <button className="btn sm primary" onClick={onAddFriend} disabled={addLoading}>
+          {addLoading ? 'Sending…' : '+ Connect'}
+        </button>
       </>
     );
   };
 
   return (
-    <article
-      className="ucard"
-      style={{ animationDelay: `${index * 40}ms` }}
-    >
-      <div className="ucard-main">
-        <div className="ucard-avatar-wrap">
-          {photoUrl ? (
-            <img src={photoUrl} alt={user.name} className="ucard-avatar" />
-          ) : (
-            <div className="ucard-avatar ucard-avatar-placeholder">
-              {getInitials(user.name)}
-            </div>
-          )}
-        </div>
-
-        <div className="ucard-content">
-          <div className="ucard-topline">
-            <div className="ucard-name-block">
-              <h3 className="ucard-name">{user.name}</h3>
-              <div className="ucard-meta-inline">
-                <span className="ucard-role-pill">{roleLabel}</span>
-                {user.is_mentor && (
-                  <span className="ucard-mentor-badge">Mentor</span>
-                )}
-                {capacityLabel && (
-                  <span className={`ucard-status ${user.mentor_capacity_status === 'FULL' ? 'ucard-status-pending' : 'ucard-status-connected'}`}>
-                    {user.mentor_capacity_status === 'FULL' ? 'Full' : capacityLabel}
-                  </span>
-                )}
-                {renderStatus()}
-              </div>
-            </div>
+    <article className="panel" style={{ padding: 16, animation: `fadein 0.25s ease-out ${index * 30}ms both`, opacity: 1 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 14 }}>
+        <Avatar src={photoUrl} name={user.name} size="l" />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+            <h3 className="h3">{user.name}</h3>
+            {isSelf && <Pill>You</Pill>}
+            {user.is_mentor && (
+              user.mentor_capacity_status === 'FULL'
+                ? <Pill tone="warm" dot>Mentor · full</Pill>
+                : <Pill tone="blue" dot>Mentor{capacity ? ` · ${capacity}` : ''}</Pill>
+            )}
+            {status === 'friends' && <Pill tone="ok" dot>Connected</Pill>}
+            {status === 'pending_out' && <Pill>Request sent</Pill>}
+            {status === 'pending_in' && <Pill tone="warm" dot>Incoming</Pill>}
           </div>
-
-          <p className="ucard-headline">{primaryHeadline}</p>
-
-          <div className="ucard-meta-row">
-            {user.location && <span>{user.location}</span>}
-            {user.graduation_year && <span>Class of {user.graduation_year}</span>}
-            {!user.location && !user.graduation_year && <span>Open to alumni network connections</span>}
+          <div className="dim" style={{ fontSize: 13, marginBottom: 4 }}>{headline}</div>
+          <div className="mute mono" style={{ fontSize: 10.5, marginBottom: 10 }}>
+            {[
+              user.location,
+              user.graduation_year ? `Class of ${user.graduation_year}` : null,
+            ].filter(Boolean).join(' · ').toUpperCase() || 'OPEN TO CONNECT'}
           </div>
 
           {user.skills && user.skills.length > 0 && (
-            <div className="ucard-skills">
-              {user.skills.slice(0, 5).map((skill, idx) => (
-                <span key={idx} className="ucard-skill">{skill}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+              {user.skills.slice(0, 5).map((s, idx) => (
+                <span key={idx} className="chip skill">{s}</span>
               ))}
               {user.skills.length > 5 && (
-                <span className="ucard-skill ucard-skill-more">
-                  +{user.skills.length - 5}
-                </span>
+                <span className="chip skill">+{user.skills.length - 5}</span>
               )}
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="ucard-side">
-        {renderActions()}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {renderActions()}
+          </div>
+        </div>
       </div>
     </article>
   );

@@ -1,12 +1,10 @@
-import React from 'react';
-
-const Input = ({ label, type = 'text', ...props }) => {
-  return (
-    <div className="form-group">
-      {label && <label className="form-label">{label}</label>}
-      <input className="form-input" type={type} {...props} />
-    </div>
-  );
-};
+const Input = ({ label, type = 'text', help, error, className = '', ...props }) => (
+  <div className="form-group">
+    {label && <label className="form-label">{label}</label>}
+    <input className={`input ${className}`.trim()} type={type} {...props} />
+    {help && <div className="help">{help}</div>}
+    {error && <div className="help" style={{ color: 'var(--err)' }}>{error}</div>}
+  </div>
+);
 
 export default Input;
