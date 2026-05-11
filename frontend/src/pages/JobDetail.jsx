@@ -105,7 +105,7 @@ const JobDetail = () => {
               <h1 className="h1" style={{ fontSize: 28 }}>{job.title}</h1>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+          <div className="mobile-full-actions" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
             {canApply && (
               <button className="btn primary lg" onClick={() => setShowApplyModal(true)}>
                 <Icon name="send" size={14} /> Apply now
@@ -127,7 +127,7 @@ const JobDetail = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="responsive-two-col">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>01 · ABOUT THE ROLE</div>
           <div className="panel" style={{ padding: 18 }}>

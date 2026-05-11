@@ -15,7 +15,7 @@ const SearchInput = ({ value, onChange, placeholder = 'Search…' }) => {
   }, [localValue, onChange, value]);
 
   return (
-    <div style={{ position: 'relative', minWidth: 240, flex: 1 }}>
+    <div className="search-input" style={{ position: 'relative', minWidth: 240, flex: 1 }}>
       <Icon name="search" size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }} />
       <input
         ref={inputRef}

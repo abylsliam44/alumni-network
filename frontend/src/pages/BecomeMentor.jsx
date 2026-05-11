@@ -70,7 +70,7 @@ const BecomeMentor = () => {
             <h1 className="h1">You're already a <i>mentor</i>.</h1>
           </div>
         </div>
-        <div className="panel" style={{ padding: 24, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 16, alignItems: 'center' }}>
+        <div className="panel activation-status-grid" style={{ padding: 24, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 16, alignItems: 'center' }}>
           <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--ok-soft)', border: '1px solid rgba(109,179,140,0.3)', color: 'var(--ok)', display: 'grid', placeItems: 'center' }}>
             <Icon name="check" size={20} />
           </div>
@@ -78,7 +78,7 @@ const BecomeMentor = () => {
             <h3 className="h3">Listed in the directory</h3>
             <p className="mute" style={{ marginTop: 4, fontSize: 13 }}>Students can discover your profile, see your help areas, and send requests directly.</p>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="mobile-row-actions" style={{ display: 'flex', gap: 6 }}>
             <button className="btn" onClick={() => navigate('/profile/edit')}>Edit details</button>
             <button className="btn primary" onClick={() => navigate('/dashboard')}>Dashboard</button>
           </div>
@@ -96,7 +96,7 @@ const BecomeMentor = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20, alignItems: 'start' }}>
+      <div className="responsive-two-col balanced">
         <div>
           <div className="panel" style={{ padding: 24 }}>
             <Pill tone="blue" dot><Icon name="spark" size={11} /> ACTIVATION</Pill>

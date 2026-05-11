@@ -71,7 +71,7 @@
   margin: 0 0 8px;
   font-size: 1.55rem;
   line-height: 1.12;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: #111827;
 }
 
@@ -94,7 +94,7 @@
   margin: 0;
   font-size: clamp(2rem, 3.6vw, 2.8rem);
   line-height: 1;
-  letter-spacing: -0.045em;
+  letter-spacing: 0;
   color: #111827;
 }
 

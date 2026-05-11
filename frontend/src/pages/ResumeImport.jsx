@@ -298,7 +298,7 @@ const ResumeImport = () => {
 
       {notice && <Alert type={notice.type === 'success' ? 'success' : 'error'}>{notice.message}</Alert>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="responsive-two-col sidebar-left">
         {/* Sidebar */}
         <div className="panel" style={{ padding: 16 }}>
           <div className="eyebrow" style={{ marginBottom: 8 }}>NEW IMPORT</div>

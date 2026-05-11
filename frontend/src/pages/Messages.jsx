@@ -355,7 +355,7 @@ const Messages = () => {
   }, [currentMessages]);
 
   return (
-    <div className="messages-page">
+    <div className={`messages-page${activeId ? ' has-active' : ''}`}>
       <aside className="messages-list">
         <div className="messages-list-head">
           <h1 className="h2">Messages</h1>
@@ -415,6 +415,9 @@ const Messages = () => {
         ) : (
           <>
             <div className="messages-thread-head">
+              <button className="iconbtn mobile-only messages-mobile-back" onClick={() => setActiveId(null)} title="Back to conversations">
+                <Icon name="chevronL" size={16} />
+              </button>
               <Avatar src={resolveUrl(otherUser?.photo_url)} name={otherUser?.name} size="m" />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="h3">{otherUser?.name || 'Conversation'}</div>

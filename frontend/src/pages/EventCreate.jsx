@@ -149,7 +149,7 @@ const EventCreate = () => {
           {speakers.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
               {speakers.map((s) => (
-                <div key={s.id} className="panel" style={{ padding: 10, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' }}>
+                <div key={s.id} className="panel edit-list-row" style={{ padding: 10, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' }}>
                   <div>
                     <strong style={{ fontSize: 13 }}>{s.name}</strong>
                     {s.link && <div className="mute mono" style={{ fontSize: 10.5 }}>{s.link}</div>}
@@ -171,7 +171,7 @@ const EventCreate = () => {
           {materials.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
               {materials.map((m) => (
-                <div key={m.id} className="panel" style={{ padding: 10, display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center' }}>
+                <div key={m.id} className="panel edit-list-row" style={{ padding: 10, display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center' }}>
                   <div>
                     <strong style={{ fontSize: 13 }}>{m.title}</strong>
                     <div className="mute mono" style={{ fontSize: 10.5 }}>{m.url}</div>

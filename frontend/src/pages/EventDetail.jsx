@@ -132,7 +132,7 @@ const EventDetail = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="responsive-two-col">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>01 · ABOUT</div>
           <div className="panel" style={{ padding: 18 }}>

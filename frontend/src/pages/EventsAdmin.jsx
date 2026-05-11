@@ -81,7 +81,7 @@ const EventsAdmin = () => {
           <p>All event submissions have been reviewed.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 12 }}>
+        <div className="responsive-card-grid wide">
           {events.map((event) => (
             <article key={event.id} className="panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>

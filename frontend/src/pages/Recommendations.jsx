@@ -86,7 +86,7 @@ const Recommendations = () => {
       </div>
 
       {summary.total > 0 && (
-        <div className="panel" style={{ padding: 14, marginBottom: 24, background: 'var(--bg-2)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'center' }}>
+        <div className="panel panel-row" style={{ padding: 14, marginBottom: 24, background: 'var(--bg-2)' }}>
           <div>
             <div className="eyebrow" style={{ marginBottom: 4 }}>WHY THESE RESULTS</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
@@ -130,7 +130,7 @@ const Recommendations = () => {
           {top3.length > 0 && (
             <>
               <div className="eyebrow" style={{ marginBottom: 12 }}>01 · TOP MATCHES</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 28 }}>
+              <div className="responsive-card-grid compact" style={{ marginBottom: 28 }}>
                 {top3.map((rec, i) => {
                   const u = { ...(rec.user || rec), id: (rec.user?.id) || rec.target_user_id || rec.id };
                   if (!u.id) return null;
@@ -179,14 +179,14 @@ const Recommendations = () => {
           {rest.length > 0 && (
             <>
               <div className="eyebrow" style={{ marginBottom: 12 }}>02 · MORE TO EXPLORE</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 10 }}>
+              <div className="responsive-list-grid">
                 {rest.map((rec) => {
                   const u = { ...(rec.user || rec), id: (rec.user?.id) || rec.target_user_id || rec.id };
                   if (!u.id) return null;
                   const m = matchPct(rec);
                   const isConnected = connectedIds.has(u.id);
                   return (
-                    <div key={u.id} className="panel" style={{ padding: 12, display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: 10, alignItems: 'center' }}>
+                    <div key={u.id} className="panel recommendation-row" style={{ padding: 12, display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: 10, alignItems: 'center' }}>
                       <Avatar src={resolveUrl(u.photo_url)} name={u.name} size="m" />
                       <div style={{ minWidth: 0 }}>
                         <Link to={`/profile/${u.id}`} className="h3" style={{ fontSize: 13, color: 'var(--ink)' }}>{u.name}</Link>

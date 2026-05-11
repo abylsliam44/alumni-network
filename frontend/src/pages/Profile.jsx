@@ -174,7 +174,7 @@ const Profile = () => {
   return (
     <div>
       {notice && (
-        <div style={{ padding: '14px 36px 0' }}>
+        <div className="profile-notice-wrap" style={{ padding: '14px 36px 0' }}>
           <Alert type={notice.type === 'success' ? 'success' : 'error'}>{notice.message}</Alert>
         </div>
       )}
@@ -256,7 +256,7 @@ const Profile = () => {
         </div>
       </div>
 
-      <div style={{ padding: '20px 36px 0' }}>
+      <div className="profile-tabs-wrap" style={{ padding: '20px 36px 0' }}>
         <div className="tabs">
           {tabsList.map((t) => (
             <button key={t.k} className={`tab${activeTab === t.k ? ' active' : ''}`} onClick={() => setActiveTab(t.k)}>
@@ -266,9 +266,9 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className="page" style={{ padding: '24px 36px 36px' }}>
+      <div className="page profile-content-page" style={{ padding: '24px 36px 36px' }}>
         {activeTab === 'about' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
+          <div className="profile-about-grid">
             <div>
               <div className="eyebrow" style={{ marginBottom: 12 }}>01 · ABOUT</div>
               <div className="panel" style={{ padding: 16 }}>
@@ -415,7 +415,7 @@ const Profile = () => {
             {education.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {education.map((edu, i) => (
-                  <div key={i} className="panel" style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
+                  <div key={i} className="panel mobile-row-grid" style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
                     <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--ink)', color: 'var(--bg)', display: 'grid', placeItems: 'center', fontFamily: 'var(--mono)', fontWeight: 700 }}>
                       {(edu.school || '?').slice(0, 2).toUpperCase()}
                     </div>
@@ -457,7 +457,7 @@ const Profile = () => {
                 {profile.career_trajectory?.length > 0 && (
                   <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {profile.career_trajectory.map((step, i) => (
-                      <div key={i} className="panel" style={{ padding: 14, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
+                      <div key={i} className="panel mobile-row-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
                         <div className="numcap">{String(i + 1).padStart(2, '0')}</div>
                         <div>
                           <div className="h3">{step.label}</div>

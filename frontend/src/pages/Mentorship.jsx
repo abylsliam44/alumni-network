@@ -70,7 +70,7 @@ const Mentorship = () => {
       );
     }
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 12 }}>
+      <div className="responsive-card-grid mentorship">
         {items}
       </div>
     );

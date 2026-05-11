@@ -85,7 +85,7 @@ const Jobs = () => {
       </div>
 
       <div className="panel" style={{ padding: 16, marginBottom: 20 }}>
-        <form onSubmit={handleSearch} style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.5fr) 1fr 1fr auto auto', gap: 10, alignItems: 'flex-end' }}>
+        <form onSubmit={handleSearch} className="filter-grid jobs">
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Search</label>
             <input type="search" value={filters.query} onChange={(e) => setFilters({ ...filters, query: e.target.value })} placeholder="Title, company, skills…" />
@@ -116,7 +116,7 @@ const Jobs = () => {
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 12 }}>
+          <div className="responsive-card-grid">
             {jobs.map((job) => (
               <Link key={job.id} to={`/jobs/${job.id}`} className="panel" style={{ padding: 16, textDecoration: 'none', color: 'var(--ink)', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 12, alignItems: 'flex-start' }}>

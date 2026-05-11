@@ -120,7 +120,7 @@ const Friends = () => {
 
       {!loading && activeTab === 'friends' && (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className="mobile-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <input
               type="search"
               placeholder="Search connections…"
@@ -145,7 +145,7 @@ const Friends = () => {
           ) : (
             <div className="dir-grid">
               {filtered.map((f) => (
-                <div key={f.user.id} className="panel" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
+                <div key={f.user.id} className="panel mobile-row-grid" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
                   <Avatar src={resolveUrl(f.user.photo_url)} name={f.user.name} size="m" />
                   <div style={{ minWidth: 0 }}>
                     <div className="h3" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -154,7 +154,7 @@ const Friends = () => {
                     </div>
                     <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>{(f.user.role || '').toUpperCase()}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="mobile-row-actions" style={{ display: 'flex', gap: 6 }}>
                     <button className="btn sm" onClick={() => navigate(`/profile/${f.user.id}`)}>Profile</button>
                     <button className="btn sm primary" onClick={() => startChat(f.user.id)}><Icon name="msg" size={12} /> Message</button>
                   </div>
@@ -176,7 +176,7 @@ const Friends = () => {
           ) : (
             <div className="dir-grid">
               {incomingRequests.map((conn) => (
-                <div key={conn.id} className="panel" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
+                <div key={conn.id} className="panel mobile-row-grid" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
                   <Avatar src={resolveUrl(conn.requester?.photo_url)} name={conn.requester?.name} size="m" />
                   <div style={{ minWidth: 0 }}>
                     <div className="h3">{conn.requester?.name || 'Unknown'}</div>
@@ -184,7 +184,7 @@ const Friends = () => {
                       {(conn.requester?.role || '').toUpperCase()} · {new Date(conn.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="mobile-row-actions" style={{ display: 'flex', gap: 6 }}>
                     <button className="btn sm ghost" onClick={() => handleDecline(conn.id)} disabled={responding[conn.id]}>
                       {responding[conn.id] === 'd' ? 'Declining…' : 'Decline'}
                     </button>
@@ -210,7 +210,7 @@ const Friends = () => {
           ) : (
             <div className="dir-grid">
               {outgoingRequests.map((conn) => (
-                <div key={conn.id} className="panel" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
+                <div key={conn.id} className="panel mobile-row-grid" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
                   <Avatar src={resolveUrl(conn.recipient?.photo_url)} name={conn.recipient?.name} size="m" />
                   <div style={{ minWidth: 0 }}>
                     <div className="h3">{conn.recipient?.name || 'Unknown'}</div>

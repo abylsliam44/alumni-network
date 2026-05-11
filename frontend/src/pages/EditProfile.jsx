@@ -175,7 +175,7 @@ const EditProfile = () => {
             <p>JPG/PNG, up to 5MB.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 20, alignItems: 'flex-start' }}>
+          <div className="edit-photo-grid" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 20, alignItems: 'flex-start' }}>
             <div>
               <div style={{ position: 'relative' }}>
                 <Avatar src={resolveUrl(formData.photo_url)} name={formData.name} size="xxl" />
@@ -248,14 +248,14 @@ const EditProfile = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {formData.experience.map((exp, i) => (
-                <div key={i} className="panel" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                <div key={i} className="panel edit-list-row" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
                   <div>
                     <div className="h3">{exp.position}</div>
                     <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>
                       {(exp.company || '').toUpperCase()} · {exp.start_date || '?'} — {exp.current ? 'NOW' : (exp.end_date || '?')}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="mobile-row-actions" style={{ display: 'flex', gap: 6 }}>
                     <button type="button" className="btn sm ghost" onClick={() => openExpModal(exp, i)}>Edit</button>
                     <button type="button" className="btn sm ghost" onClick={() => removeExperience(i)}><Icon name="trash" size={12} /></button>
                   </div>
@@ -276,14 +276,14 @@ const EditProfile = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {formData.education.map((edu, i) => (
-                <div key={i} className="panel" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                <div key={i} className="panel edit-list-row" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
                   <div>
                     <div className="h3">{edu.school}</div>
                     <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>
                       {(edu.degree || '').toUpperCase()}{edu.field_of_study ? ` · ${edu.field_of_study.toUpperCase()}` : ''} · {edu.start_date || '?'} — {edu.end_date || 'NOW'}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="mobile-row-actions" style={{ display: 'flex', gap: 6 }}>
                     <button type="button" className="btn sm ghost" onClick={() => openEduModal(edu, i)}>Edit</button>
                     <button type="button" className="btn sm ghost" onClick={() => removeEducation(i)}><Icon name="trash" size={12} /></button>
                   </div>

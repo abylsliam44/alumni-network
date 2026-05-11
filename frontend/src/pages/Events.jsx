@@ -96,7 +96,7 @@ const Events = () => {
       </div>
 
       <div className="panel" style={{ padding: 16, marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.5fr) 1fr 1fr auto auto auto', gap: 10, alignItems: 'flex-end' }}>
+        <div className="filter-grid events">
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Search</label>
             <input type="search" value={filters.search} onChange={(e) => updateFilters({ search: e.target.value })} placeholder="Title, topic, organizer…" />
@@ -138,7 +138,7 @@ const Events = () => {
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 12 }}>
+          <div className="responsive-card-grid wide">
             {events.map((event) => {
               const dp = formatDateParts(event.start_time);
               const isHot = (new Date(event.start_time) - new Date()) < 1000 * 60 * 60 * 48;

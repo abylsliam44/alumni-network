@@ -127,7 +127,7 @@ const Opportunities = () => {
       </div>
 
       <div className="panel" style={{ padding: 16, marginBottom: 24 }}>
-        <form onSubmit={handleInterestSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'flex-end' }}>
+        <form onSubmit={handleInterestSubmit} className="filter-grid interest">
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Have a different interest? Generate a new roadmap</label>
             <input
@@ -155,7 +155,7 @@ const Opportunities = () => {
 
       {/* Hero card */}
       <div className="panel blue-tint" style={{ padding: 24, marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+        <div className="responsive-two-col">
           <div>
             <div className="eyebrow" style={{ marginBottom: 8, color: 'var(--blue)' }}>ROADMAP · MARKET SIGNAL</div>
             <h2 className="h2" style={{ marginBottom: 8, fontSize: 26 }}>{data.roadmap.target_direction}</h2>
@@ -237,7 +237,7 @@ const Opportunities = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20, alignItems: 'start' }}>
+      <div className="responsive-two-col content-heavy">
         {/* Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="panel">
@@ -324,7 +324,7 @@ const Opportunities = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="panel" style={{ padding: 18 }}>
             <div className="eyebrow" style={{ marginBottom: 8 }}>HOW THIS IS BUILT</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="stack-grid-2">
               <div className="panel" style={{ padding: 14, background: 'var(--bg-2)' }}>
                 <div className="h3">Observed from data</div>
                 <div className="mute" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
@@ -367,7 +367,7 @@ const Opportunities = () => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="stack-grid-2" style={{ gap: 16 }}>
             <div className="panel">
               <div className="panel-head"><h3>Where alumni land</h3></div>
               <div className="panel-body flush">
@@ -405,7 +405,7 @@ const Opportunities = () => {
             <div className="panel-head"><h3>Most common transitions</h3></div>
             <div className="panel-body">
               {data.transitions.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                <div className="responsive-card-grid compact" style={{ gap: 10 }}>
                   {data.transitions.map((t) => (
                     <div key={`${t.from_step}-${t.to_step}`} className="panel" style={{ padding: 12, background: 'var(--bg-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                       <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
