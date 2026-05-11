@@ -113,6 +113,9 @@ def _public_storage_endpoint(public_endpoint: str | None = None) -> str:
 
 
 def infer_public_storage_endpoint(request: Request) -> str:
+    if settings.MINIO_PUBLIC_ENDPOINT:
+        return _public_storage_endpoint()
+
     origin = (request.headers.get("origin") or "").strip()
     if origin:
         parsed = urlparse(origin)

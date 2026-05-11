@@ -25,6 +25,8 @@ services:
       - .env
     environment:
       - QDRANT_URL=http://qdrant:6333
+      - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
@@ -55,6 +57,8 @@ services:
       - ./backend:/app
       - backend_uploads:/app/uploads
     depends_on:
+      backend:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
@@ -90,6 +94,22 @@ services:
       timeout: 5s
       retries: 1
 
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: alumni-agent
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
   minio:
     image: minio/minio:latest
     container_name: alumni-minio
@@ -113,5 +133,3 @@ volumes:
   backend_uploads:
   qdrant_data:
   minio_data:
-
-
