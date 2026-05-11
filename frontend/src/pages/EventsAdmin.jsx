@@ -102,9 +102,9 @@ const EventsAdmin = () => {
                   <Icon name="mapPin" size={11} style={{ verticalAlign: 'middle' }} />{' '}
                   {(event.format === 'online' ? 'ONLINE' : event.location || 'IN-PERSON').toUpperCase()}
                 </div>
-                {event.creator && (
+                {event.organizer && (
                   <div className="mute mono" style={{ fontSize: 10.5 }}>
-                    <Icon name="user" size={11} style={{ verticalAlign: 'middle' }} /> {event.creator.first_name} {event.creator.last_name}
+                    <Icon name="user" size={11} style={{ verticalAlign: 'middle' }} /> {event.organizer.name}
                   </div>
                 )}
               </div>

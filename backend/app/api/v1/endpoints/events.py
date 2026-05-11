@@ -67,6 +67,10 @@ async def get_event_for_update_or_404(db: AsyncSession, event_id: UUID) -> Event
     return event
 
 
+def can_moderate_events(user: Optional[User]) -> bool:
+    return bool(user and (user.is_admin or user.role == UserRole.STAFF))
+
+
 async def get_registration_counts(db: AsyncSession, event_id: UUID) -> tuple[int, int]:
     """Get registered and waitlisted counts for an event."""
     registered = await db.execute(
@@ -220,7 +224,7 @@ async def list_events(
     """
     List events with filters.
     - Public users see only approved events
-    - Admins can see all events
+    - Staff/admins can see all events
     - Organizers can see their own draft/pending events
     """
     stmt = select(Event).options(selectinload(Event.organizer))
@@ -228,8 +232,8 @@ async def list_events(
     # Build filter conditions
     conditions = []
     
-    # Status filter - non-admins only see approved (unless it's their own event)
-    if current_user and current_user.is_admin:
+    # Status filter - non-moderators only see approved (unless it's their own event)
+    if can_moderate_events(current_user):
         if status:
             conditions.append(Event.status == EventStatus(status.value))
     else:
@@ -310,16 +314,9 @@ async def create_event(
 ) -> Any:
     """
     Create a new event.
-    Only Alumni and Admin users can create events.
-    Alumni/admin-created events are published immediately.
+    Any authenticated active user can create an event.
+    Events start as drafts and must be submitted for staff/admin approval.
     """
-    # Check if user can create events (Alumni or Admin)
-    if current_user.role != UserRole.ALUMNI and not current_user.is_admin:
-        raise HTTPException(
-            status_code=403,
-            detail="Only alumni and administrators can create events"
-        )
-    
     # Create event
     event = Event(
         title=event_in.title,
@@ -327,7 +324,7 @@ async def create_event(
         topic=event_in.topic,
         type=EventType(event_in.type.value),
         format=EventFormat(event_in.format.value),
-        status=EventStatus.APPROVED,
+        status=EventStatus.DRAFT,
         start_time=event_in.start_time,
         end_time=event_in.end_time,
         capacity=event_in.capacity,
@@ -335,8 +332,8 @@ async def create_event(
         online_link=event_in.online_link,
         company_name=event_in.company_name,
         organizer_id=current_user.id,
-        approved_by=current_user.id if current_user.is_admin else None,
-        approved_at=datetime.utcnow(),
+        approved_by=None,
+        approved_at=None,
         is_public=event_in.type != EventTypeEnum.INVITE_ONLY
     )
     db.add(event)
@@ -364,26 +361,6 @@ async def create_event(
             )
             db.add(material)
 
-    recipients_result = await db.execute(
-        select(User.id).where(
-            and_(
-                User.is_active.is_(True),
-                User.id != current_user.id,
-            )
-        )
-    )
-    for recipient_id in recipients_result.scalars():
-        db.add(
-            Notification(
-                user_id=recipient_id,
-                type=NotificationType.EVENT_APPROVED,
-                title="New Event Published",
-                message=f"{current_user.name} published '{event.title}'.",
-                reference_id=event.id,
-                actor_id=current_user.id,
-            )
-        )
-    
     await db.commit()
     await db.refresh(event)
     
@@ -414,7 +391,7 @@ async def get_event(
     if event.status != EventStatus.APPROVED:
         if not current_user:
             raise HTTPException(status_code=404, detail="Event not found")
-        if event.organizer_id != current_user.id and not current_user.is_admin:
+        if event.organizer_id != current_user.id and not can_moderate_events(current_user):
             raise HTTPException(status_code=404, detail="Event not found")
     
     reg_count, wait_count = await get_registration_counts(db, event.id)

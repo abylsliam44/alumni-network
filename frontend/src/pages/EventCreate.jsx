@@ -1,20 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { eventsApi } from '../api/events';
-import { useAuth } from '../hooks/useAuth';
 import Alert from '../components/ui/Alert';
 import Icon from '../components/ui/Icon';
 
+const toLocalDateTimePayload = (dateValue, timeValue) => {
+  if (!dateValue || !timeValue) return null;
+  const date = new Date(`${dateValue}T${timeValue}`);
+  return Number.isNaN(date.getTime()) ? null : `${dateValue}T${timeValue}:00`;
+};
+
 const EventCreate = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     title: '', topic: '', description: '',
     type: 'networking', format: 'offline',
-    start_time: '', end_time: '',
     capacity: '', location: '', online_link: '', company_name: '',
+  });
+  const [schedule, setSchedule] = useState({
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
   });
   const [speakers, setSpeakers] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -22,6 +31,7 @@ const EventCreate = () => {
   const [newMaterial, setNewMaterial] = useState({ title: '', url: '', type: 'other' });
 
   const handleChange = (e) => setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handleScheduleChange = (e) => setSchedule((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const addSpeaker = () => {
     if (!newSpeaker.name.trim()) return;
@@ -42,9 +52,15 @@ const EventCreate = () => {
     try {
       if (!formData.title.trim()) throw new Error('Title is required');
       if (!formData.topic.trim()) throw new Error('Topic is required');
-      if (!formData.start_time) throw new Error('Start time is required');
+      const startTime = toLocalDateTimePayload(schedule.startDate, schedule.startTime);
+      const endDate = schedule.endDate || (schedule.endTime ? schedule.startDate : '');
+      const endTime = toLocalDateTimePayload(endDate, schedule.endTime);
+      if (!startTime) throw new Error('Start date and time are required');
+      if (schedule.endDate && !schedule.endTime) throw new Error('End time is required when end date is set');
       const payload = {
         ...formData,
+        start_time: startTime,
+        end_time: endTime,
         capacity: formData.capacity ? parseInt(formData.capacity, 10) : null,
         speakers: speakers.map(({ name, link }) => ({ name, link: link || null })),
         materials: materials.map(({ title, url, type }) => ({ title, url, type })),
@@ -56,25 +72,15 @@ const EventCreate = () => {
     } finally { setLoading(false); }
   };
 
-  if (!user || (user.role !== 'ALUMNI' && !user.is_admin)) {
-    return (
-      <div className="page">
-        <div className="empty-block">
-          <Icon name="alert" size={28} />
-          <h3>Restricted</h3>
-          <p>Only alumni and administrators can create events.</p>
-          <button className="btn" onClick={() => navigate('/events')}>Back to events</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>EVENTS · NEW</div>
           <h1 className="h1">Create an <i>event</i>.</h1>
+          <p className="dim" style={{ margin: '8px 0 0', fontSize: 13 }}>
+            Events are saved as drafts first. Submit for staff review when it is ready to publish.
+          </p>
         </div>
         <div className="page-head-actions">
           <button className="btn ghost" onClick={() => navigate('/events')}>Cancel</button>
@@ -123,8 +129,18 @@ const EventCreate = () => {
         <div className="form-card">
           <div className="form-card-head"><h3>When & where</h3></div>
           <div className="form-row">
-            <div className="form-group"><label>Start time *</label><input type="datetime-local" name="start_time" value={formData.start_time} onChange={handleChange} required /></div>
-            <div className="form-group"><label>End time</label><input type="datetime-local" name="end_time" value={formData.end_time} onChange={handleChange} /></div>
+            <div className="form-group"><label>Start date *</label><input type="date" name="startDate" value={schedule.startDate} onChange={handleScheduleChange} required /></div>
+            <div className="form-group">
+              <label>Start time *</label>
+              <input type="time" name="startTime" value={schedule.startTime} onChange={handleScheduleChange} step="900" required />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label>End date</label><input type="date" name="endDate" value={schedule.endDate} onChange={handleScheduleChange} /></div>
+            <div className="form-group">
+              <label>End time</label>
+              <input type="time" name="endTime" value={schedule.endTime} onChange={handleScheduleChange} step="900" />
+            </div>
           </div>
           <div className="form-row">
             <div className="form-group"><label>Capacity</label><input type="number" min="1" name="capacity" value={formData.capacity} onChange={handleChange} placeholder="e.g. 80" /></div>
@@ -199,7 +215,7 @@ const EventCreate = () => {
 
         <div className="form-actions">
           <button type="button" className="btn ghost" onClick={() => navigate('/events')}>Cancel</button>
-          <button type="submit" className="btn primary" disabled={loading}>{loading ? 'Creating…' : 'Create event'}</button>
+          <button type="submit" className="btn primary" disabled={loading}>{loading ? 'Creating...' : 'Create draft'}</button>
         </div>
       </form>
     </div>

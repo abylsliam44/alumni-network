@@ -70,7 +70,7 @@ const Events = () => {
     catch (err) { alert(err.response?.data?.detail || 'Failed to unregister'); }
   };
 
-  const canCreateEvent = user && (user.role === 'ALUMNI' || user.is_admin);
+  const canCreateEvent = Boolean(user);
   const canApproveEvents = user?.is_admin || user?.role === 'STAFF';
   const hasActiveFilters = Boolean(filters.type || filters.format || filters.search || !filters.upcoming_only);
 

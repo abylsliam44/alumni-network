@@ -72,6 +72,16 @@ const EventDetail = () => {
     try { await eventsApi.submitForApproval(eventId); fetchEvent(); }
     catch (err) { alert(err.response?.data?.detail || 'Failed to submit'); }
   };
+  const handleApprove = async () => {
+    try { await eventsApi.approve(eventId); fetchEvent(); }
+    catch (err) { alert(err.response?.data?.detail || 'Failed to approve event'); }
+  };
+  const handleReject = async () => {
+    const reason = window.prompt('Reason for rejection (optional):');
+    if (reason === null) return;
+    try { await eventsApi.reject(eventId, reason); fetchEvent(); }
+    catch (err) { alert(err.response?.data?.detail || 'Failed to reject event'); }
+  };
   const handleCancel = async () => {
     if (!window.confirm('Cancel this event? All participants will be notified.')) return;
     try { await eventsApi.cancel(eventId); fetchEvent(); }
@@ -99,6 +109,7 @@ const EventDetail = () => {
   const hasStarted = new Date(event.start_time) <= new Date();
   const isOrganizer = user && event.organizer_id === user.id;
   const isAdmin = user?.is_admin;
+  const canReview = user && (user.is_admin || user.role === 'STAFF');
   const canManage = isOrganizer || isAdmin;
 
   const tabs = [
@@ -156,14 +167,20 @@ const EventDetail = () => {
             </>
           )}
 
-          {canManage && (
+          {(canManage || canReview) && (
             <>
               <div className="eyebrow" style={{ margin: '24px 0 10px' }}>EVENT MANAGEMENT</div>
               <div className="panel" style={{ padding: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {event.status === 'draft' && (
+                {isOrganizer && event.status === 'draft' && (
                   <button className="btn primary" onClick={handleSubmitForApproval}>Submit for approval</button>
                 )}
-                {event.status !== 'cancelled' && event.status !== 'completed' && (
+                {canReview && event.status === 'pending' && (
+                  <>
+                    <button className="btn primary" onClick={handleApprove}>Approve</button>
+                    <button className="btn ghost" onClick={handleReject}>Reject</button>
+                  </>
+                )}
+                {canManage && event.status !== 'cancelled' && event.status !== 'completed' && (
                   <button className="btn ghost" onClick={handleCancel}>Cancel event</button>
                 )}
               </div>
