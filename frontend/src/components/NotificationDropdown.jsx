@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { notificationsApi } from '../api/notifications';
+import Icon from './ui/Icon';
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -124,7 +125,9 @@ const NotificationDropdown = () => {
         className={`notif-trigger ${unreadCount > 0 ? 'has-unread' : ''}`}
         onClick={handleToggle}
         aria-label="Notifications"
+        title="Notifications"
       >
+        <Icon name="bell" />
         <span className="notif-trigger-text">Notifications</span>
         {unreadCount > 0 && (
           <span className="notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>

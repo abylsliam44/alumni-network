@@ -2,32 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { opportunitiesApi } from '../api/opportunities';
 import { useAuth } from '../hooks/useAuth';
-
-const BoltIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
-  </svg>
-);
-
-const CompassIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-  </svg>
-);
-
-const BuildingIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="2" width="18" height="20" rx="2" />
-    <path d="M9 22v-4h6v4" />
-    <path d="M8 6h.01" />
-    <path d="M16 6h.01" />
-    <path d="M8 10h.01" />
-    <path d="M16 10h.01" />
-    <path d="M8 14h.01" />
-    <path d="M16 14h.01" />
-  </svg>
-);
+import Pill from '../components/ui/Pill';
+import NumCap from '../components/ui/NumCap';
+import Icon from '../components/ui/Icon';
 
 const Opportunities = () => {
   const { user, loading: authLoading } = useAuth();
@@ -50,8 +27,7 @@ const Opportunities = () => {
     interestValue = appliedInterest,
   ) => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       const response = await opportunitiesApi.getMe(directionKey, scopeValue, graduationYearValue, interestValue);
       setData(response);
       setActiveDirectionKey(response.roadmap.target_direction_key);
@@ -64,60 +40,37 @@ const Opportunities = () => {
       if (err.response?.status === 409) {
         navigate('/dashboard', {
           replace: true,
-          state: {
-            opportunityGenerationStarted: true,
-            opportunityInterest: appliedInterest || interestInput || null,
-          },
+          state: { opportunityGenerationStarted: true, opportunityInterest: appliedInterest || interestInput || null },
         });
         return;
       }
       setError(err.response?.data?.detail || 'Failed to build your opportunity roadmap');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   useEffect(() => {
-    if (authLoading || isBlocked) {
-      return;
-    }
+    if (authLoading || isBlocked) return;
     loadData();
+    /* eslint-disable-next-line */
   }, [authLoading, isBlocked]);
 
-  if (authLoading) {
-    return null;
-  }
+  if (authLoading) return null;
+  if (isBlocked) return <Navigate to="/dashboard" replace />;
 
-  if (isBlocked) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const handleInterestSubmit = (event) => {
-    event.preventDefault();
-    const trimmedInterest = interestInput.trim();
-    if (!trimmedInterest) {
-      return;
-    }
-
-    setInterestSubmitting(true);
-    setError(null);
-    opportunitiesApi.generateInterest(trimmedInterest)
-      .then(() => {
-        navigate('/dashboard', {
-          replace: true,
-          state: {
-            opportunityGenerationStarted: true,
-            opportunityInterest: trimmedInterest,
-          },
-        });
-      })
+  const handleInterestSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = interestInput.trim(); if (!trimmed) return;
+    setInterestSubmitting(true); setError(null);
+    opportunitiesApi.generateInterest(trimmed)
+      .then(() => navigate('/dashboard', {
+        replace: true,
+        state: { opportunityGenerationStarted: true, opportunityInterest: trimmed },
+      }))
       .catch((err) => {
         console.error(err);
         setError(err.response?.data?.detail || 'Failed to start roadmap generation');
       })
-      .finally(() => {
-        setInterestSubmitting(false);
-      });
+      .finally(() => setInterestSubmitting(false));
   };
 
   const handleInterestReset = async () => {
@@ -126,286 +79,209 @@ const Opportunities = () => {
       await opportunitiesApi.clearInterest();
       loadData(null, currentScope, selectedGraduationYear, null);
     } catch (err) {
-      console.error(err);
       setError(err.response?.data?.detail || 'Failed to reset custom roadmap');
     }
   };
 
-  const metrics = useMemo(() => {
-    if (!data) {
-      return [];
-    }
-    return [
-      { label: 'Alumni Signals', value: data.market_snapshot.alumni_count, icon: <CompassIcon /> },
-      { label: 'Directions', value: data.market_snapshot.direction_count, icon: <BoltIcon /> },
-      { label: 'Gap Skills', value: data.context.gaps.length, icon: <BuildingIcon /> },
-    ];
-  }, [data]);
-
   const companyChartMax = useMemo(
-    () => Math.max(...(data?.market_snapshot.company_chart || []).map((item) => item.count), 1),
+    () => Math.max(...(data?.market_snapshot.company_chart || []).map((it) => it.count), 1),
     [data],
   );
-
   const roleChartMax = useMemo(
-    () => Math.max(...(data?.market_snapshot.role_chart || []).map((item) => item.count), 1),
+    () => Math.max(...(data?.market_snapshot.role_chart || []).map((it) => it.count), 1),
     [data],
   );
 
-  if (loading) {
-    return (
-      <div className="opp-page">
-        <div className="opp-loading-card">
-          <div className="opp-loading-grid">
-            <span />
-            <span />
-            <span />
-          </div>
-          <h2>Building your roadmap</h2>
-          <p>We are mapping your skills against confirmed alumni outcomes.</p>
-        </div>
+  if (loading) return <div className="page"><div className="loading-block">Building roadmap · mapping signals</div></div>;
+
+  if (error) return (
+    <div className="page">
+      <div className="empty-block">
+        <Icon name="alert" size={28} />
+        <h3>Unable to load your opportunities</h3>
+        <p>{error}</p>
+        <button className="btn" onClick={() => loadData()}>Try again</button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error) {
-      return (
-        <div className="opp-page">
-          <div className="opp-empty-state">
-            <h2>Unable to load your opportunities</h2>
-            <p>{error}</p>
-          <button className="opp-cta-button" onClick={() => loadData()}>Try Again</button>
-          </div>
-        </div>
-      );
-    }
-
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
 
   return (
-    <div className="opp-page">
-      <section className="opp-ai-banner">
-        <div className="opp-ai-copy">
-          <span className="opp-ai-kicker">AI Track Suggestion</span>
-          <h3>
+    <div className="page">
+      {/* Hero */}
+      <div className="page-head">
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>OPPORTUNITIES · QDRANT EMBEDDINGS</div>
+          <h1 className="h1">
             {data.context.using_custom_interest
-              ? `You asked us to explore ${data.context.requested_interest}`
-              : `We think your track of interest is ${data.roadmap.target_direction}`}
-          </h3>
-          <p>
+              ? <>Exploring <i>{data.context.requested_interest}</i></>
+              : <>Your track of interest is <i>{data.roadmap.target_direction}</i></>}
+          </h1>
+          <p className="dim" style={{ marginTop: 12, fontSize: 14, lineHeight: 1.5, maxWidth: 720 }}>
             {data.context.using_custom_interest
-              ? `We matched your input to the closest alumni-backed track and regenerated the roadmap around it.`
-              : `This is an AI-generated suggestion based on your profile signal and observed alumni outcomes, not a fixed rule.`}
+              ? 'We matched your input to the closest alumni-backed track and regenerated the roadmap around it.'
+              : 'AI-generated suggestion based on your profile signal and observed alumni outcomes.'}
           </p>
         </div>
+      </div>
 
-        <div className="opp-ai-side">
-          <form className="opp-interest-form" onSubmit={handleInterestSubmit}>
-            <label htmlFor="opp-interest-input" className="opp-interest-label">
-              If you have a different interest, type it here
-            </label>
-            <div className="opp-interest-controls">
-              <input
-                id="opp-interest-input"
-                type="text"
-                className="opp-interest-input"
-                value={interestInput}
-                onChange={(event) => setInterestInput(event.target.value)}
-                placeholder="Example: product management, cybersecurity, data engineering"
-              />
-              {appliedInterest && (
-                <button
-                  type="button"
-                  className="opp-interest-secondary"
-                  onClick={handleInterestReset}
-                  disabled={interestSubmitting}
-                >
-                  Reset
-                </button>
-              )}
-              <button
-                type="submit"
-                className="opp-interest-submit"
-                disabled={interestSubmitting || !interestInput.trim()}
-              >
-                {interestSubmitting ? 'Starting...' : 'Generate'}
-              </button>
-            </div>
-          </form>
-
-          <div className="opp-intro-side">
-            {metrics.map((item) => (
-              <div key={item.label} className="opp-intro-metric">
-                {item.icon}
-                <strong>{item.value}</strong>
-                <span>{item.label}</span>
-              </div>
-            ))}
+      <div className="panel" style={{ padding: 16, marginBottom: 24 }}>
+        <form onSubmit={handleInterestSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Have a different interest? Generate a new roadmap</label>
+            <input
+              type="text" value={interestInput}
+              onChange={(e) => setInterestInput(e.target.value)}
+              placeholder="e.g. product management, cybersecurity, data engineering"
+            />
           </div>
-        </div>
-      </section>
+          {appliedInterest && (
+            <button type="button" className="btn ghost" onClick={handleInterestReset} disabled={interestSubmitting}>
+              Reset
+            </button>
+          )}
+          <button type="submit" className="btn primary" disabled={interestSubmitting || !interestInput.trim()}>
+            <Icon name="spark" size={12} /> {interestSubmitting ? 'Starting…' : 'Generate'}
+          </button>
+        </form>
+      </div>
 
-      <section className="opp-hero-card">
-        <div className="opp-hero-copy">
-          <span className="opp-kicker">Roadmap + Market Signal</span>
-          <div className="opp-hero-note">
-            {data.context.using_custom_interest ? (
-              <>Your custom interest is <strong>{data.roadmap.target_direction}</strong></>
-            ) : (
-              <>We think that your track of interest is <strong>{data.roadmap.target_direction}</strong></>
+      <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 24 }}>
+        <div className="stat"><div className="stat-label">Alumni signals</div><div className="stat-num blue">{data.market_snapshot.alumni_count}</div><div className="stat-sub">used to compute roadmap</div></div>
+        <div className="stat"><div className="stat-label">Directions</div><div className="stat-num">{data.market_snapshot.direction_count}</div><div className="stat-sub">tracks suggested</div></div>
+        <div className="stat"><div className="stat-label">Skill gaps</div><div className="stat-num warm">{data.context.gaps.length}</div><div className="stat-sub">to focus next</div></div>
+      </div>
+
+      {/* Hero card */}
+      <div className="panel blue-tint" style={{ padding: 24, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 8, color: 'var(--blue)' }}>ROADMAP · MARKET SIGNAL</div>
+            <h2 className="h2" style={{ marginBottom: 8, fontSize: 26 }}>{data.roadmap.target_direction}</h2>
+            <p className="dim" style={{ fontSize: 13.5, lineHeight: 1.6 }}>{data.roadmap.rationale}</p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+              <Pill tone="blue" dot>{data.roadmap.match_score}% match</Pill>
+              <Pill>{data.roadmap.role_family.replace('-', ' ')}</Pill>
+            </div>
+            {data.roadmap.observed_outcomes?.length > 0 && (
+              <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--ink-2)' }}>
+                <b style={{ color: 'var(--ink)' }}>Observed roles:</b> {data.roadmap.observed_outcomes.join(', ')}
+              </div>
             )}
           </div>
-          <h2>{data.roadmap.target_direction}</h2>
-          <p>{data.roadmap.rationale}</p>
-          <div className="opp-chip-row compact">
-            <span className="opp-chip">{data.roadmap.match_score}% match</span>
-            <span className="opp-chip">{data.roadmap.role_family.replace('-', ' ')}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="panel" style={{ padding: 14, background: 'var(--bg-2)' }}>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>YOU ALREADY HAVE</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {(data.context.strengths.length ? data.context.strengths : data.context.current_skills.slice(0, 4)).map((s) => (
+                  <span key={s} className="chip skill blue">{s}</span>
+                ))}
+              </div>
+            </div>
+            <div className="panel" style={{ padding: 14, background: 'var(--bg-2)' }}>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>FOCUS NEXT</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {(data.context.gaps.length ? data.context.gaps : ['Add more skills']).map((s) => (
+                  <span key={s} className="chip skill warm">{s}</span>
+                ))}
+              </div>
+            </div>
           </div>
-          {data.roadmap.observed_outcomes?.length > 0 && (
-            <div className="opp-observed-copy">
-              <strong>Observed role titles in this track:</strong>
-              <span>{data.roadmap.observed_outcomes.join(', ')}</span>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="panel" style={{ padding: 14, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>SCOPE</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {data.filters.available_scopes.map((scope) => (
+                <button
+                  key={scope} type="button"
+                  className={`chip${data.filters.current_scope === scope ? ' blue' : ''}`}
+                  onClick={() => loadData(activeDirectionKey, scope, selectedGraduationYear)}
+                  style={{ cursor: 'pointer', fontFamily: 'var(--mono)' }}
+                >
+                  {scope}
+                </button>
+              ))}
+            </div>
+          </div>
+          {data.filters.available_graduation_years.length > 0 && (
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>GRADUATION YEAR</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`chip${!data.filters.selected_graduation_year ? ' blue' : ''}`}
+                  onClick={() => loadData(activeDirectionKey, currentScope, null)}
+                  style={{ cursor: 'pointer', fontFamily: 'var(--mono)' }}
+                >
+                  all
+                </button>
+                {data.filters.available_graduation_years.map((year) => (
+                  <button
+                    key={year} type="button"
+                    className={`chip${data.filters.selected_graduation_year === year ? ' blue' : ''}`}
+                    onClick={() => loadData(activeDirectionKey, currentScope, year)}
+                    style={{ cursor: 'pointer', fontFamily: 'var(--mono)' }}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
+      </div>
 
-        <div className="opp-hero-panels">
-          <div className="opp-signal-card is-positive">
-            <h3>You already have</h3>
-            <div className="opp-chip-row">
-              {(data.context.strengths.length ? data.context.strengths : data.context.current_skills.slice(0, 4)).map((skill) => (
-                <span key={skill} className="opp-chip">{skill}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20, alignItems: 'start' }}>
+        {/* Sidebar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="panel">
+            <div className="panel-head">
+              <h3>Cohort snapshot</h3>
+              <span className="mono mute" style={{ fontSize: 10 }}>{data.context.cohort_label}</span>
+            </div>
+            <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                ['Top roles', data.market_snapshot.top_roles.slice(0, 3).join(', ') || '—'],
+                ['Top companies', data.market_snapshot.top_companies.slice(0, 3).join(', ') || '—'],
+                ['Your scope', data.context.program || data.context.faculty || 'Platform-wide'],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5 }}>
+                  <span className="mute mono" style={{ fontSize: 10.5 }}>{k.toUpperCase()}</span>
+                  <span style={{ color: 'var(--ink)', textAlign: 'right' }}>{v}</span>
+                </div>
               ))}
             </div>
           </div>
 
-          <div className="opp-signal-card is-warning">
-            <h3>Focus next</h3>
-            <div className="opp-chip-row">
-              {(data.context.gaps.length ? data.context.gaps : ['Add more skills to unlock sharper guidance']).map((skill) => (
-                <span key={skill} className="opp-chip">{skill}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="opp-filter-bar">
-        <div className="opp-filter-group">
-          <span className="opp-filter-label">Scope</span>
-          <div className="opp-filter-options">
-            {data.filters.available_scopes.map((scope) => (
-              <button
-                key={scope}
-                type="button"
-                className={`opp-filter-pill ${data.filters.current_scope === scope ? 'active' : ''}`}
-                onClick={() => loadData(activeDirectionKey, scope, selectedGraduationYear)}
-              >
-                {scope}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {data.filters.available_graduation_years.length > 0 && (
-          <div className="opp-filter-group">
-            <span className="opp-filter-label">Graduation year</span>
-            <div className="opp-filter-options">
-              <button
-                type="button"
-                className={`opp-filter-pill ${!data.filters.selected_graduation_year ? 'active' : ''}`}
-                onClick={() => loadData(activeDirectionKey, currentScope, null)}
-              >
-                all
-              </button>
-              {data.filters.available_graduation_years.map((year) => (
-                <button
-                  key={year}
-                  type="button"
-                  className={`opp-filter-pill ${data.filters.selected_graduation_year === year ? 'active' : ''}`}
-                  onClick={() => loadData(activeDirectionKey, currentScope, year)}
-                >
-                  {year}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <div className="opp-grid">
-        <aside className="opp-sidebar">
-          <div className="opp-panel">
-            <div className="opp-panel-header">
-              <div>
-                <span className="opp-panel-kicker">Cohort Snapshot</span>
-                <h3>{data.context.cohort_label}</h3>
-              </div>
-            </div>
-
-            <div className="opp-stats-list">
-              <div className="opp-stat-row">
-                <span>Top roles</span>
-                <strong>{data.market_snapshot.top_roles.slice(0, 3).join(', ') || 'Insufficient data'}</strong>
-              </div>
-              <div className="opp-stat-row">
-                <span>Top companies</span>
-                <strong>{data.market_snapshot.top_companies.slice(0, 3).join(', ') || 'Insufficient data'}</strong>
-              </div>
-              <div className="opp-stat-row">
-                <span>Your scope</span>
-                <strong>{data.context.program || data.context.faculty || 'AITU-wide'}</strong>
-              </div>
-            </div>
-
-            {data.market_snapshot.insights.length > 0 && (
-              <div className="opp-insight-list">
-                {data.market_snapshot.insights.map((insight) => (
-                  <div key={insight} className="opp-insight-item">{insight}</div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="opp-panel">
-            <div className="opp-panel-header">
-              <div>
-                <span className="opp-panel-kicker">Recommended Directions</span>
-                <h3>Directions with the strongest signal</h3>
-              </div>
-            </div>
-
-            <div className="opp-direction-list">
+          <div className="panel">
+            <div className="panel-head"><h3>Recommended directions</h3></div>
+            <div className="panel-body flush">
               {data.directions.map((direction) => (
                 <button
-                  key={direction.key}
-                  type="button"
-                  className={`opp-direction-card ${direction.key === activeDirectionKey ? 'active' : ''}`}
-                  onClick={() => {
-                    setInterestInput('');
-                    loadData(direction.key, currentScope, selectedGraduationYear, null);
+                  key={direction.key} type="button"
+                  className="list-row"
+                  onClick={() => { setInterestInput(''); loadData(direction.key, currentScope, selectedGraduationYear, null); }}
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    background: direction.key === activeDirectionKey ? 'var(--surface-2)' : 'transparent',
+                    border: 'none', borderTop: '1px solid var(--line-soft)', cursor: 'pointer',
+                    display: 'block', padding: '14px 16px',
                   }}
                 >
-                  <div className="opp-direction-topline">
-                    <h4>{direction.title}</h4>
-                    <span>{direction.match_score}%</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                    <h4 className="h3" style={{ fontSize: 13 }}>{direction.title}</h4>
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--blue)' }}>{direction.match_score}%</span>
                   </div>
-                  <p>{direction.alumni_count} alumni currently contribute to this track</p>
-                  {direction.top_outcomes?.length > 0 && (
-                    <div className="opp-direction-outcomes">
-                      Observed outcomes: {direction.top_outcomes.join(', ')}
-                    </div>
-                  )}
-                  <div className="opp-chip-row compact">
-                    {direction.common_skills.slice(0, 4).map((skill) => (
-                      <span key={`${direction.key}-${skill}`} className="opp-chip">{skill}</span>
-                    ))}
-                  </div>
-                  {direction.representative_path?.length > 0 && (
-                    <div className="opp-direction-path">
-                      {direction.representative_path.slice(0, 3).join(' → ')}
+                  <div className="mute" style={{ fontSize: 11.5 }}>{direction.alumni_count} alumni</div>
+                  {direction.common_skills.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                      {direction.common_skills.slice(0, 4).map((s) => <span key={s} className="chip skill">{s}</span>)}
                     </div>
                   )}
                 </button>
@@ -413,196 +289,151 @@ const Opportunities = () => {
             </div>
           </div>
 
-          <div className="opp-panel">
-            <div className="opp-panel-header">
-              <div>
-                <span className="opp-panel-kicker">Outcome Charts</span>
-                <h3>Where this cohort lands</h3>
-              </div>
-            </div>
-
-            <div className="opp-chart-block">
-              <h4>Top Companies</h4>
-              <div className="opp-chart-list">
-                {data.market_snapshot.company_chart.map((item) => (
-                  <div key={item.label} className="opp-chart-row">
-                    <div className="opp-chart-copy">
-                      <span>{item.label}</span>
-                      <strong>{item.count}</strong>
-                    </div>
-                    <div className="opp-chart-bar-track">
-                      <div className="opp-chart-bar-fill" style={{ width: `${(item.count / companyChartMax) * 100}%` }} />
-                    </div>
+          <div className="panel">
+            <div className="panel-head"><h3>Outcome charts</h3></div>
+            <div className="panel-body">
+              <div className="eyebrow" style={{ marginBottom: 8 }}>TOP COMPANIES</div>
+              {data.market_snapshot.company_chart.map((it) => (
+                <div key={it.label} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                    <span style={{ color: 'var(--ink-2)' }}>{it.label}</span>
+                    <span className="mono" style={{ color: 'var(--blue)' }}>{it.count}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="opp-chart-block">
-              <h4>Top Roles</h4>
-              <div className="opp-chart-list">
-                {data.market_snapshot.role_chart.map((item) => (
-                  <div key={item.label} className="opp-chart-row">
-                    <div className="opp-chart-copy">
-                      <span>{item.label}</span>
-                      <strong>{item.count}</strong>
-                    </div>
-                    <div className="opp-chart-bar-track">
-                      <div className="opp-chart-bar-fill is-role" style={{ width: `${(item.count / roleChartMax) * 100}%` }} />
-                    </div>
+                  <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2 }}>
+                    <div style={{ width: `${(it.count / companyChartMax) * 100}%`, height: '100%', background: 'var(--blue)', borderRadius: 2 }} />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+              <div className="eyebrow" style={{ margin: '14px 0 8px' }}>TOP ROLES</div>
+              {data.market_snapshot.role_chart.map((it) => (
+                <div key={it.label} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                    <span style={{ color: 'var(--ink-2)' }}>{it.label}</span>
+                    <span className="mono" style={{ color: 'var(--warm)' }}>{it.count}</span>
+                  </div>
+                  <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2 }}>
+                    <div style={{ width: `${(it.count / roleChartMax) * 100}%`, height: '100%', background: 'var(--warm)', borderRadius: 2 }} />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </aside>
+        </div>
 
-        <section className="opp-main">
-          <div className="opp-panel opp-transparency-panel">
-            <div className="opp-panel-header">
-              <div>
-                <span className="opp-panel-kicker">How This Is Built</span>
-                <h3>Observed data vs suggested roadmap</h3>
+        {/* Main */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="panel" style={{ padding: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>HOW THIS IS BUILT</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="panel" style={{ padding: 14, background: 'var(--bg-2)' }}>
+                <div className="h3">Observed from data</div>
+                <div className="mute" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+                  Top roles, companies, transitions, and trajectories aggregated from confirmed alumni records.
+                </div>
               </div>
-            </div>
-
-            <div className="opp-transparency-grid">
-              <div className="opp-transparency-card">
-                <strong>Observed from alumni data</strong>
-                <p>Top roles, companies, transitions, cohort charts, and sample trajectories are aggregated from confirmed alumni records in the database.</p>
-              </div>
-              <div className="opp-transparency-card">
-                <strong>Suggested roadmap</strong>
-                <p>The stage layout is generated from the observed track, your current skills, and the common signals in that cohort. It is guidance, not ground truth.</p>
+              <div className="panel" style={{ padding: 14, background: 'var(--bg-2)' }}>
+                <div className="h3">Suggested roadmap</div>
+                <div className="mute" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+                  Stage layout generated from the observed track, your skills, and cohort signals. Guidance, not ground truth.
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="opp-panel opp-roadmap-panel">
-            <div className="opp-panel-header">
-              <div>
-                <span className="opp-panel-kicker">Personal Roadmap</span>
-                <h3>Your next path to {data.roadmap.target_direction}</h3>
+          <div className="panel">
+            <div className="panel-head">
+              <div className="panel-head-title">
+                <NumCap n={1} />
+                <h3>Personal roadmap to {data.roadmap.target_direction}</h3>
               </div>
-              <div className="opp-roadmap-badge">{data.roadmap.role_family.replace('-', ' ')}</div>
+              <Pill>{data.roadmap.role_family.replace('-', ' ')}</Pill>
             </div>
-
-            <div className="opp-roadmap-flow">
-              {data.roadmap.stages.map((stage, index) => (
-                <div key={stage.key} className={`opp-roadmap-stage ${stage.status}`}>
-                  <div className="opp-stage-index">{String(index + 1).padStart(2, '0')}</div>
-                  <div className="opp-stage-card">
-                    <div className="opp-stage-header">
-                      <div>
-                        <span className="opp-stage-kicker">{stage.status}</span>
-                        <h4>{stage.title}</h4>
-                        {stage.subtitle && <p>{stage.subtitle}</p>}
-                      </div>
-                    </div>
-                    <div className="opp-stage-items">
-                      {stage.items.map((item) => (
-                        <div key={`${stage.key}-${item}`} className="opp-stage-item">{item}</div>
-                      ))}
+            <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {data.roadmap.stages.map((stage, i) => (
+                <div key={stage.key} className="panel" style={{ padding: 14, background: stage.status === 'current' ? 'var(--blue-soft)' : 'var(--bg-2)', borderColor: stage.status === 'current' ? 'var(--blue-line)' : 'var(--line-soft)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <span className="numcap">{String(i + 1).padStart(2, '0')}</span>
+                    <div style={{ flex: 1 }}>
+                      <div className="mono mute" style={{ fontSize: 10 }}>{(stage.status || '').toUpperCase()}</div>
+                      <h4 className="h3" style={{ fontSize: 14 }}>{stage.title}</h4>
+                      {stage.subtitle && <div className="mute" style={{ fontSize: 12, marginTop: 2 }}>{stage.subtitle}</div>}
                     </div>
                   </div>
-                  {index < data.roadmap.stages.length - 1 && <div className="opp-stage-connector" aria-hidden="true" />}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 10, borderTop: '1px dashed var(--line-soft)' }}>
+                    {stage.items.map((it) => <span key={it} className="chip skill">{it}</span>)}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="opp-lower-grid">
-            <div className="opp-panel">
-              <div className="opp-panel-header">
-                <div>
-                  <span className="opp-panel-kicker">Where Alumni Land</span>
-                  <h3>Companies with strongest signal</h3>
-                </div>
-              </div>
-
-              <div className="opp-company-stack">
-                {(data.roadmap.top_companies.length ? data.roadmap.top_companies : data.market_snapshot.top_companies).map((company, index) => (
-                  <div key={company} className="opp-company-row">
-                    <span>{String(index + 1).padStart(2, '0')}</span>
-                    <strong>{company}</strong>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="panel">
+              <div className="panel-head"><h3>Where alumni land</h3></div>
+              <div className="panel-body flush">
+                {(data.roadmap.top_companies.length ? data.roadmap.top_companies : data.market_snapshot.top_companies).map((company, i) => (
+                  <div key={company} className="list-row">
+                    <span className="numcap" style={{ fontSize: 22 }}>{String(i + 1).padStart(2, '0')}</span>
+                    <strong style={{ fontSize: 13.5 }}>{company}</strong>
                   </div>
                 ))}
               </div>
             </div>
-
-            <div className="opp-panel">
-              <div className="opp-panel-header">
-                <div>
-                  <span className="opp-panel-kicker">Sample Trajectories</span>
-                  <h3>Observed roadmap patterns in confirmed data</h3>
-                </div>
-              </div>
-
-              <div className="opp-path-list">
-                {data.roadmap.real_paths.length > 0 ? data.roadmap.real_paths.map((item, index) => (
-                  <article key={`${item.alumni_name}-${item.path.join('-')}`} className="opp-path-card">
-                    <div className="opp-path-card-head">
-                      <strong>Trajectory {String(index + 1).padStart(2, '0')}</strong>
-                    </div>
-                    <p>{item.path[item.path.length - 1] || 'Observed cohort outcome'}</p>
-                    <div className="opp-path-ribbon">
-                      {item.path.map((step, index) => (
-                        <div key={`${step}-${index}`} className="opp-path-step">
-                          <span>{step}</span>
-                          {index < item.path.length - 1 && <i aria-hidden="true">→</i>}
-                        </div>
+            <div className="panel">
+              <div className="panel-head"><h3>Sample trajectories</h3></div>
+              <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {data.roadmap.real_paths.length > 0 ? data.roadmap.real_paths.map((item, i) => (
+                  <div key={`${item.alumni_name}-${i}`} className="panel" style={{ padding: 12, background: 'var(--bg-2)' }}>
+                    <div className="eyebrow" style={{ marginBottom: 6 }}>TRAJECTORY {String(i + 1).padStart(2, '0')}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                      {item.path.map((step, idx) => (
+                        <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <span className="chip">{step}</span>
+                          {idx < item.path.length - 1 && <span style={{ color: 'var(--blue)' }}>→</span>}
+                        </span>
                       ))}
                     </div>
-                  </article>
-                )) : (
-                  <div className="opp-empty-inline">
-                    <p>We need more confirmed alumni trajectories to show path examples.</p>
                   </div>
+                )) : (
+                  <p className="mute" style={{ fontSize: 12 }}>We need more confirmed trajectories to show examples.</p>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="opp-panel">
-            <div className="opp-panel-header">
-              <div>
-                <span className="opp-panel-kicker">Transition Graph</span>
-                <h3>Most common moves in this cohort</h3>
-              </div>
-            </div>
-
-            {data.transitions.length > 0 ? (
-              <div className="opp-transition-list">
-                {data.transitions.map((transition) => (
-                  <div key={`${transition.from_step}-${transition.to_step}`} className="opp-transition-card">
-                    <div className="opp-transition-steps">
-                      <span>{transition.from_step}</span>
-                      <i aria-hidden="true">→</i>
-                      <span>{transition.to_step}</span>
+          <div className="panel">
+            <div className="panel-head"><h3>Most common transitions</h3></div>
+            <div className="panel-body">
+              {data.transitions.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                  {data.transitions.map((t) => (
+                    <div key={`${t.from_step}-${t.to_step}`} className="panel" style={{ padding: 12, background: 'var(--bg-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                        <span style={{ color: 'var(--ink)' }}>{t.from_step}</span> <span style={{ color: 'var(--blue)' }}>→</span> <span style={{ color: 'var(--ink)' }}>{t.to_step}</span>
+                      </div>
+                      <span className="mono" style={{ fontSize: 10.5, color: 'var(--blue)' }}>{t.count} alumni</span>
                     </div>
-                    <strong>{transition.count} alumni</strong>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="opp-empty-inline">
-                <p>We need more confirmed trajectories to show the most common transitions.</p>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : <p className="mute" style={{ fontSize: 12 }}>Need more trajectories.</p>}
+            </div>
           </div>
-        </section>
+        </div>
       </div>
 
-      <section className="opp-footer-note">
+      <div className="panel warm-tint" style={{ padding: 18, marginTop: 24, display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div>
-          <strong>Want a sharper roadmap?</strong>
-          <p>Complete your profile or import your resume so the analytics can compare you against stronger structured alumni signals.</p>
+          <div className="eyebrow" style={{ marginBottom: 6, color: 'var(--warm)' }}>SHARPEN ME</div>
+          <div className="h3">Want a sharper roadmap?</div>
+          <div className="mute" style={{ fontSize: 12.5, marginTop: 4 }}>
+            Complete your profile or import your resume for stronger structured signals.
+          </div>
         </div>
-        <div className="opp-footer-actions">
-          <Link to="/profile/edit" className="opp-cta-button secondary">Edit Profile</Link>
-          <Link to="/profile/resume-import" className="opp-cta-button">Import Resume</Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/profile/edit" className="btn">Edit profile</Link>
+          <Link to="/profile/resume-import" className="btn primary">Import resume</Link>
         </div>
-      </section>
+      </div>
     </div>
   );
 };

@@ -1,84 +1,39 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { profileApi } from '../api/profile';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import Avatar from '../components/ui/Avatar';
+import Pill from '../components/ui/Pill';
+import Icon from '../components/ui/Icon';
 import Alert from '../components/ui/Alert';
+import { resolveUrl } from '../utils/image';
+
+const emptyEdu = { school: '', degree: '', field_of_study: '', start_date: '', end_date: '', grade: '', current: false };
+const emptyExp = { company: '', position: '', location: '', start_date: '', end_date: '', description: '', current: false };
 
 const EditProfile = () => {
   const navigate = useNavigate();
+  const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    name: '',
-    headline: '',
-    bio: '',
-    location: '',
-    linkedin_url: '',
-    github_url: '',
-    website_url: '',
-    graduation_year: '',
-    availability: '',
-    skills: '',
-    education: [],
-    experience: [],
-    // Mentor fields
-    mentor_consent: false,
-    mentor_headline: '',
-    mentor_areas_of_help: [], // Array
-    mentor_industries: [], // Array
-    mentor_max_mentees: '',
-    mentor_availability_note: ''
-  });
-
-  // Photo previews
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [coverPreview, setCoverPreview] = useState(null);
-
+  const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
-
-  // Modal states
+  const [formData, setFormData] = useState({
+    name: '', headline: '', bio: '', location: '',
+    linkedin_url: '', github_url: '', website_url: '',
+    graduation_year: '', availability: '', skills: '',
+    education: [], experience: [],
+    photo_url: null, cover_url: null,
+    mentor_consent: false, mentor_headline: '',
+    mentor_areas_of_help: [], mentor_industries: [],
+    mentor_max_mentees: '', mentor_availability_note: '',
+  });
   const [showEduModal, setShowEduModal] = useState(false);
   const [showExpModal, setShowExpModal] = useState(false);
-  const [currentEdu, setCurrentEdu] = useState({});
-  const [currentExp, setCurrentExp] = useState({});
+  const [currentEdu, setCurrentEdu] = useState(emptyEdu);
+  const [currentExp, setCurrentExp] = useState(emptyExp);
   const [editIndex, setEditIndex] = useState(-1);
 
-  // Image error states
-  const [avatarError, setAvatarError] = useState(false);
-  const [coverError, setCoverError] = useState(false);
-
-  // Profile completion calculation
-  const calculateCompletion = () => {
-    const checks = [
-      { label: 'Name', done: Boolean(formData.name?.trim()) },
-      { label: 'Headline', done: Boolean(formData.headline?.trim()) },
-      { label: 'Bio', done: Boolean(formData.bio?.trim()) },
-      { label: 'Location', done: Boolean(formData.location?.trim()) },
-      { label: 'Skills', done: Boolean(formData.skills?.trim?.() || formData.skills?.length) },
-      { label: 'Experience', done: formData.experience?.length > 0 },
-      { label: 'Education', done: formData.education?.length > 0 },
-      { label: 'Photo', done: Boolean(photoPreview) },
-      { label: 'Graduation Year', done: Boolean(formData.graduation_year) },
-    ];
-    const completed = checks.filter(c => c.done).length;
-    const percent = Math.round((completed / checks.length) * 100);
-    const missing = checks.filter(c => !c.done).map(c => c.label);
-    return { percent, completed, total: checks.length, missing };
-  };
-
-  const completion = calculateCompletion();
-
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    const baseUrl = import.meta.env.VITE_API_URL || '';
-    return `${baseUrl}${url}`;
-  };
+  useEffect(() => { loadProfile(); }, []);
 
   const loadProfile = async () => {
     try {
@@ -90,431 +45,342 @@ const EditProfile = () => {
         mentor_industries: data.mentor_industries || [],
         education: data.education || [],
         experience: data.experience || [],
-        // Ensure strings for inputs
         graduation_year: data.graduation_year || '',
         mentor_max_mentees: data.mentor_max_mentees || '',
         github_url: data.github_url || '',
         website_url: data.website_url || '',
         headline: data.headline || '',
-        availability: data.availability || ''
+        availability: data.availability || '',
+        linkedin_url: data.linkedin_url || '',
       });
-      setPhotoPreview(getImageUrl(data.photo_url));
-      setCoverPreview(getImageUrl(data.cover_url));
-      // Reset error states on load
-      setAvatarError(false);
-      setCoverError(false);
-    } catch (err) {
-      console.error('Failed to load profile', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error('Failed to load profile', err); }
+    finally { setLoading(false); }
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    setFormData((p) => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const handlePhotoUpload = async (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0]; if (!file) return;
     try {
-      let res;
-      if (type === 'avatar') {
-        res = await profileApi.uploadPhoto(file);
-        setPhotoPreview(getImageUrl(res.photo_url));
-        setAvatarError(false);
-      } else {
-        res = await profileApi.uploadCover(file);
-        setCoverPreview(getImageUrl(res.cover_url));
-        setCoverError(false);
-      }
-      // Update form data to match new profile state if needed
+      const res = type === 'avatar' ? await profileApi.uploadPhoto(file) : await profileApi.uploadCover(file);
+      setFormData((p) => ({ ...p, ...(type === 'avatar' ? { photo_url: res.photo_url } : { cover_url: res.cover_url }) }));
+      setNotice({ type: 'success', message: `${type === 'avatar' ? 'Avatar' : 'Cover'} updated` });
     } catch (err) {
-      console.error('Upload failed', err);
+      console.error(err);
       setNotice({ type: 'error', message: `Failed to upload ${type}` });
     }
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setNotice(null);
+    e.preventDefault(); setSaving(true); setNotice(null);
     try {
       const payload = {
         ...formData,
         skills: typeof formData.skills === 'string'
-          ? formData.skills.split(',').map(s => s.trim()).filter(s => s)
+          ? formData.skills.split(',').map((s) => s.trim()).filter(Boolean)
           : formData.skills,
-        graduation_year: formData.graduation_year ? parseInt(formData.graduation_year) : null,
-        mentor_max_mentees: formData.mentor_max_mentees ? parseInt(formData.mentor_max_mentees) : null,
-        // Arrays are already arrays if we processed them, or strings? 
-        // Let's ensure they are arrays.
-        mentor_areas_of_help: Array.isArray(formData.mentor_areas_of_help) ? formData.mentor_areas_of_help : [],
-        mentor_industries: Array.isArray(formData.mentor_industries) ? formData.mentor_industries : [],
+        graduation_year: formData.graduation_year ? parseInt(formData.graduation_year, 10) : null,
+        mentor_max_mentees: formData.mentor_max_mentees ? parseInt(formData.mentor_max_mentees, 10) : null,
       };
-
       await profileApi.updateMe(payload);
       navigate('/profile');
     } catch (err) {
-      console.error('Failed to update profile', err);
+      console.error(err);
       setNotice({ type: 'error', message: 'Failed to update profile' });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  // Education Handlers
-  const openEduModal = (edu = null, index = -1) => {
-    setCurrentEdu(edu || { school: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '', current: false });
-    setEditIndex(index);
-    setShowEduModal(true);
-  };
-
+  const openEduModal = (edu = null, idx = -1) => { setCurrentEdu(edu || emptyEdu); setEditIndex(idx); setShowEduModal(true); };
   const saveEducation = () => {
-    const newEduList = [...formData.education];
-    if (editIndex >= 0) newEduList[editIndex] = currentEdu;
-    else newEduList.push(currentEdu);
-    setFormData({ ...formData, education: newEduList });
+    const list = [...formData.education];
+    if (editIndex >= 0) list[editIndex] = currentEdu; else list.push(currentEdu);
+    setFormData({ ...formData, education: list });
     setShowEduModal(false);
   };
+  const removeEducation = (i) => setFormData({ ...formData, education: formData.education.filter((_, idx) => idx !== i) });
 
-  const removeEducation = (index) => {
-    setFormData({ ...formData, education: formData.education.filter((_, i) => i !== index) });
-  };
-
-  // Experience Handlers
-  const openExpModal = (exp = null, index = -1) => {
-    setCurrentExp(exp || { company: '', position: '', location: '', start_date: '', end_date: '', description: '', current: false });
-    setEditIndex(index);
-    setShowExpModal(true);
-  };
-
+  const openExpModal = (exp = null, idx = -1) => { setCurrentExp(exp || emptyExp); setEditIndex(idx); setShowExpModal(true); };
   const saveExperience = () => {
-    const newExpList = [...formData.experience];
-    if (editIndex >= 0) newExpList[editIndex] = currentExp;
-    else newExpList.push(currentExp);
-    setFormData({ ...formData, experience: newExpList });
+    const list = [...formData.experience];
+    if (editIndex >= 0) list[editIndex] = currentExp; else list.push(currentExp);
+    setFormData({ ...formData, experience: list });
     setShowExpModal(false);
   };
+  const removeExperience = (i) => setFormData({ ...formData, experience: formData.experience.filter((_, idx) => idx !== i) });
 
-  const removeExperience = (index) => {
-    setFormData({ ...formData, experience: formData.experience.filter((_, i) => i !== index) });
-  };
+  const completion = (() => {
+    const checks = [
+      ['Name', !!formData.name?.trim()],
+      ['Headline', !!formData.headline?.trim()],
+      ['Bio', !!formData.bio?.trim()],
+      ['Location', !!formData.location?.trim()],
+      ['Skills', !!(typeof formData.skills === 'string' ? formData.skills.trim() : formData.skills?.length)],
+      ['Experience', formData.experience.length > 0],
+      ['Education', formData.education.length > 0],
+      ['Photo', !!formData.photo_url],
+      ['Graduation year', !!formData.graduation_year],
+    ];
+    const done = checks.filter(([, ok]) => ok).length;
+    const missing = checks.filter(([, ok]) => !ok).map(([k]) => k);
+    return { percent: Math.round((done / checks.length) * 100), missing };
+  })();
 
-  if (loading) return <div className="dash-loading"><div className="dash-loader"></div></div>;
+  if (loading) return <div className="page"><div className="loading-block">Loading…</div></div>;
 
   return (
-    <div className="profile-edit-body">
-      <div className="profile-edit-container">
-        <div className="profile-edit-header">
-          <h1>Edit Profile</h1>
-          <p>Customize your profile to stand out to recruiters and peers.</p>
-          <div className="profile-edit-actions">
-            <Button type="button" variant="secondary" onClick={() => navigate('/profile/resume-import')}>
-              Import from Resume
-            </Button>
-          </div>
-
-          {/* Profile Completion Progress */}
-          <div className="profile-completion-card">
-            <div className="completion-header">
-              <span className="completion-label">Profile Completion</span>
-              <span className="completion-percent">{completion.percent}%</span>
-            </div>
-            <div className="completion-bar-track">
-              <div
-                className="completion-bar-fill"
-                style={{
-                  width: `${completion.percent}%`,
-                  backgroundColor: completion.percent === 100 ? '#22c55e' :
-                    completion.percent >= 70 ? '#3b82f6' :
-                      completion.percent >= 40 ? '#f59e0b' : '#ef4444'
-                }}
-              />
-            </div>
-            {completion.missing.length > 0 && (
-              <div className="completion-missing">
-                <span className="missing-label">Add to improve:</span>
-                <div className="missing-tags">
-                  {completion.missing.slice(0, 4).map(field => (
-                    <span key={field} className="missing-tag">{field}</span>
-                  ))}
-                  {completion.missing.length > 4 && (
-                    <span className="missing-tag more">+{completion.missing.length - 4} more</span>
-                  )}
-                </div>
-              </div>
-            )}
-            {completion.percent === 100 && (
-              <div className="completion-success">
-                ✓ Your profile is complete! You're all set.
-              </div>
-            )}
-          </div>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>EDIT · IDENTITY</div>
+          <h1 className="h1">Polish your <i>profile</i>.</h1>
         </div>
-
-        {notice && <Alert type={notice.type}>{notice.message}</Alert>}
-
-        <form onSubmit={handleSubmit} id="edit-profile-form">
-          <div className="profile-edit-grid">
-
-            {/* Left Column: Photos & Basic Info */}
-            <div className="left-col">
-              <div className="edit-card photo-card">
-                <h3>Profile Images</h3>
-
-                {/* Cover Photo */}
-                <div className="cover-photo-wrapper">
-                  {coverPreview && !coverError ? (
-                    <img
-                      src={coverPreview}
-                      alt="Cover"
-                      onError={() => setCoverError(true)}
-                    />
-                  ) : (
-                    <div className="cover-placeholder-art">
-                      <div className="art-pattern"></div>
-                    </div>
-                  )}
-
-                  <label className="cover-upload-btn">
-                    <input type="file" hidden accept="image/*" onChange={(e) => handlePhotoUpload(e, 'cover')} />
-                    📷 Edit Cover
-                  </label>
-                </div>
-
-                {/* Avatar */}
-                <div className="avatar-wrapper">
-                  <div className="avatar-circle">
-                    {photoPreview && !avatarError ? (
-                      <img
-                        src={photoPreview}
-                        alt="Avatar"
-                        onError={() => setAvatarError(true)}
-                      />
-                    ) : (
-                      <div className="avatar-fallback">
-                        {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
-                      </div>
-                    )}
-                    <label className="avatar-upload-icon">
-                      <input type="file" hidden accept="image/*" onChange={(e) => handlePhotoUpload(e, 'avatar')} />
-                      ✏️
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="edit-card">
-                <h3>Basic Information</h3>
-                <div className="form-stack">
-                  <Input label="Full Name" name="name" value={formData.name || ''} onChange={handleChange} />
-                  <Input label="Headline" name="headline" value={formData.headline || ''} onChange={handleChange} placeholder="e.g. Senior Software Engineer" />
-                  <Input label="Location" name="location" value={formData.location || ''} onChange={handleChange} placeholder="e.g. San Francisco, CA" />
-                  <div className="form-row-2">
-                    <Input label="Graduation Year" type="number" name="graduation_year" value={formData.graduation_year || ''} onChange={handleChange} />
-                    <div className="form-group">
-                      <label className="form-label">Availability</label>
-                      <select className="form-select" name="availability" value={formData.availability || ''} onChange={handleChange}>
-                        <option value="">Select status...</option>
-                        <option value="JOB_SEEKING">Job Seeking</option>
-                        <option value="HIRING">Hiring</option>
-                        <option value="MENTORING">Mentoring</option>
-                        <option value="OPEN_TO_CONNECT">Open to Connect</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="edit-card">
-                <h3>Social Links</h3>
-                <div className="form-stack">
-                  <Input label="LinkedIn" name="linkedin_url" value={formData.linkedin_url || ''} onChange={handleChange} placeholder="https://linkedin.com/in/..." />
-                  <Input label="GitHub" name="github_url" value={formData.github_url || ''} onChange={handleChange} placeholder="https://github.com/..." />
-                  <Input label="Website" name="website_url" value={formData.website_url || ''} onChange={handleChange} placeholder="https://..." />
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="right-col">
-
-              <div className="edit-card">
-                <h3>About You</h3>
-                <div className="form-group">
-                  <label className="form-label">Bio</label>
-                  <textarea
-                    className="form-textarea"
-                    name="bio"
-                    value={formData.bio || ''}
-                    onChange={handleChange}
-                    rows="6"
-                    placeholder="Write a short biography..."
-                  />
-                </div>
-              </div>
-
-              <div className="edit-card">
-                <h3>Skills</h3>
-                <Input
-                  label="Skills (comma separated)"
-                  name="skills"
-                  value={formData.skills}
-                  onChange={handleChange}
-                  placeholder="React, Node.js, Design..."
-                />
-              </div>
-
-              {/* Mentorship Section */}
-              <div className="edit-card">
-                <div className="card-header-row mb-4">
-                  <h3>Mentorship</h3>
-                  <label className="switch-toggle">
-                    <input type="checkbox" name="mentor_consent" checked={formData.mentor_consent} onChange={handleChange} />
-                    <span className="slider"></span>
-                    <span className="label-text">Available as Mentor</span>
-                  </label>
-                </div>
-
-                {formData.mentor_consent && (
-                  <div className="mentor-fields fade-in">
-                    <Input label="Mentor Headline" name="mentor_headline" value={formData.mentor_headline || ''} onChange={handleChange} placeholder="How can you help?" />
-                    <Input label="Areas of Help (comma separated)" value={formData.mentor_areas_of_help.join(', ')} onChange={(e) => setFormData({ ...formData, mentor_areas_of_help: e.target.value.split(',').map(s => s.trim()) })} />
-                    <Input label="Industries (comma separated)" value={formData.mentor_industries.join(', ')} onChange={(e) => setFormData({ ...formData, mentor_industries: e.target.value.split(',').map(s => s.trim()) })} />
-                    <Input label="Max Mentees" type="number" name="mentor_max_mentees" value={formData.mentor_max_mentees || ''} onChange={handleChange} />
-                  </div>
-                )}
-              </div>
-
-              {/* Education Section */}
-              <div className="edit-card">
-                <div className="card-header-row mb-4">
-                  <h3>Education</h3>
-                  <button type="button" onClick={() => openEduModal()} className="btn-icon-add">+</button>
-                </div>
-
-                <div className="list-items-container">
-                  {formData.education.map((edu, idx) => (
-                    <div key={idx} className="list-item">
-                      <div className="list-item-main">
-                        <h4>{edu.school}</h4>
-                        <p>{edu.degree} {edu.field_of_study && `• ${edu.field_of_study}`}</p>
-                        <span className="list-meta">{edu.start_date} - {edu.current ? 'Present' : edu.end_date}</span>
-                      </div>
-                      <div className="list-actions">
-                        <button type="button" className="btn-icon" onClick={() => openEduModal(edu, idx)}>✎</button>
-                        <button type="button" className="btn-icon danger" onClick={() => removeEducation(idx)}>✕</button>
-                      </div>
-                    </div>
-                  ))}
-                  {formData.education.length === 0 && <div className="empty-list">No education added</div>}
-                </div>
-              </div>
-
-              {/* Experience Section */}
-              <div className="edit-card">
-                <div className="card-header-row mb-4">
-                  <h3>Experience</h3>
-                  <button type="button" onClick={() => openExpModal()} className="btn-icon-add">+</button>
-                </div>
-
-                <div className="list-items-container">
-                  {formData.experience.map((exp, idx) => (
-                    <div key={idx} className="list-item">
-                      <div className="list-item-main">
-                        <h4>{exp.position}</h4>
-                        <p>{exp.company} {exp.location && `• ${exp.location}`}</p>
-                        <span className="list-meta">{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</span>
-                      </div>
-                      <div className="list-actions">
-                        <button type="button" className="btn-icon" onClick={() => openExpModal(exp, idx)}>✎</button>
-                        <button type="button" className="btn-icon danger" onClick={() => removeExperience(idx)}>✕</button>
-                      </div>
-                    </div>
-                  ))}
-                  {formData.experience.length === 0 && <div className="empty-list">No experience added</div>}
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </form>
-
-        {/* Sticky Form Actions Footer */}
-        <div className="sticky-form-footer">
-          <div className="footer-content">
-            <Button type="button" variant="secondary" onClick={() => navigate('/profile')}>Cancel</Button>
-            <Button type="submit" form="edit-profile-form">Save Changes</Button>
-          </div>
+        <div className="page-head-actions">
+          <button className="btn" onClick={() => navigate('/profile/resume-import')}>
+            <Icon name="upload" size={14} /> Import resume
+          </button>
+          <button className="btn ghost" onClick={() => navigate('/profile')}>Cancel</button>
+          <button className="btn primary" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save profile'}
+          </button>
         </div>
       </div>
 
-      {/* Reused Modal Logic */}
+      {notice && <Alert type={notice.type === 'success' ? 'success' : 'error'}>{notice.message}</Alert>}
+
+      <div className="panel" style={{ padding: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div className="eyebrow">PROFILE COMPLETION</div>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--blue)' }}>{completion.percent}%</span>
+        </div>
+        <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ width: `${completion.percent}%`, height: '100%', background: completion.percent === 100 ? 'var(--ok)' : 'var(--blue)', transition: 'width 0.3s' }} />
+        </div>
+        {completion.missing.length > 0 && (
+          <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="mute mono" style={{ fontSize: 10 }}>ADD TO IMPROVE:</span>
+            {completion.missing.slice(0, 4).map((m) => (<span key={m} className="chip skill">{m}</span>))}
+            {completion.missing.length > 4 && <span className="chip skill">+{completion.missing.length - 4}</span>}
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="form-stack">
+        {/* Photos */}
+        <div className="form-card">
+          <div className="form-card-head">
+            <h3>Profile images</h3>
+            <p>JPG/PNG, up to 5MB.</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 20, alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ position: 'relative' }}>
+                <Avatar src={resolveUrl(formData.photo_url)} name={formData.name} size="xxl" />
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{ position: 'absolute', right: -6, bottom: -6 }}
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  <Icon name="edit" size={12} /> Change
+                </button>
+              </div>
+              <input type="file" accept="image/*" ref={avatarInputRef} style={{ display: 'none' }} onChange={(e) => handlePhotoUpload(e, 'avatar')} />
+            </div>
+
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>COVER IMAGE</div>
+              <div
+                style={{
+                  height: 120, borderRadius: 10,
+                  border: '1px solid var(--line)',
+                  background: formData.cover_url
+                    ? `url(${resolveUrl(formData.cover_url)}) center / cover`
+                    : 'repeating-linear-gradient(-45deg, rgba(216,165,116,0.08) 0 8px, transparent 8px 16px), var(--bg-2)',
+                  position: 'relative',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{ position: 'absolute', right: 10, bottom: 10 }}
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  <Icon name="edit" size={12} /> Change cover
+                </button>
+              </div>
+              <input type="file" accept="image/*" ref={coverInputRef} style={{ display: 'none' }} onChange={(e) => handlePhotoUpload(e, 'cover')} />
+            </div>
+          </div>
+        </div>
+
+        {/* Basic info */}
+        <div className="form-card">
+          <div className="form-card-head"><h3>Basic info</h3></div>
+          <div className="form-row">
+            <div className="form-group"><label>Name</label><input name="name" value={formData.name} onChange={handleChange} required /></div>
+            <div className="form-group"><label>Graduation year</label><input name="graduation_year" type="number" value={formData.graduation_year} onChange={handleChange} placeholder="2025" /></div>
+          </div>
+          <div className="form-group"><label>Headline</label><input name="headline" value={formData.headline} onChange={handleChange} placeholder="e.g. Y3 SE student · backend & ML interest" /></div>
+          <div className="form-group"><label>Bio</label><textarea name="bio" value={formData.bio} onChange={handleChange} rows="4" placeholder="Tell others about yourself…" /></div>
+          <div className="form-row">
+            <div className="form-group"><label>Location</label><input name="location" value={formData.location} onChange={handleChange} placeholder="Almaty, KZ" /></div>
+            <div className="form-group"><label>Skills (comma-separated)</label><input name="skills" value={formData.skills} onChange={handleChange} placeholder="Python, Go, PyTorch…" /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label>LinkedIn URL</label><input name="linkedin_url" value={formData.linkedin_url} onChange={handleChange} placeholder="https://linkedin.com/in/…" /></div>
+            <div className="form-group"><label>GitHub URL</label><input name="github_url" value={formData.github_url} onChange={handleChange} placeholder="https://github.com/…" /></div>
+          </div>
+          <div className="form-group"><label>Website URL</label><input name="website_url" value={formData.website_url} onChange={handleChange} placeholder="https://…" /></div>
+        </div>
+
+        {/* Experience */}
+        <div className="form-card">
+          <div className="form-card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div><h3>Experience</h3><p>{formData.experience.length} entries.</p></div>
+            <button type="button" className="btn sm" onClick={() => openExpModal()}><Icon name="plus" size={12} /> Add</button>
+          </div>
+          {formData.experience.length === 0 ? (
+            <div className="empty-block"><h3>No experience added</h3></div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {formData.experience.map((exp, i) => (
+                <div key={i} className="panel" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                  <div>
+                    <div className="h3">{exp.position}</div>
+                    <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>
+                      {(exp.company || '').toUpperCase()} · {exp.start_date || '?'} — {exp.current ? 'NOW' : (exp.end_date || '?')}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" className="btn sm ghost" onClick={() => openExpModal(exp, i)}>Edit</button>
+                    <button type="button" className="btn sm ghost" onClick={() => removeExperience(i)}><Icon name="trash" size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Education */}
+        <div className="form-card">
+          <div className="form-card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div><h3>Education</h3><p>{formData.education.length} entries.</p></div>
+            <button type="button" className="btn sm" onClick={() => openEduModal()}><Icon name="plus" size={12} /> Add</button>
+          </div>
+          {formData.education.length === 0 ? (
+            <div className="empty-block"><h3>No education added</h3></div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {formData.education.map((edu, i) => (
+                <div key={i} className="panel" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                  <div>
+                    <div className="h3">{edu.school}</div>
+                    <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>
+                      {(edu.degree || '').toUpperCase()}{edu.field_of_study ? ` · ${edu.field_of_study.toUpperCase()}` : ''} · {edu.start_date || '?'} — {edu.end_date || 'NOW'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" className="btn sm ghost" onClick={() => openEduModal(edu, i)}>Edit</button>
+                    <button type="button" className="btn sm ghost" onClick={() => removeEducation(i)}><Icon name="trash" size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Mentor settings */}
+        <div className="form-card">
+          <div className="form-card-head"><h3>Mentor settings</h3><p>Available to alumni who want to mentor.</p></div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
+            <input type="checkbox" name="mentor_consent" checked={!!formData.mentor_consent} onChange={handleChange} />
+            <span>I'm available to mentor students and recent graduates</span>
+          </label>
+          {formData.mentor_consent && (
+            <>
+              <div className="form-group" style={{ marginTop: 14 }}>
+                <label>Mentor headline</label>
+                <input name="mentor_headline" value={formData.mentor_headline} onChange={handleChange} placeholder="What you help with as a mentor" />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Max mentees</label>
+                  <input type="number" min="1" max="20" name="mentor_max_mentees" value={formData.mentor_max_mentees} onChange={handleChange} placeholder="5" />
+                </div>
+                <div className="form-group">
+                  <label>Availability note</label>
+                  <input name="mentor_availability_note" value={formData.mentor_availability_note} onChange={handleChange} placeholder="e.g. 30min/week, evenings" />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="form-actions">
+          <button type="button" className="btn ghost" onClick={() => navigate('/profile')}>Cancel</button>
+          <button type="submit" className="btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save profile'}</button>
+        </div>
+      </form>
+
+      {/* Education modal */}
       {showEduModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>{editIndex >= 0 ? 'Edit' : 'Add'} Education</h3>
-              <button onClick={() => setShowEduModal(false)} className="modal-close-btn">✕</button>
+        <div className="modal-backdrop" onClick={() => setShowEduModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><h3>{editIndex >= 0 ? 'Edit education' : 'Add education'}</h3>
+              <button className="iconbtn" onClick={() => setShowEduModal(false)}><Icon name="close" size={14} /></button>
             </div>
             <div className="modal-body">
-              <Input label="School" value={currentEdu.school} onChange={(e) => setCurrentEdu({ ...currentEdu, school: e.target.value })} />
-              <Input label="Degree" value={currentEdu.degree} onChange={(e) => setCurrentEdu({ ...currentEdu, degree: e.target.value })} />
-              <Input label="Field of Study" value={currentEdu.field_of_study} onChange={(e) => setCurrentEdu({ ...currentEdu, field_of_study: e.target.value })} />
-              <div className="form-row-2">
-                <Input label="Start Date" value={currentEdu.start_date} onChange={(e) => setCurrentEdu({ ...currentEdu, start_date: e.target.value })} placeholder="YYYY" />
-                <Input label="End Date" value={currentEdu.end_date} onChange={(e) => setCurrentEdu({ ...currentEdu, end_date: e.target.value })} placeholder="YYYY" disabled={currentEdu.current} />
+              <div className="form-group"><label>School</label><input value={currentEdu.school} onChange={(e) => setCurrentEdu({ ...currentEdu, school: e.target.value })} /></div>
+              <div className="form-row">
+                <div className="form-group"><label>Degree</label><input value={currentEdu.degree} onChange={(e) => setCurrentEdu({ ...currentEdu, degree: e.target.value })} /></div>
+                <div className="form-group"><label>Field of study</label><input value={currentEdu.field_of_study} onChange={(e) => setCurrentEdu({ ...currentEdu, field_of_study: e.target.value })} /></div>
               </div>
-              <label className="checkbox-wrap">
-                <input type="checkbox" checked={currentEdu.current || false} onChange={(e) => setCurrentEdu({ ...currentEdu, current: e.target.checked })} />
-                <span>I currently study here</span>
+              <div className="form-row">
+                <div className="form-group"><label>Start date</label><input type="date" value={currentEdu.start_date || ''} onChange={(e) => setCurrentEdu({ ...currentEdu, start_date: e.target.value })} /></div>
+                <div className="form-group"><label>End date</label><input type="date" value={currentEdu.end_date || ''} onChange={(e) => setCurrentEdu({ ...currentEdu, end_date: e.target.value })} disabled={currentEdu.current} /></div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
+                <input type="checkbox" checked={!!currentEdu.current} onChange={(e) => setCurrentEdu({ ...currentEdu, current: e.target.checked })} /> I'm currently studying here
               </label>
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea className="form-textarea" rows="3" value={currentEdu.description || ''} onChange={(e) => setCurrentEdu({ ...currentEdu, description: e.target.value })}></textarea>
-              </div>
+              <div className="form-group" style={{ marginTop: 12 }}><label>Grade / GPA</label><input value={currentEdu.grade || ''} onChange={(e) => setCurrentEdu({ ...currentEdu, grade: e.target.value })} /></div>
             </div>
-            <div className="modal-footer">
-              <Button type="button" variant="secondary" onClick={() => setShowEduModal(false)}>Cancel</Button>
-              <Button type="button" onClick={saveEducation}>Save Education</Button>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowEduModal(false)}>Cancel</button>
+              <button className="btn primary" onClick={saveEducation}>Save</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Experience modal */}
       {showExpModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>{editIndex >= 0 ? 'Edit' : 'Add'} Experience</h3>
-              <button onClick={() => setShowExpModal(false)} className="modal-close-btn">✕</button>
+        <div className="modal-backdrop" onClick={() => setShowExpModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><h3>{editIndex >= 0 ? 'Edit experience' : 'Add experience'}</h3>
+              <button className="iconbtn" onClick={() => setShowExpModal(false)}><Icon name="close" size={14} /></button>
             </div>
             <div className="modal-body">
-              <Input label="Company" value={currentExp.company} onChange={(e) => setCurrentExp({ ...currentExp, company: e.target.value })} />
-              <Input label="Position" value={currentExp.position} onChange={(e) => setCurrentExp({ ...currentExp, position: e.target.value })} />
-              <Input label="Location" value={currentExp.location} onChange={(e) => setCurrentExp({ ...currentExp, location: e.target.value })} />
-              <div className="form-row-2">
-                <Input label="Start Date" value={currentExp.start_date} onChange={(e) => setCurrentExp({ ...currentExp, start_date: e.target.value })} placeholder="Jan 2022" />
-                <Input label="End Date" value={currentExp.end_date} onChange={(e) => setCurrentExp({ ...currentExp, end_date: e.target.value })} placeholder="Present" disabled={currentExp.current} />
+              <div className="form-row">
+                <div className="form-group"><label>Position</label><input value={currentExp.position} onChange={(e) => setCurrentExp({ ...currentExp, position: e.target.value })} /></div>
+                <div className="form-group"><label>Company</label><input value={currentExp.company} onChange={(e) => setCurrentExp({ ...currentExp, company: e.target.value })} /></div>
               </div>
-              <label className="checkbox-wrap">
-                <input type="checkbox" checked={currentExp.current || false} onChange={(e) => setCurrentExp({ ...currentExp, current: e.target.checked })} />
-                <span>I currently work here</span>
+              <div className="form-group"><label>Location</label><input value={currentExp.location} onChange={(e) => setCurrentExp({ ...currentExp, location: e.target.value })} /></div>
+              <div className="form-row">
+                <div className="form-group"><label>Start date</label><input type="date" value={currentExp.start_date || ''} onChange={(e) => setCurrentExp({ ...currentExp, start_date: e.target.value })} /></div>
+                <div className="form-group"><label>End date</label><input type="date" value={currentExp.end_date || ''} onChange={(e) => setCurrentExp({ ...currentExp, end_date: e.target.value })} disabled={currentExp.current} /></div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
+                <input type="checkbox" checked={!!currentExp.current} onChange={(e) => setCurrentExp({ ...currentExp, current: e.target.checked })} /> I currently work here
               </label>
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea className="form-textarea" rows="3" value={currentExp.description || ''} onChange={(e) => setCurrentExp({ ...currentExp, description: e.target.value })}></textarea>
-              </div>
+              <div className="form-group" style={{ marginTop: 12 }}><label>Description</label><textarea value={currentExp.description || ''} rows="3" onChange={(e) => setCurrentExp({ ...currentExp, description: e.target.value })} /></div>
             </div>
-            <div className="modal-footer">
-              <Button type="button" variant="secondary" onClick={() => setShowExpModal(false)}>Cancel</Button>
-              <Button type="button" onClick={saveExperience}>Save Experience</Button>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowExpModal(false)}>Cancel</button>
+              <button className="btn primary" onClick={saveExperience}>Save</button>
             </div>
           </div>
         </div>

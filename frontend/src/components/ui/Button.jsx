@@ -1,10 +1,10 @@
-import React from 'react';
-
-const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+const Button = ({ children, variant = 'default', size = '', className = '', as: As = 'button', ...props }) => {
+  const variantClass = variant === 'default' ? '' : variant;
+  const sizeClass = size ? size : '';
   return (
-    <button className={`btn btn-${variant} ${className}`} {...props}>
+    <As className={`btn ${variantClass} ${sizeClass} ${className}`.trim()} {...props}>
       {children}
-    </button>
+    </As>
   );
 };
 

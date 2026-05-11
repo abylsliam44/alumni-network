@@ -6,7 +6,18 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   if (loading) {
-    return <div className="loading-spinner">Loading...</div>;
+    return (
+      <div className="boot-loader" role="status" aria-label="Loading">
+        <div className="boot-loader-inner">
+          <div className="boot-loader-orbit">
+            <div className="boot-loader-core" />
+          </div>
+          <div>
+            <span className="pulse-dot" /> &nbsp;ESTABLISHING SESSION
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {

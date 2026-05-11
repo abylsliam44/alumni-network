@@ -1,6 +1,6 @@
-const Alert = ({ type = 'success', children }) => {
-  const cls = `alert ${type === 'error' ? 'alert-error' : 'alert-success'}`;
-  return <div className={cls}>{children}</div>;
+const Alert = ({ type = 'success', children, className = '' }) => {
+  const cls = type === 'error' || type === 'danger' ? 'error-message' : 'success-message';
+  return <div className={`${cls} ${className}`.trim()}>{children}</div>;
 };
 
 export default Alert;
