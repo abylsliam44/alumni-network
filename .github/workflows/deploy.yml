@@ -1,0 +1,43 @@
+name: Deploy to Droplet
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: SSH into droplet and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: ${{ secrets.DROPLET_PORT || 22 }}
+          script_stop: true
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DROPLET_PROJECT_PATH }}"
+
+            echo "▶ Fetching latest main..."
+            git fetch --all --prune
+            git reset --hard origin/main
+
+            echo "▶ Building & restarting containers..."
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            echo "▶ Pruning old images..."
+            docker image prune -f
+
+            echo "▶ Container status:"
+            docker compose -f docker-compose.prod.yml ps
