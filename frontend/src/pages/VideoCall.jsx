@@ -12,9 +12,14 @@ const VideoCall = () => {
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const conversationId = searchParams.get('conversation');
+  const explicitReturnTo = searchParams.get('returnTo');
   const roomName = normalizeJitsiRoomName(routeRoomName);
-  const returnTo = location.state?.from || (conversationId ? `/messages?chat=${conversationId}` : '/messages');
-  const backLabel = returnTo.startsWith('/mentorship') ? 'Back to mentorship' : 'Back to messages';
+  const returnTo = location.state?.from || explicitReturnTo || (conversationId ? `/messages?chat=${conversationId}` : '/messages');
+  const backLabel = returnTo.startsWith('/mentorship')
+    ? 'Back to mentorship'
+    : returnTo.startsWith('/jobs')
+      ? 'Back to jobs'
+      : 'Back to messages';
   const displayName = user?.name || user?.email || 'Guest';
 
   const handleReadyToClose = useCallback(() => navigate(returnTo), [navigate, returnTo]);

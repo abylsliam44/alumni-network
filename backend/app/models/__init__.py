@@ -16,7 +16,7 @@ from .event import (
     Event, EventRegistration, EventSpeaker, EventMaterial, EventReview, EventMessage,
     EventType, EventFormat, EventStatus, RegistrationStatus, MaterialType
 )
-from .job import Job, JobApplication, JobChatMessage
+from .job import Job, JobApplication, JobChatMessage, JobInterview, JobInterviewStatus
 from .ai_chat import AiChatMessage
 from .notification import Notification, NotificationType
 from .resume import (

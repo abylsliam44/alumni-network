@@ -17,7 +17,9 @@ const ApplicationChat = ({ applicationId }) => {
     const backendUrl = import.meta.env.VITE_API_URL || window.location.origin;
     const wsBase = backendUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:').replace(/\/$/, '');
 
-    const ws = new WebSocket(`${wsBase}/api/v1/job-chat/ws/${applicationId}`);
+    const token = localStorage.getItem('token');
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const ws = new WebSocket(`${wsBase}/api/v1/job-chat/ws/${applicationId}${tokenQuery}`);
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
     ws.onmessage = (event) => {

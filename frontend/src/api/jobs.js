@@ -57,6 +57,11 @@ export const jobsApi = {
     return data;
   },
 
+  async receivedApplications(params = {}) {
+    const { data } = await api.get('/api/v1/jobs/applications/received', { params });
+    return data.items || [];
+  },
+
   async myApplications() {
     const { data } = await api.get('/api/v1/jobs/applications/me');
     return data.items;
@@ -65,6 +70,16 @@ export const jobsApi = {
   async updateApplicationStatus(applicationId, status) {
     const { data } = await api.patch(`/api/v1/jobs/applications/${applicationId}/status`, { status });
     return data;
+  },
+
+  async scheduleInterview(applicationId, scheduledAt) {
+    const { data } = await api.post(`/api/v1/jobs/applications/${applicationId}/interviews`, { scheduled_at: scheduledAt });
+    return data;
+  },
+
+  async getResumeDownload(applicationId) {
+    const { data } = await api.post(`/api/v1/jobs/applications/${applicationId}/resume-download`);
+    return data.download_url;
   },
 
   // --- Chat ---

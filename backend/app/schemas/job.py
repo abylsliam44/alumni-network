@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 from pydantic import BaseModel
-from app.models.job import JobFormat, JobEmploymentType, JobStatus, ApplicationStatus
+from app.models.job import JobFormat, JobEmploymentType, JobStatus, ApplicationStatus, JobInterviewStatus
 
 
 # --- Shared Properties ---
@@ -62,6 +62,46 @@ class JobApplicationCreate(BaseModel):
 class JobApplicationUpdateStatus(BaseModel):
     status: ApplicationStatus
 
+
+class JobApplicantSummary(BaseModel):
+    id: UUID
+    name: str
+    email: str
+    photo_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class JobSummary(BaseModel):
+    id: UUID
+    title: str
+    company: str
+    location: Optional[str] = None
+    status: JobStatus
+
+    class Config:
+        from_attributes = True
+
+
+class JobInterviewCreate(BaseModel):
+    scheduled_at: datetime
+
+
+class JobInterviewRead(BaseModel):
+    id: UUID
+    application_id: UUID
+    scheduled_at: datetime
+    room_name: str
+    status: JobInterviewStatus
+    created_by: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class JobApplicationRead(BaseModel):
     id: UUID
     job_id: UUID
@@ -72,6 +112,22 @@ class JobApplicationRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class JobApplicationDetailRead(JobApplicationRead):
+    applicant: Optional[JobApplicantSummary] = None
+    job: Optional[JobSummary] = None
+    latest_interview: Optional[JobInterviewRead] = None
+    has_resume: bool = False
+    chat_available: bool = True
+
+
+class JobApplicationList(BaseModel):
+    items: List[JobApplicationDetailRead]
+
+
+class ResumeDownloadResponse(BaseModel):
+    download_url: str
 
 # --- Chat Schema ---
 class JobChatMessageCreate(BaseModel):

@@ -16,6 +16,8 @@ import Feed from './pages/Feed';
 import Jobs from './pages/Jobs';
 import JobCreate from './pages/JobCreate';
 import JobDetail from './pages/JobDetail';
+import Hiring from './pages/Hiring';
+import MyApplications from './pages/MyApplications';
 import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
 import EventCreate from './pages/EventCreate';
@@ -56,6 +58,8 @@ function App() {
               <Route path="/mentorship" element={<Mentorship />} />
               <Route path="/become-mentor" element={<BecomeMentor />} />
               <Route path="/jobs" element={<Jobs />} />
+              <Route path="/jobs/hiring" element={<Hiring />} />
+              <Route path="/jobs/applications" element={<MyApplications />} />
               <Route path="/jobs/create" element={<JobCreate />} />
               <Route path="/jobs/:jobId" element={<JobDetail />} />
               <Route path="/events/admin" element={<EventsAdmin />} />

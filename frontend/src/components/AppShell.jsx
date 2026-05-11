@@ -1,5 +1,6 @@
 import { NavLink, useLocation, Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { canModerateJobs, canPostJobs } from '../utils/jobPermissions';
 import NotificationDropdown from './NotificationDropdown';
 import Icon, { AituGlyph } from './ui/Icon';
 import ThemeToggle from './ui/ThemeToggle';
@@ -11,6 +12,8 @@ const SEGMENT_LABEL = {
   mentorship: 'Mentorship',
   'become-mentor': 'Become a Mentor',
   jobs: 'Jobs',
+  hiring: 'Hiring',
+  applications: 'Applications',
   events: 'Events',
   messages: 'Messages',
   friends: 'Connections',
@@ -60,12 +63,15 @@ const AppShell = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const crumb = buildCrumb(location.pathname);
+  const showHiring = canPostJobs(user) || canModerateJobs(user);
 
   const primaryNav = [
     { to: '/dashboard', label: 'Dashboard', icon: 'home' },
     { to: '/directory', label: user?.role === 'STUDENT' ? 'Mentors' : 'Directory', icon: 'users' },
     { to: '/mentorship', label: 'Mentorship', icon: 'graph' },
     { to: '/jobs', label: 'Jobs', icon: 'briefcase' },
+    { to: '/jobs/applications', label: 'My Applications', icon: 'doc' },
+    ...(showHiring ? [{ to: '/jobs/hiring', label: 'Hiring', icon: 'building' }] : []),
     { to: '/events', label: 'Events', icon: 'calendar' },
     { to: '/messages', label: 'Messages', icon: 'msg' },
     { to: '/friends', label: 'Connections', icon: 'heart' },

@@ -29,8 +29,15 @@ class ApplicationStatus(str, enum.Enum):
     SUBMITTED = "SUBMITTED"
     VIEWED = "VIEWED"
     SHORTLISTED = "SHORTLISTED"
+    INTERVIEW = "INTERVIEW"
     REJECTED = "REJECTED"
     HIRED = "HIRED"
+
+
+class JobInterviewStatus(str, enum.Enum):
+    SCHEDULED = "SCHEDULED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -87,6 +94,23 @@ class JobApplication(Base):
     job: Mapped["Job"] = relationship("Job", back_populates="applications")
     applicant: Mapped["User"] = relationship("User", foreign_keys=[applicant_id])
     chat_messages: Mapped[List["JobChatMessage"]] = relationship("JobChatMessage", back_populates="application", cascade="all, delete-orphan")
+    interviews: Mapped[List["JobInterview"]] = relationship("JobInterview", back_populates="application", cascade="all, delete-orphan")
+
+
+class JobInterview(Base):
+    __tablename__ = "job_interviews"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    application_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("job_applications.id"), nullable=False)
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    room_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[JobInterviewStatus] = mapped_column(Enum(JobInterviewStatus), default=JobInterviewStatus.SCHEDULED, nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=datetime.utcnow, nullable=True)
+
+    application: Mapped["JobApplication"] = relationship("JobApplication", back_populates="interviews")
+    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
 
 
 class JobChatMessage(Base):

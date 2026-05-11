@@ -16,6 +16,7 @@ from app.core.database import get_db
 from app.core.origins import is_allowed_origin
 from app.models.job import JobApplication, JobChatMessage
 from app.models.user import User
+from app.services import notification as notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,9 @@ def _extract_ws_token(websocket: WebSocket) -> Optional[str]:
     authorization = websocket.headers.get("Authorization") or websocket.headers.get("authorization")
     if authorization and authorization.lower().startswith("bearer "):
         return authorization.split(" ", 1)[1]
+    query_token = websocket.query_params.get("token")
+    if query_token:
+        return query_token
     return websocket.cookies.get(settings.AUTH_ACCESS_COOKIE_NAME)
 
 
@@ -109,6 +113,18 @@ async def websocket_endpoint(
             )
             db.add(chat_message)
             await db.commit()
+            recipient_id = application.applicant_id if user.id == job.created_by else job.created_by
+            if recipient_id != user.id:
+                try:
+                    await notification_service.create_job_application_message_notification(
+                        db,
+                        recipient_id=recipient_id,
+                        sender=user,
+                        application_id=application.id,
+                        message_preview=data,
+                    )
+                except Exception:
+                    pass
             
             # Broadcast formatted message (JSON)
             # Or just send text. For simplicity sending text, ideally JSON.

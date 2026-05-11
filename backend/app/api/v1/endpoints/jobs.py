@@ -1,3 +1,5 @@
+import uuid
+from datetime import timezone
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import case, desc, func, or_, select
@@ -7,18 +9,23 @@ from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.core.database import get_db
 from app.core import storage
-from app.models.job import ApplicationStatus, Job, JobApplication, JobEmploymentType, JobFormat, JobStatus
+from app.models.job import ApplicationStatus, Job, JobApplication, JobEmploymentType, JobFormat, JobInterview, JobInterviewStatus, JobStatus
 from app.models.user import User, UserRole
 from app.schemas.job import (
     JobApplicationCreate,
+    JobApplicationDetailRead,
+    JobApplicationList,
     JobApplicationRead,
     JobApplicationUpdateStatus,
     JobCreate,
+    JobInterviewCreate,
+    JobInterviewRead,
     JobList,
     JobRead,
     JobUpdate,
-    MyApplicationsResponse,
+    ResumeDownloadResponse,
 )
+from app.services import notification as notification_service
 # from app.services import email_service # Todo: Implement email service integration
 
 router = APIRouter()
@@ -56,6 +63,47 @@ def check_is_admin_or_moderator(user: User):
     if can_moderate_jobs(user):
         return
     raise HTTPException(status_code=403, detail="Not authorized to moderate jobs")
+
+
+def can_manage_job(user: User, job: Job) -> bool:
+    return job.created_by == user.id or can_moderate_jobs(user)
+
+
+def generate_interview_room_name(application_id: uuid.UUID) -> str:
+    return f"job-interview-{application_id}"
+
+
+def normalize_interview_datetime(value):
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def resume_download_reference(resume_reference: str) -> str:
+    if resume_reference.startswith("http://") or resume_reference.startswith("https://"):
+        return resume_reference
+    return f"http://storage/{storage.settings.MINIO_BUCKET}/{resume_reference.lstrip('/')}"
+
+
+def latest_interview(application: JobApplication) -> Optional[JobInterview]:
+    interviews = sorted(
+        application.interviews or [],
+        key=lambda item: item.scheduled_at,
+        reverse=True,
+    )
+    return interviews[0] if interviews else None
+
+
+def application_detail(application: JobApplication) -> JobApplicationDetailRead:
+    base = JobApplicationRead.from_orm(application).dict()
+    return JobApplicationDetailRead(
+        **base,
+        applicant=application.applicant,
+        job=application.job,
+        latest_interview=latest_interview(application),
+        has_resume=bool(application.resume_url),
+        chat_available=True,
+    )
 
 # --- Job Endpoints ---
 
@@ -349,6 +397,9 @@ async def apply_to_job(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
+    if current_user.role not in [UserRole.STUDENT, UserRole.ALUMNI]:
+        raise HTTPException(status_code=403, detail="Only students and alumni can apply to jobs")
+
     # Check if job exists and is approved
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalars().first()
@@ -383,10 +434,63 @@ async def apply_to_job(
     db.add(application)
     await db.commit()
     await db.refresh(application)
-    # Todo: Notify poster
+    try:
+        await notification_service.create_job_application_notification(
+            db,
+            recipient_id=job.created_by,
+            applicant=current_user,
+            application_id=application.id,
+            job_title=job.title,
+        )
+    except Exception:
+        pass
     return application
 
-@router.get("/{job_id}/applications", response_model=List[JobApplicationRead])
+
+@router.get("/applications/received", response_model=JobApplicationList)
+async def list_received_applications(
+    job_id: Optional[str] = Query(None),
+    status_filter: Optional[ApplicationStatus] = Query(None, alias="status"),
+    query: Optional[str] = Query(None),
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    if not can_post_jobs(current_user) and not can_moderate_jobs(current_user):
+        raise HTTPException(status_code=403, detail="Not authorized to review applications")
+
+    stmt = (
+        select(JobApplication)
+        .join(Job, JobApplication.job_id == Job.id)
+        .join(User, JobApplication.applicant_id == User.id)
+        .options(
+            selectinload(JobApplication.job),
+            selectinload(JobApplication.applicant),
+            selectinload(JobApplication.interviews),
+        )
+    )
+
+    if not can_moderate_jobs(current_user):
+        stmt = stmt.where(Job.created_by == current_user.id)
+
+    if job_id:
+        stmt = stmt.where(JobApplication.job_id == job_id)
+    if status_filter:
+        stmt = stmt.where(JobApplication.status == status_filter)
+    if query:
+        stmt = stmt.where(
+            or_(
+                User.name.ilike(f"%{query}%"),
+                User.email.ilike(f"%{query}%"),
+                Job.title.ilike(f"%{query}%"),
+                Job.company.ilike(f"%{query}%"),
+            )
+        )
+
+    result = await db.execute(stmt.order_by(JobApplication.applied_at.desc()))
+    return JobApplicationList(items=[application_detail(item) for item in result.scalars().all()])
+
+
+@router.get("/{job_id}/applications", response_model=List[JobApplicationDetailRead])
 async def list_job_applications(
     job_id: str,
     current_user: User = Depends(deps.get_current_active_user),
@@ -398,13 +502,20 @@ async def list_job_applications(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
         
-    if job.created_by != current_user.id and not current_user.is_admin:
+    if not can_manage_job(current_user, job):
         raise HTTPException(status_code=403, detail="Not authorized")
         
     result = await db.execute(
-        select(JobApplication).where(JobApplication.job_id == job_id).order_by(JobApplication.applied_at.desc())
+        select(JobApplication)
+        .where(JobApplication.job_id == job_id)
+        .options(
+            selectinload(JobApplication.job),
+            selectinload(JobApplication.applicant),
+            selectinload(JobApplication.interviews),
+        )
+        .order_by(JobApplication.applied_at.desc())
     )
-    return result.scalars().all()
+    return [application_detail(item) for item in result.scalars().all()]
 
 @router.patch("/applications/{application_id}/status", response_model=JobApplicationRead)
 async def update_application_status(
@@ -420,22 +531,115 @@ async def update_application_status(
         
     # Check permission (Job Poster)
     job = application.job
-    if job.created_by != current_user.id and not current_user.is_admin:
+    if not can_manage_job(current_user, job):
         raise HTTPException(status_code=403, detail="Not authorized")
+    if status_update.status == ApplicationStatus.INTERVIEW:
+        raise HTTPException(status_code=400, detail="Schedule an interview to move an application to interview")
         
     application.status = status_update.status
     await db.commit()
     await db.refresh(application)
-    # Todo: Notify applicant
+    try:
+        await notification_service.create_job_application_status_notification(
+            db,
+            applicant_id=application.applicant_id,
+            actor=current_user,
+            application_id=application.id,
+            job_title=job.title,
+            status=application.status.value,
+        )
+    except Exception:
+        pass
     return application
 
-@router.get("/applications/me", response_model=MyApplicationsResponse)
+
+@router.post("/applications/{application_id}/interviews", response_model=JobInterviewRead, status_code=status.HTTP_201_CREATED)
+async def schedule_interview(
+    application_id: str,
+    interview_in: JobInterviewCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    result = await db.execute(
+        select(JobApplication)
+        .options(selectinload(JobApplication.job))
+        .where(JobApplication.id == application_id)
+    )
+    application = result.scalars().first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    job = application.job
+    if not can_manage_job(current_user, job):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    interview = JobInterview(
+        application_id=application.id,
+        scheduled_at=normalize_interview_datetime(interview_in.scheduled_at),
+        room_name=generate_interview_room_name(application.id),
+        status=JobInterviewStatus.SCHEDULED,
+        created_by=current_user.id,
+    )
+    application.status = ApplicationStatus.INTERVIEW
+    db.add(interview)
+    await db.commit()
+    await db.refresh(interview)
+
+    try:
+        await notification_service.create_job_interview_scheduled_notification(
+            db,
+            applicant_id=application.applicant_id,
+            actor=current_user,
+            application_id=application.id,
+            job_title=job.title,
+        )
+    except Exception:
+        pass
+    return interview
+
+
+@router.post("/applications/{application_id}/resume-download", response_model=ResumeDownloadResponse)
+async def get_resume_download_url(
+    application_id: str,
+    request: Request,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    result = await db.execute(
+        select(JobApplication)
+        .options(selectinload(JobApplication.job))
+        .where(JobApplication.id == application_id)
+    )
+    application = result.scalars().first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    if current_user.id != application.applicant_id and not can_manage_job(current_user, application.job):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    download_url = storage.generate_presigned_download_url(
+        resume_download_reference(application.resume_url),
+        download_name=(application.resume_url or "resume").split("/")[-1],
+        as_attachment=True,
+        public_endpoint=storage.infer_public_storage_endpoint(request),
+    )
+    return ResumeDownloadResponse(download_url=download_url)
+
+
+@router.get("/applications/me", response_model=JobApplicationList)
 async def list_my_applications(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     result = await db.execute(
-        select(JobApplication).where(JobApplication.applicant_id == current_user.id).order_by(JobApplication.applied_at.desc())
+        select(JobApplication)
+        .where(JobApplication.applicant_id == current_user.id)
+        .options(
+            selectinload(JobApplication.job),
+            selectinload(JobApplication.applicant),
+            selectinload(JobApplication.interviews),
+        )
+        .order_by(JobApplication.applied_at.desc())
     )
     applications = result.scalars().all()
-    return MyApplicationsResponse(items=applications)
+    return JobApplicationList(items=[application_detail(item) for item in applications])

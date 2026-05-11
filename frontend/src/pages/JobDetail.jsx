@@ -14,9 +14,33 @@ const EMPLOYMENT_LABEL = {
 
 const STATUS_TONE = {
   DRAFT: undefined, PENDING: 'warm', APPROVED: 'ok', REJECTED: 'err', CLOSED: undefined,
+  SUBMITTED: 'blue', VIEWED: undefined, SHORTLISTED: 'warm', INTERVIEW: 'blue', HIRED: 'ok',
 };
 
 const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+const formatDateTime = (dateStr) => (dateStr ? new Date(dateStr).toLocaleString() : 'Not scheduled');
+const formatInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const formatInputTime = (date) => {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+const defaultInterviewDateTime = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(10, 0, 0, 0);
+  return { date: formatInputDate(date), time: formatInputTime(date) };
+};
+const toLocalDateTimePayload = (dateValue, timeValue) => {
+  if (!dateValue || !timeValue) return null;
+  const date = new Date(`${dateValue}T${timeValue}`);
+  return Number.isNaN(date.getTime()) ? null : `${dateValue}T${timeValue}:00`;
+};
 
 const JobDetail = () => {
   const { jobId } = useParams();
@@ -29,13 +53,27 @@ const JobDetail = () => {
   const [resumeFile, setResumeFile] = useState(null);
   const [coverLetter, setCoverLetter] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [applications, setApplications] = useState([]);
+  const [chatFor, setChatFor] = useState(null);
+  const [scheduleFor, setScheduleFor] = useState(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
 
-  useEffect(() => { fetchJob(); fetchMyApplication(); /* eslint-disable-line */ }, [jobId]);
+  useEffect(() => { fetchJob(); fetchMyApplication(); /* eslint-disable-line */ }, [jobId, user?.id]);
 
   const fetchJob = async () => {
-    try { setJob(await jobsApi.get(jobId)); }
+    try {
+      const data = await jobsApi.get(jobId);
+      setJob(data);
+      if (user?.id === data.created_by || canModerateJobs(user)) fetchApplications();
+    }
     catch (err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  const fetchApplications = async () => {
+    try { setApplications(await jobsApi.getApplications(jobId)); }
+    catch (err) { console.error(err); }
   };
 
   const fetchMyApplication = async () => {
@@ -69,6 +107,54 @@ const JobDetail = () => {
     } catch (err) { console.error(err); }
   };
 
+  const updateApplicationStatus = async (app, status) => {
+    try {
+      await jobsApi.updateApplicationStatus(app.id, status);
+      fetchApplications(); fetchJob();
+    } catch (err) { alert(err.response?.data?.detail || 'Failed to update application'); }
+  };
+
+  const downloadResume = async (app) => {
+    try {
+      if (app.status === 'SUBMITTED') await jobsApi.updateApplicationStatus(app.id, 'VIEWED');
+      const url = await jobsApi.getResumeDownload(app.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      fetchApplications(); fetchJob();
+    } catch (err) { alert(err.response?.data?.detail || 'Failed to open resume'); }
+  };
+
+  const openSchedule = (app) => {
+    const next = defaultInterviewDateTime();
+    setScheduleFor(app);
+    setScheduleDate(next.date);
+    setScheduleTime(next.time);
+  };
+
+  const closeSchedule = () => {
+    setScheduleFor(null);
+    setScheduleDate('');
+    setScheduleTime('');
+  };
+
+  const submitSchedule = async (e) => {
+    e.preventDefault();
+    const iso = toLocalDateTimePayload(scheduleDate, scheduleTime);
+    if (!scheduleFor || !iso) return;
+    try {
+      await jobsApi.scheduleInterview(scheduleFor.id, iso);
+      closeSchedule();
+      fetchApplications(); fetchJob();
+    } catch (err) { alert(err.response?.data?.detail || 'Failed to schedule interview'); }
+  };
+
+  const joinInterview = (app) => {
+    const roomName = app.latest_interview?.room_name;
+    if (!roomName) return;
+    navigate(`/video-call/${encodeURIComponent(roomName)}?returnTo=${encodeURIComponent(`/jobs/${jobId}`)}`, {
+      state: { from: `/jobs/${jobId}` },
+    });
+  };
+
   if (loading) return <div className="page"><div className="loading-block">Loading job…</div></div>;
   if (!job) return (
     <div className="page">
@@ -83,7 +169,7 @@ const JobDetail = () => {
 
   const isCreator = user?.id === job.created_by;
   const isAdmin = canModerateJobs(user);
-  const canApply = !isCreator && !isAdmin && !application && job.status === 'APPROVED';
+  const canApply = ['STUDENT', 'ALUMNI'].includes(user?.role) && !isCreator && !isAdmin && !application && job.status === 'APPROVED';
 
   return (
     <div className="page">
@@ -154,6 +240,49 @@ const JobDetail = () => {
               </div>
             </>
           )}
+
+          {(isCreator || isAdmin) && (
+            <>
+              <div className="eyebrow" style={{ margin: '24px 0 10px' }}>03 · APPLICATIONS</div>
+              <div className="panel" style={{ padding: 16 }}>
+                {applications.length === 0 ? (
+                  <div className="empty-block" style={{ padding: 24 }}>
+                    <Icon name="users" size={24} />
+                    <h3>No applicants yet</h3>
+                    <p>Applications will show up here after candidates apply.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {applications.map((app) => (
+                      <div key={app.id} className="panel" style={{ padding: 12, background: 'var(--bg-2)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                          <div>
+                            <div className="h3" style={{ fontSize: 13 }}>{app.applicant?.name || 'Applicant'}</div>
+                            <div className="mute" style={{ fontSize: 12 }}>{app.applicant?.email} · Applied {formatDateTime(app.applied_at)}</div>
+                          </div>
+                          <Pill tone={STATUS_TONE[app.status]} dot>{app.status}</Pill>
+                        </div>
+                        {app.latest_interview && (
+                          <div className="mute" style={{ fontSize: 12, marginTop: 8 }}>
+                            Interview: {formatDateTime(app.latest_interview.scheduled_at)}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                          <button className="btn sm" onClick={() => downloadResume(app)}><Icon name="download" size={12} /> Resume</button>
+                          <button className="btn sm" onClick={() => setChatFor(app)}><Icon name="msg" size={12} /> Chat</button>
+                          <button className="btn sm" onClick={() => openSchedule(app)}><Icon name="calendar" size={12} /> Interview</button>
+                          {app.latest_interview && <button className="btn sm primary" onClick={() => joinInterview(app)}><Icon name="video" size={12} /> Join</button>}
+                          <button className="btn sm" onClick={() => updateApplicationStatus(app, 'SHORTLISTED')}>Shortlist</button>
+                          <button className="btn sm ghost" onClick={() => updateApplicationStatus(app, 'REJECTED')}>Reject</button>
+                          <button className="btn sm primary" onClick={() => updateApplicationStatus(app, 'HIRED')}>Hire</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div>
@@ -219,6 +348,55 @@ const JobDetail = () => {
               <div className="modal-foot">
                 <button type="button" className="btn ghost" onClick={() => setShowApplyModal(false)}>Cancel</button>
                 <button type="submit" className="btn primary" disabled={uploading}>{uploading ? 'Submitting…' : 'Submit application'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {chatFor && (
+        <div className="modal-backdrop" onClick={() => setChatFor(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="eyebrow">APPLICATION CHAT</div>
+                <h3>{chatFor.applicant?.name}</h3>
+              </div>
+              <button className="iconbtn" onClick={() => setChatFor(null)}><Icon name="close" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <ApplicationChat applicationId={chatFor.id} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scheduleFor && (
+        <div className="modal-backdrop" onClick={closeSchedule}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="eyebrow">SCHEDULE INTERVIEW</div>
+                <h3>{scheduleFor.applicant?.name || 'Applicant'}</h3>
+              </div>
+              <button className="iconbtn" onClick={closeSchedule}><Icon name="close" size={14} /></button>
+            </div>
+            <form onSubmit={submitSchedule}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Date</label>
+                    <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Time</label>
+                    <input type="time" step="900" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} required />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button type="button" className="btn ghost" onClick={closeSchedule}>Cancel</button>
+                <button type="submit" className="btn primary">Schedule interview</button>
               </div>
             </form>
           </div>

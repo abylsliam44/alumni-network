@@ -164,6 +164,81 @@ async def create_new_message_notification(
     )
 
 
+async def create_job_application_notification(
+    db: AsyncSession,
+    recipient_id: uuid.UUID,
+    applicant: User,
+    application_id: uuid.UUID,
+    job_title: str,
+) -> Notification:
+    return await create_notification(
+        db=db,
+        user_id=recipient_id,
+        notification_type=NotificationType.JOB_APPLICATION_SUBMITTED,
+        title="New Job Application",
+        message=f"{applicant.name} applied for {job_title}",
+        actor_id=applicant.id,
+        reference_id=application_id,
+    )
+
+
+async def create_job_application_status_notification(
+    db: AsyncSession,
+    applicant_id: uuid.UUID,
+    actor: User,
+    application_id: uuid.UUID,
+    job_title: str,
+    status: str,
+) -> Notification:
+    return await create_notification(
+        db=db,
+        user_id=applicant_id,
+        notification_type=NotificationType.JOB_APPLICATION_STATUS_CHANGED,
+        title="Application Status Updated",
+        message=f"Your application for {job_title} is now {status.replace('_', ' ').title()}",
+        actor_id=actor.id,
+        reference_id=application_id,
+    )
+
+
+async def create_job_interview_scheduled_notification(
+    db: AsyncSession,
+    applicant_id: uuid.UUID,
+    actor: User,
+    application_id: uuid.UUID,
+    job_title: str,
+) -> Notification:
+    return await create_notification(
+        db=db,
+        user_id=applicant_id,
+        notification_type=NotificationType.JOB_INTERVIEW_SCHEDULED,
+        title="Interview Scheduled",
+        message=f"An interview was scheduled for your application to {job_title}",
+        actor_id=actor.id,
+        reference_id=application_id,
+    )
+
+
+async def create_job_application_message_notification(
+    db: AsyncSession,
+    recipient_id: uuid.UUID,
+    sender: User,
+    application_id: uuid.UUID,
+    message_preview: Optional[str] = None,
+) -> Notification:
+    preview = (message_preview or "").strip()
+    body = f"{sender.name}: {preview[:120]}" if preview else f"{sender.name} sent you an application message"
+    return await create_notification(
+        db=db,
+        user_id=recipient_id,
+        notification_type=NotificationType.JOB_APPLICATION_MESSAGE,
+        title="New Application Message",
+        message=body,
+        actor_id=sender.id,
+        reference_id=application_id,
+    )
+
+
 async def get_user_notifications(
     db: AsyncSession,
     user_id: uuid.UUID,
