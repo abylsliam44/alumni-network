@@ -160,7 +160,8 @@ const Landing = () => {
         <div className="onb-brand">
           <AituGlyph size={28} color="var(--ink)" accent="var(--blue)" />
           <span className="onb-brand-text">
-            ALUMNI NETWORKING PLATFORM — <b>v2.6 · MAY 2026</b>
+            <span className="onb-brand-full">ALUMNI NETWORKING PLATFORM — <b>v2.6 · MAY 2026</b></span>
+            <span className="onb-brand-short">AITU ALUMNI · <b>MAY 2026</b></span>
           </span>
         </div>
         <div className="onb-live-row">

@@ -63,9 +63,7 @@ const attachmentDownloadUrl = (msg, download = false) => {
   const base = apiBase?.replace(/\/$/, '') || '';
   const path = `/api/v1/messages/attachments/${msg.id}/download`;
   const params = new URLSearchParams();
-  const token = localStorage.getItem('token');
   if (download) params.set('download', 'true');
-  if (token) params.set('token', token);
   const q = params.toString();
   return `${base}${path}${q ? `?${q}` : ''}`;
 };

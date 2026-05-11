@@ -2,7 +2,7 @@ import api from './axios';
 
 export const authApi = {
   login: async (email, password) => {
-    const formData = new FormData();
+    const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
 
@@ -19,8 +19,13 @@ export const authApi = {
     return response.data;
   },
 
-  getCurrentUser: async () => {
-    const response = await api.get('/api/v1/auth/me');
+  getCurrentUser: async (config = {}) => {
+    const response = await api.get('/api/v1/auth/me', config);
+    return response.data;
+  },
+
+  logout: async () => {
+    const response = await api.post('/api/v1/auth/logout');
     return response.data;
   },
 };

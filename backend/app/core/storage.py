@@ -177,7 +177,7 @@ def generate_presigned_download_url(
         url = s3_client.generate_presigned_url(
             "get_object",
             Params=params,
-            ExpiresIn=3600,
+            ExpiresIn=300,
         )
         return url
     except Exception as e:
@@ -239,7 +239,7 @@ def generate_presigned_url(
                 "Key": object_name,
                 "ContentType": file_type,
             },
-            ExpiresIn=3600,
+            ExpiresIn=300,
         )
 
         public_endpoint = _public_storage_endpoint(public_endpoint)

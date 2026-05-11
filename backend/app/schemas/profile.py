@@ -1,8 +1,7 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, HttpUrl
-from datetime import date
+from typing import List, Optional
 from uuid import UUID
-from app.schemas.user import UserRead
+
+from pydantic import BaseModel, EmailStr
 
 class EducationItem(BaseModel):
     school: str
@@ -74,7 +73,7 @@ class ProfileUpdate(ProfileBase):
 class ProfileRead(ProfileBase):
     id: UUID
     user_id: UUID
-    email: str
+    email: Optional[EmailStr] = None
     name: str
     role: str
     is_mentor: bool = False

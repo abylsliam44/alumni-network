@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    AUTH_ACCESS_COOKIE_NAME: str = "access_token"
+    AUTH_REFRESH_COOKIE_NAME: str = "refresh_token"
+    AUTH_COOKIE_SECURE: bool = False
+    AUTH_COOKIE_SAMESITE: str = "lax"
+    AUTH_COOKIE_DOMAIN: Optional[str] = None
+    ENABLE_OPENAPI: bool = True
     GOOGLE_AI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     
@@ -29,6 +36,7 @@ class Settings(BaseSettings):
 
     # Storage
     UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024
     
     # MinIO (S3-compatible storage)
     MINIO_ENDPOINT: str = "minio:9000"

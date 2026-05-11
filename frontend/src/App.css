@@ -1848,6 +1848,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--b
 .onb-brand { display: flex; align-items: center; gap: 12px; }
 .onb-brand-text { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--ink-2); }
 .onb-brand-text b { color: var(--blue); font-weight: 500; }
+.onb-brand-short { display: none; }
 .onb-live-row { display: flex; gap: 18px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em; flex-wrap: wrap; }
 .onb-live { display: inline-flex; align-items: center; gap: 6px; }
 .onb-live .label { color: var(--ink-3); }
@@ -1937,11 +1938,187 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--b
   .onb-headline .h { font-size: 48px; }
 }
 @media (max-width: 760px) {
-  .onb-headline { left: 24px; right: 24px; max-width: none; }
-  .onb-headline .h { font-size: 36px; }
-  .onb-topstrip { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .onb-bottom { flex-direction: column; gap: 6px; align-items: flex-start; }
-  .onb-stage { cursor: auto; }
+  .onb-stage {
+    height: 100svh;
+    min-height: 640px;
+    cursor: auto;
+  }
+
+  .onb-bg {
+    opacity: 0.96;
+  }
+
+  .onb-grid {
+    background-size: 42px 42px;
+    -webkit-mask-image: linear-gradient(#000, rgba(0, 0, 0, 0.72));
+    mask-image: linear-gradient(#000, rgba(0, 0, 0, 0.72));
+  }
+
+  .onb-bracket {
+    width: 14px;
+    height: 14px;
+    opacity: 0.45;
+  }
+
+  .onb-bracket.tl { top: 12px; left: 12px; }
+  .onb-bracket.tr { top: 12px; right: 12px; }
+  .onb-bracket.bl { bottom: 12px; left: 12px; }
+  .onb-bracket.br { bottom: 12px; right: 12px; }
+
+  .onb-topstrip {
+    top: max(14px, env(safe-area-inset-top));
+    left: 18px;
+    right: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .onb-brand {
+    gap: 9px;
+  }
+
+  .onb-brand svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .onb-brand-text {
+    font-size: 9.5px;
+    line-height: 1.45;
+    letter-spacing: 0.12em;
+  }
+
+  .onb-brand-full {
+    display: none;
+  }
+
+  .onb-brand-short {
+    display: inline;
+  }
+
+  .onb-live-row {
+    position: relative;
+    width: 100%;
+    max-width: 330px;
+    gap: 10px 16px;
+    padding-right: 40px;
+    font-size: 9.5px;
+    line-height: 1.4;
+    letter-spacing: 0.07em;
+  }
+
+  .onb-live-row .theme-toggle {
+    position: absolute;
+    top: -6px;
+    right: 0;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.48);
+    border-color: var(--line-soft);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  :root[data-theme="dark"] .onb-live-row .theme-toggle {
+    background: rgba(12, 14, 16, 0.58);
+  }
+
+  .onb-live:nth-child(4) {
+    display: none;
+  }
+
+  .onb-svg {
+    opacity: 0.5;
+    transform: translate(18%, 8%) scale(1.08);
+    transform-origin: center;
+  }
+
+  .onb-svg text {
+    display: none;
+  }
+
+  .onb-cursor {
+    display: none;
+  }
+
+  .onb-headline {
+    top: 39%;
+    left: 24px;
+    right: 24px;
+    max-width: 340px;
+    transform: none;
+  }
+
+  .onb-headline .eye {
+    margin-bottom: 12px;
+    font-size: 9.5px;
+    line-height: 1.5;
+    letter-spacing: 0.12em;
+  }
+
+  .onb-headline .h {
+    font-size: 38px;
+    line-height: 1.04;
+    margin-bottom: 18px;
+  }
+
+  .onb-headline .sub {
+    max-width: 315px;
+    margin-bottom: 22px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .onb-headline .ctas {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px;
+    gap: 10px;
+    max-width: 340px;
+  }
+
+  .onb-headline .ctas .btn {
+    min-height: 52px;
+    padding: 0 14px !important;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+
+  .onb-people-row {
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .onb-people-row .meta {
+    max-width: 210px;
+    font-size: 9.5px;
+    line-height: 1.55;
+  }
+
+  .onb-bottom {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .onb-headline {
+    left: 20px;
+    right: 20px;
+    top: 37%;
+  }
+
+  .onb-headline .h {
+    font-size: 35px;
+  }
+
+  .onb-headline .ctas {
+    grid-template-columns: 1fr;
+  }
+
+  .onb-headline .ctas .btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 1040px) {

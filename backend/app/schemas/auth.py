@@ -4,8 +4,8 @@ from app.models.user import UserRole
 from app.schemas.user import UserRead
 
 class Token(BaseModel):
-    access_token: str
-    token_type: str
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
     refresh_token: Optional[str] = None
 
 class TokenPayload(BaseModel):
@@ -40,7 +40,7 @@ class RegisterRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    access_token: str
+    access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
     user: UserRead

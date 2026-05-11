@@ -346,10 +346,16 @@ async def apply_to_job(
     if existing.scalars().first():
         raise HTTPException(status_code=400, detail="You already applied to this job")
 
+    resume_reference = application_in.resume_object_name or application_in.resume_url
+    if not resume_reference:
+        raise HTTPException(status_code=400, detail="Resume upload reference is required")
+    if application_in.resume_object_name and not application_in.resume_object_name.startswith("resumes/"):
+        raise HTTPException(status_code=400, detail="Invalid resume upload reference")
+
     application = JobApplication(
         job_id=job_id,
         applicant_id=current_user.id,
-        resume_url=application_in.resume_url,
+        resume_url=resume_reference,
         cover_letter=application_in.cover_letter,
         status=ApplicationStatus.SUBMITTED
     )

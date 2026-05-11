@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.origins import is_allowed_origin
 from app.models.message import Conversation
 from app.models.user import User
 from app.schemas.auth import TokenPayload
@@ -95,16 +96,17 @@ manager = ConnectionManager()
 
 
 async def _extract_token(websocket: WebSocket) -> Optional[str]:
-    token = websocket.query_params.get("token")
-    if token:
-        return token
     authorization = websocket.headers.get("Authorization") or websocket.headers.get("authorization")
     if authorization and authorization.lower().startswith("bearer "):
         return authorization.split(" ", 1)[1]
-    return None
+    return websocket.cookies.get(settings.AUTH_ACCESS_COOKIE_NAME)
 
 
 async def _authenticate(websocket: WebSocket) -> User:
+    if not is_allowed_origin(websocket.headers.get("origin"), websocket.headers, websocket.url.scheme):
+        await websocket.close(code=4403)
+        raise WebSocketDisconnect
+
     token = await _extract_token(websocket)
     if not token:
         await websocket.close(code=4401)
@@ -113,6 +115,8 @@ async def _authenticate(websocket: WebSocket) -> User:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         token_data = TokenPayload(**payload)
+        if token_data.type not in (None, "access") or not token_data.sub:
+            raise JWTError("Invalid access token")
     except (JWTError, ValueError):
         await websocket.close(code=4401)
         raise WebSocketDisconnect

@@ -243,6 +243,9 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
         )
         user = result.scalars().first()
     
+    is_own_profile = viewer is not None and viewer.id == user.id
+    can_view_private = is_own_profile or bool(viewer and viewer.is_admin)
+
     career_profile_data = await _build_career_profile_data(user, viewer, db)
     mentee_rating_data = await _build_mentee_rating_data(user.id, db)
     mentor_active_mentees = 0
@@ -269,11 +272,11 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
     profile_data = {
         "id": user.profile.id,
         "user_id": user.id,
-        "email": user.email,
+        "email": user.email if can_view_private else None,
         "name": user.name,
         "role": user.role,
         "is_mentor": user.is_mentor,
-        "is_admin": user.is_admin,
+        "is_admin": user.is_admin if can_view_private else False,
         "photo_url": user.photo_url,
         "cover_url": user.profile.cover_url,
         "is_verified": user.is_verified,
@@ -308,7 +311,7 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
         "mentee_feedback_count": mentee_rating_data.get("mentee_feedback_count", 0),
         "opportunity_generation": (
             user.profile.visibility_settings.get("opportunity_generation")
-            if isinstance(user.profile.visibility_settings, dict)
+            if can_view_private and isinstance(user.profile.visibility_settings, dict)
             else None
         ),
     }

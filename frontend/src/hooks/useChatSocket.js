@@ -11,9 +11,7 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
   const pingRef = useRef(null);
   const shouldReconnectRef = useRef(true);
 
-  const getWsUrl = () => {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
+  const getWsUrl = useCallback(() => {
     const httpBase =
       import.meta.env.VITE_API_URL ||
       window.location.origin ||
@@ -22,8 +20,8 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
     const base = import.meta.env.VITE_WS_URL || httpBase;
     const wsBase = base.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
     const sanitizedBase = wsBase.endsWith('/') ? wsBase.slice(0, -1) : wsBase;
-    return `${sanitizedBase}/ws/chat?token=${token}`;
-  };
+    return `${sanitizedBase}/ws/chat`;
+  }, []);
 
   const sendEvent = useCallback((type, payload) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -62,63 +60,22 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
     [onMessageRead, onNewMessage, onTypingEvent, onPresenceEvent, onOnlineUsers]
   );
 
-  // Helper to check if token is expired (simple JWT decode)
-  const isTokenExpired = (token) => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      // Buffer of 30 seconds
-      if (payload.exp && Date.now() >= payload.exp * 1000 - 30000) {
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return true;
-    }
-  };
-
   const connect = useCallback(async () => {
-    let token = localStorage.getItem('token');
-    if (!token) return;
-
-    // Convert http(s) to ws(s)
     const httpBase =
       import.meta.env.VITE_API_URL ||
       window.location.origin ||
       window.location.origin;
-    const base = import.meta.env.VITE_WS_URL || httpBase;
-    const wsBase = base.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
-    const sanitizedBase = wsBase.endsWith('/') ? wsBase.slice(0, -1) : wsBase;
 
-    // Check expiry
-    if (isTokenExpired(token)) {
-      console.log('WS Token expired, attempting refresh...');
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        try {
-          // We use fetch here to avoid circular dep with axios interceptor nuances
-          const refreshUrl = `${httpBase.replace(/\/$/, '')}/api/v1/auth/refresh?refresh_token=${refreshToken}`;
-          const res = await fetch(refreshUrl, { method: 'POST' });
-          if (res.ok) {
-            const data = await res.json();
-            localStorage.setItem('token', data.access_token);
-            if (data.refresh_token) localStorage.setItem('refreshToken', data.refresh_token);
-            token = data.access_token;
-            console.log('WS Token refreshed successfully');
-          } else {
-            console.error('WS Refresh failed, status:', res.status);
-            return; // Abort connection
-          }
-        } catch (e) {
-          console.error('WS Refresh network error:', e);
-          return;
-        }
-      } else {
-        return; // No refresh token, abort
-      }
+    try {
+      await fetch(`${httpBase.replace(/\/$/, '')}/api/v1/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (e) {
+      // The WebSocket handshake will still enforce authentication.
     }
 
-    const wsUrl = `${sanitizedBase}/ws/chat?token=${token}`;
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(getWsUrl());
     wsRef.current = ws;
     ws.onopen = () => {
       setStatus('connected');
@@ -139,7 +96,7 @@ export const useChatSocket = ({ onNewMessage, onTypingEvent, onMessageRead, onPr
     };
     ws.onerror = () => setStatus('error');
     ws.onmessage = handleMessage;
-  }, [clearPing, handleMessage]);
+  }, [clearPing, getWsUrl, handleMessage]);
 
   useEffect(() => {
     shouldReconnectRef.current = true;

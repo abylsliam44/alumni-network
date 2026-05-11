@@ -12,11 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.ws import manager
-from app.core import security
 from app.core.database import get_db
 from app.models.message import Conversation, Message
 from app.models.user import User
-from app.schemas.auth import TokenPayload
 from app.schemas.message import (
     ConversationMessages,
     ConversationSummary,
@@ -81,27 +79,11 @@ async def _ensure_participant(
 
 
 async def _get_current_active_user_for_attachment(
-    db: AsyncSession,
     header_user: Optional[User],
-    token: Optional[str],
 ) -> User:
     if header_user:
         return header_user
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    try:
-        payload = security.verify_token(token)
-        token_data = TokenPayload(**payload)
-    except Exception:
-        raise HTTPException(status_code=403, detail="Could not validate credentials")
-
-    user = await db.scalar(select(User).where(User.id == token_data.sub))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return user
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 @router.get("/conversations", response_model=list[ConversationSummary])
@@ -352,11 +334,10 @@ async def upload_attachment(
 async def download_attachment(
     message_id: uuid.UUID,
     download: bool = Query(False),
-    token: Optional[str] = Query(None),
     header_user: Optional[User] = Depends(deps.get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    current_user = await _get_current_active_user_for_attachment(db, header_user, token)
+    current_user = await _get_current_active_user_for_attachment(header_user)
 
     message = await db.scalar(select(Message).where(Message.id == message_id))
     if not message or not message.attachment_url:

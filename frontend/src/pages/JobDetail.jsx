@@ -49,9 +49,9 @@ const JobDetail = () => {
     if (!resumeFile) return;
     setUploading(true);
     try {
-      const { upload_url, file_url } = await jobsApi.getPresignedUrl(resumeFile.name, resumeFile.type);
+      const { upload_url, object_name } = await jobsApi.getPresignedUrl(resumeFile.name, resumeFile.type);
       await axios.put(upload_url, resumeFile, { headers: { 'Content-Type': resumeFile.type } });
-      await jobsApi.apply(jobId, { resume_url: file_url, cover_letter: coverLetter });
+      await jobsApi.apply(jobId, { resume_object_name: object_name, cover_letter: coverLetter });
       setShowApplyModal(false);
       fetchMyApplication(); fetchJob();
     } catch (err) { console.error(err); alert('Application failed.'); }

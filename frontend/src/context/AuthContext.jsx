@@ -15,20 +15,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const token = localStorage.getItem('token');
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const userData = await authApi.getCurrentUser();
-          setUser(userData);
-        } catch (err) {
-          console.error('Auth check failed:', err);
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-        }
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      try {
+        const userData = await authApi.getCurrentUser({ skipAuthRedirect: true });
+        setUser(userData);
+      } catch (err) {
+        setUser(null);
       }
       setLoading(false);
     };
@@ -40,10 +36,9 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authApi.login(email, password);
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('refreshToken', data.refresh_token);
-
+      await authApi.login(email, password);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       const userData = await authApi.getCurrentUser();
       setUser(userData);
       return true;
@@ -67,16 +62,11 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authApi.register(userData);
-
-      if (data?.access_token) {
-        localStorage.setItem('token', data.access_token);
-        if (data.refresh_token) {
-          localStorage.setItem('refreshToken', data.refresh_token);
-        }
-        const current = await authApi.getCurrentUser();
-        setUser(current);
-      }
+      await authApi.register(userData);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      const current = await authApi.getCurrentUser();
+      setUser(current);
       return true;
     } catch (err) {
       console.error('Registration error:', err);
@@ -104,6 +94,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     setUser(null);
+    authApi.logout().catch(() => {});
   };
 
   const refreshUser = async () => {
@@ -113,7 +104,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token: null, loading, error, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

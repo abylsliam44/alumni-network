@@ -47,7 +47,7 @@ export const jobsApi = {
   },
 
   async apply(id, payload) {
-    // payload: { resume_url, cover_letter }
+    // payload: { resume_object_name, cover_letter }
     const { data } = await api.post(`/api/v1/jobs/${id}/apply`, payload);
     return data;
   },

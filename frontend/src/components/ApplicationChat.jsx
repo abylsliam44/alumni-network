@@ -4,8 +4,7 @@ import { jobsApi } from '../api/jobs';
 import Icon from './ui/Icon';
 
 const ApplicationChat = ({ applicationId }) => {
-  const { token: authToken, user } = useAuth();
-  const token = authToken || localStorage.getItem('token');
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
@@ -15,12 +14,10 @@ const ApplicationChat = ({ applicationId }) => {
   useEffect(() => {
     jobsApi.getChatHistory(applicationId).then(setMessages).catch(console.error);
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const backendUrl = import.meta.env.VITE_API_URL || window.location.origin;
-    const wsHost = backendUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    if (!token) { setConnected(false); return undefined; }
+    const wsBase = backendUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:').replace(/\/$/, '');
 
-    const ws = new WebSocket(`${protocol}//${wsHost}/api/v1/job-chat/ws/${applicationId}?token=${token}`);
+    const ws = new WebSocket(`${wsBase}/api/v1/job-chat/ws/${applicationId}`);
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
     ws.onmessage = (event) => {
@@ -29,7 +26,7 @@ const ApplicationChat = ({ applicationId }) => {
     };
     ws.onclose = () => setConnected(false);
     return () => ws.close();
-  }, [applicationId, token]);
+  }, [applicationId]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 

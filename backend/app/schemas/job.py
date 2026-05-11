@@ -55,7 +55,8 @@ class JobList(BaseModel):
 
 # --- Application CRUD ---
 class JobApplicationCreate(BaseModel):
-    resume_url: str
+    resume_object_name: Optional[str] = None
+    resume_url: Optional[str] = None
     cover_letter: Optional[str] = None
 
 class JobApplicationUpdateStatus(BaseModel):
@@ -65,7 +66,6 @@ class JobApplicationRead(BaseModel):
     id: UUID
     job_id: UUID
     applicant_id: UUID
-    resume_url: str
     cover_letter: Optional[str] = None
     status: ApplicationStatus
     applied_at: datetime

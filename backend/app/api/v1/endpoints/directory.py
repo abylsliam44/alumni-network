@@ -59,7 +59,7 @@ async def list_users(
         # We'll manually construct ProfileRead to avoid N+1 if get_profile_data does extra checks
         # Actually get_profile_data does a check if user.profile is None.
         # Let's just use it, assuming profiles exist for most.
-        item = await get_profile_data(user, db)
+        item = await get_profile_data(user, db, viewer=current_user)
         items.append(item)
         
     import math

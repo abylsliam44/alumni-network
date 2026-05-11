@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
@@ -11,7 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.origins import is_allowed_origin
 from app.models.job import JobApplication, JobChatMessage
 from app.models.user import User
 
@@ -47,18 +49,26 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+
+def _extract_ws_token(websocket: WebSocket) -> Optional[str]:
+    authorization = websocket.headers.get("Authorization") or websocket.headers.get("authorization")
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1]
+    return websocket.cookies.get(settings.AUTH_ACCESS_COOKIE_NAME)
+
+
 @router.websocket("/ws/{application_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
     application_id: str,
-    token: str, # passed as query param ?token=...
     db: AsyncSession = Depends(get_db),
 ):
-    # Authenticate via token manually since WebSocket doesn't support Depends(oauth2) easily in initial handshake header standardly in all clients
-    # or Assume client sends proper protocol.
-    # We will use get_current_user logic manually.
-    
-    user = await deps.get_current_user_optional(db, token)
+    if not is_allowed_origin(websocket.headers.get("origin"), websocket.headers, websocket.url.scheme):
+        await websocket.close(code=1008)
+        return
+
+    token = _extract_ws_token(websocket)
+    user = await deps.get_user_from_token(db, token)
     if not user:
         await websocket.close(code=1008)
         return

@@ -1,16 +1,21 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import os
 from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.core.config import settings
-from app.api.v1.router import api_router
+from starlette.responses import JSONResponse
+
 from app.api import ws
+from app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.origins import is_allowed_origin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.ENABLE_OPENAPI else None,
+    docs_url="/docs" if settings.ENABLE_OPENAPI else None,
+    redoc_url="/redoc" if settings.ENABLE_OPENAPI else None,
     # Handle X-Forwarded-Proto from nginx for correct redirect URLs
     root_path="" if not os.getenv("ROOT_PATH") else os.getenv("ROOT_PATH"),
 )
@@ -43,6 +48,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def csrf_origin_guard(request, call_next):
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        origin = request.headers.get("origin")
+        if origin and not is_allowed_origin(origin, request.headers, request.url.scheme):
+            return JSONResponse({"detail": "Invalid request origin"}, status_code=403)
+    return await call_next(request)
+
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(ws.router)

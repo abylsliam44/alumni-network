@@ -1,7 +1,7 @@
-from typing import AsyncGenerator, Optional
-from fastapi import Depends, HTTPException, status
+from typing import Optional
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,29 +12,64 @@ from app.core.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.auth import TokenPayload
 
-reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
-)
-
 # Optional OAuth2 scheme - does not raise error if token missing
 optional_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
     auto_error=False
 )
 
-async def get_current_user(
-    db: AsyncSession = Depends(get_db),
-    token: str = Depends(reusable_oauth2)
-) -> User:
+
+def _request_token(request: Request, bearer_token: Optional[str]) -> Optional[str]:
+    if bearer_token:
+        return bearer_token
+    return request.cookies.get(settings.AUTH_ACCESS_COOKIE_NAME)
+
+
+def _access_token_payload(token: str) -> TokenPayload:
+    payload = security.verify_token(token)
+    token_data = TokenPayload(**payload)
+    if token_data.type not in (None, "access"):
+        raise JWTError("Invalid token type")
+    if not token_data.sub:
+        raise JWTError("Missing token subject")
+    return token_data
+
+
+async def get_user_from_token(db: AsyncSession, token: Optional[str]) -> Optional[User]:
+    if not token:
+        return None
+
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        token_data = _access_token_payload(token)
+    except (JWTError, ValidationError):
+        return None
+
+    result = await db.execute(select(User).where(User.id == token_data.sub))
+    user = result.scalars().first()
+    if not user or not user.is_active:
+        return None
+    return user
+
+
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    bearer_token: Optional[str] = Depends(optional_oauth2),
+) -> User:
+    token = _request_token(request, bearer_token)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
         )
-        token_data = TokenPayload(**payload)
+
+    try:
+        token_data = _access_token_payload(token)
     except (JWTError, ValidationError):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     result = await db.execute(select(User).where(User.id == token_data.sub))
@@ -75,26 +110,14 @@ def require_admin(
 
 
 async def get_current_user_optional(
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    token: Optional[str] = Depends(optional_oauth2)
+    bearer_token: Optional[str] = Depends(optional_oauth2),
 ) -> Optional[User]:
     """
     Get current user if token provided, otherwise return None.
     Useful for endpoints accessible to both authenticated and anonymous users.
     """
-    if not token:
-        return None
-    
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        token_data = TokenPayload(**payload)
-    except (JWTError, ValidationError):
-        return None
-    
-    result = await db.execute(select(User).where(User.id == token_data.sub))
-    user = result.scalars().first()
-    
-    return user
+    token = _request_token(request, bearer_token)
+    return await get_user_from_token(db, token)
 
