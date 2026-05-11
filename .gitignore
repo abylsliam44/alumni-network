@@ -45,3 +45,6 @@ uploads/*
 # Rules
 rules/
 
+
+# Design assets / archives
+*.zip

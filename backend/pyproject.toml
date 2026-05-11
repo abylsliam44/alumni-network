@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["alembic/versions", "uploads", "venv", ".venv"]
+
+[tool.ruff.lint]
+# Conservative starter set — enable more rules as the codebase tolerates them.
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",   # line-too-long handled by formatter
+    "B008",   # FastAPI's Depends() in defaults is intentional
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["E402"]
+"tests/*" = ["F401", "F811"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
