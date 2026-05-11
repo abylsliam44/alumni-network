@@ -229,7 +229,17 @@ const Hiring = () => {
             <article key={application.id} className="panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div>
-                  <h3 className="h3">{application.applicant?.name || 'Applicant'}</h3>
+                  {application.applicant?.id ? (
+                    <Link
+                      to={`/profile/${application.applicant.id}`}
+                      className="h3"
+                      style={{ color: 'var(--ink)', textDecoration: 'none' }}
+                    >
+                      {application.applicant?.name || 'Applicant'}
+                    </Link>
+                  ) : (
+                    <h3 className="h3">{application.applicant?.name || 'Applicant'}</h3>
+                  )}
                   <div className="mute" style={{ fontSize: 12 }}>{application.applicant?.email}</div>
                 </div>
                 <Pill tone={STATUS_TONE[application.status]} dot>{application.status}</Pill>

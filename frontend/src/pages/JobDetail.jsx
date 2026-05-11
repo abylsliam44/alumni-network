@@ -257,7 +257,17 @@ const JobDetail = () => {
                       <div key={app.id} className="panel" style={{ padding: 12, background: 'var(--bg-2)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                           <div>
-                            <div className="h3" style={{ fontSize: 13 }}>{app.applicant?.name || 'Applicant'}</div>
+                            {app.applicant?.id ? (
+                              <Link
+                                to={`/profile/${app.applicant.id}`}
+                                className="h3"
+                                style={{ fontSize: 13, color: 'var(--ink)', textDecoration: 'none' }}
+                              >
+                                {app.applicant?.name || 'Applicant'}
+                              </Link>
+                            ) : (
+                              <div className="h3" style={{ fontSize: 13 }}>{app.applicant?.name || 'Applicant'}</div>
+                            )}
                             <div className="mute" style={{ fontSize: 12 }}>{app.applicant?.email} · Applied {formatDateTime(app.applied_at)}</div>
                           </div>
                           <Pill tone={STATUS_TONE[app.status]} dot>{app.status}</Pill>
