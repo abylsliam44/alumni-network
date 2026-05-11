@@ -126,19 +126,19 @@ const Landing = () => {
   const pull = mouse.active ? 0.08 : 0;
 
   // Theme-aware constants
-  const bgBase = isLight ? '#f5f1ea' : '#07090b';
+  const bgBase = isLight ? '#ffffff' : '#07090b';
   const bgFollow = isLight
-    ? `radial-gradient(900px 600px at ${mouse.x * 100}% ${mouse.y * 100}%, rgba(43,123,184,0.10), transparent 55%),
-       radial-gradient(1200px 700px at 80% 30%, rgba(184,132,92,0.05), transparent 60%),
-       radial-gradient(800px 800px at 20% 100%, rgba(43,123,184,0.04), transparent 60%),
+    ? `radial-gradient(900px 600px at ${mouse.x * 100}% ${mouse.y * 100}%, rgba(41,116,196,0.10), transparent 55%),
+       radial-gradient(1200px 700px at 80% 30%, rgba(176,122,77,0.04), transparent 60%),
+       radial-gradient(800px 800px at 20% 100%, rgba(41,116,196,0.04), transparent 60%),
        ${bgBase}`
     : `radial-gradient(900px 600px at ${mouse.x * 100}% ${mouse.y * 100}%, rgba(75,166,220,0.18), transparent 55%),
        radial-gradient(1200px 700px at 80% 30%, rgba(216,165,116,0.06), transparent 60%),
        radial-gradient(800px 800px at 20% 100%, rgba(75,166,220,0.04), transparent 60%),
        ${bgBase}`;
 
-  const ambientColor = isLight ? '#1a1610' : '#f1ede4';
-  const ambientOpacityBase = isLight ? 0.55 : 0.45;
+  const ambientColor = isLight ? '#0d1014' : '#f1ede4';
+  const ambientOpacityBase = isLight ? 0.5 : 0.45;
 
   return (
     <div
