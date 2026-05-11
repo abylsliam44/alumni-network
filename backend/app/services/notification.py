@@ -14,6 +14,7 @@ from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.cache import invalidate_namespaces
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
 
@@ -39,6 +40,7 @@ async def create_notification(
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
+    await invalidate_namespaces("notifications")
     return notification
 
 
@@ -208,6 +210,7 @@ async def mark_as_read(
         .values(is_read=True, read_at=datetime.utcnow())
     )
     await db.commit()
+    await invalidate_namespaces("notifications")
     return result.rowcount
 
 
@@ -219,4 +222,5 @@ async def mark_all_as_read(db: AsyncSession, user_id: uuid.UUID) -> int:
         .values(is_read=True, read_at=datetime.utcnow())
     )
     await db.commit()
+    await invalidate_namespaces("notifications")
     return result.rowcount

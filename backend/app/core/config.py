@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
     
     # Security
     SECRET_KEY: str
@@ -23,8 +27,33 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SAMESITE: str = "lax"
     AUTH_COOKIE_DOMAIN: Optional[str] = None
     ENABLE_OPENAPI: bool = True
+    INSTANCE_ID: Optional[str] = None
     GOOGLE_AI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+
+    # Redis / Celery
+    REDIS_CACHE_URL: str = "redis://redis-cache:6379/0"
+    REDIS_PUBSUB_URL: str = "redis://redis-cache:6379/1"
+    REDIS_RATE_LIMIT_URL: str = "redis://redis-cache:6379/2"
+    REDIS_CACHE_MAXMEMORY: str = "256mb"
+    CELERY_BROKER_URL: str = "redis://redis-celery:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://redis-celery:6379/1"
+    WEB_CONCURRENCY: int = 2
+
+    # Cache TTLs
+    CACHE_DEFAULT_TTL_SECONDS: int = 60
+    CACHE_DIRECTORY_TTL_SECONDS: int = 45
+    CACHE_PROFILE_TTL_SECONDS: int = 120
+    CACHE_CONVERSATIONS_TTL_SECONDS: int = 15
+    CACHE_MESSAGES_TTL_SECONDS: int = 30
+    CACHE_RECOMMENDATIONS_TTL_SECONDS: int = 300
+    CACHE_OPPORTUNITIES_TTL_SECONDS: int = 300
+
+    # Rate limits
+    RATE_LIMIT_AUTH_PER_MINUTE: int = 10
+    RATE_LIMIT_API_PER_MINUTE: int = 180
+    RATE_LIMIT_AI_PER_MINUTE: int = 20
+    RATE_LIMIT_MESSAGES_PER_MINUTE: int = 60
     
     # Vector search / AI
     QDRANT_URL: str = "http://qdrant:6333"

@@ -8,6 +8,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.cache import invalidate_namespaces
 from app.models.message import Conversation, ConversationParticipant, Message
 from app.models.user import User
 from app.schemas.message import ConversationSummary, ConversationUser, MessageRead
@@ -53,6 +54,7 @@ async def create_conversation(
     await db.commit()
     await db.refresh(conversation)
     await db.refresh(conversation, attribute_names=["participants"])
+    await invalidate_namespaces("conversations", "messages")
     return conversation
 
 
@@ -211,6 +213,7 @@ async def save_message(
     db.add(message)
     await db.commit()
     await db.refresh(message)
+    await invalidate_namespaces("conversations", "messages", "notifications")
     return message
 
 
@@ -242,6 +245,7 @@ async def mark_messages_read_up_to(
     )
     updated_rows = len(result.fetchall())
     await db.commit()
+    await invalidate_namespaces("conversations", "messages")
     return updated_rows, read_at
 
 

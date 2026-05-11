@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.ai.people_recommendations import upsert_user_embedding
+from app.core.cache import invalidate_namespaces
 from app.models.resume import (
     AlumniCareerProfile,
     AlumniEducationRecord,
@@ -21,6 +22,7 @@ from app.models.resume import (
 )
 from app.models.user import User, UserProfile
 from app.services.career_graph import rebuild_career_graph_for_profile
+from app.tasks.recommendations import dispatch_recommendations_prewarm
 
 EMBEDDING_UPSERT_TIMEOUT_SECONDS = 15.0
 
@@ -312,6 +314,11 @@ async def confirm_resume_import(
             pass
 
     await db.commit()
+    await invalidate_namespaces("profile", "directory", "recommendations", "opportunities")
+    try:
+        dispatch_recommendations_prewarm(current_user.id)
+    except Exception:
+        pass
 
     final_result = await db.execute(
         select(ResumeImportSession)

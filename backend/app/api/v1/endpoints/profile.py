@@ -7,14 +7,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.ai.people_recommendations import upsert_user_embedding
+from app.core.cache import get_json, invalidate_namespaces, make_cache_key, set_json
+from app.core.config import settings
 from app.core.database import get_db
 from app.core import storage
 from app.models.mentorship import MentorFeedback, MentorshipRelationship, MentorshipRelationshipStatus
 from app.models.resume import AlumniCareerProfile, ResumeImportSession
 from app.models.user import User, UserProfile
 from app.schemas.profile import ProfileRead, ProfileUpdate
+from app.tasks.recommendations import dispatch_recommendations_prewarm
 
 router = APIRouter()
+
+
+async def _invalidate_profile_related(user_id: UUID) -> None:
+    await invalidate_namespaces("profile", "directory", "recommendations", "opportunities")
+    try:
+        dispatch_recommendations_prewarm(user_id)
+    except Exception:
+        pass
 
 def _normalize_experience(raw_exp):
     """
@@ -325,12 +336,19 @@ async def read_own_profile(
     """
     Get current user profile
     """
+    cache_key = make_cache_key("profile", user_id=current_user.id, viewer_id=current_user.id, own=True)
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return ProfileRead.model_validate(cached)
+
     # Eager load profile
     result = await db.execute(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
-    return await get_profile_data(user, db, viewer=current_user)
+    response = await get_profile_data(user, db, viewer=current_user)
+    await set_json(cache_key, response.model_dump(mode="json"), settings.CACHE_PROFILE_TTL_SECONDS)
+    return response
 
 @router.put("/me", response_model=ProfileRead)
 async def update_own_profile(
@@ -377,6 +395,7 @@ async def update_own_profile(
 
     # Keep embeddings fresh for recommendations
     await upsert_user_embedding(user, user.profile)
+    await _invalidate_profile_related(current_user.id)
     
     return await get_profile_data(user, db, viewer=current_user)
 
@@ -404,6 +423,7 @@ async def upload_photo(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
+    await _invalidate_profile_related(current_user.id)
     return await get_profile_data(user, db, viewer=current_user)
 
 
@@ -439,6 +459,7 @@ async def upload_cover(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
+    await _invalidate_profile_related(current_user.id)
     return await get_profile_data(user, db, viewer=current_user)
 
 @router.delete("/me/photo", response_model=ProfileRead)
@@ -459,6 +480,7 @@ async def delete_photo(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
+    await _invalidate_profile_related(current_user.id)
     return await get_profile_data(user, db, viewer=current_user)
 
 @router.delete("/me/cover", response_model=ProfileRead)
@@ -481,6 +503,7 @@ async def delete_cover(
         select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
     )
     user = result.scalars().first()
+    await _invalidate_profile_related(current_user.id)
     return await get_profile_data(user, db, viewer=current_user)
 
 @router.get("/{user_id}", response_model=ProfileRead)
@@ -492,6 +515,16 @@ async def read_user_profile(
     """
     Get public profile of specific user
     """
+    cache_key = make_cache_key(
+        "profile",
+        user_id=user_id,
+        viewer_id=current_user.id,
+        viewer_is_admin=current_user.is_admin,
+    )
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return ProfileRead.model_validate(cached)
+
     result = await db.execute(
         select(User).options(selectinload(User.profile)).where(User.id == user_id)
     )
@@ -499,5 +532,7 @@ async def read_user_profile(
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    return await get_profile_data(user, db, viewer=current_user)
+
+    response = await get_profile_data(user, db, viewer=current_user)
+    await set_json(cache_key, response.model_dump(mode="json"), settings.CACHE_PROFILE_TTL_SECONDS)
+    return response

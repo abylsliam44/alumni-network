@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.ws import manager
+from app.core.cache import get_json, make_cache_key, set_json
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.message import Conversation, Message
 from app.models.user import User
@@ -94,7 +96,18 @@ async def list_conversations(
     """
     [MVP v1] List all conversations the current user participates in, sorted by recency.
     """
-    return await messaging_service.list_conversations_for_user(db, current_user.id)
+    cache_key = make_cache_key("conversations", user_id=current_user.id)
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return [ConversationSummary.model_validate(item) for item in cached]
+
+    response = await messaging_service.list_conversations_for_user(db, current_user.id)
+    await set_json(
+        cache_key,
+        [item.model_dump(mode="json") for item in response],
+        settings.CACHE_CONVERSATIONS_TTL_SECONDS,
+    )
+    return response
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationMessages)
@@ -110,6 +123,17 @@ async def get_conversation_messages(
     """
     [MVP v1] Return a paginated slice of messages for a conversation the user belongs to.
     """
+    cache_key = make_cache_key(
+        "messages",
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        limit=limit,
+        before=before,
+    )
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return ConversationMessages.model_validate(cached)
+
     conversation = await db.scalar(select(Conversation).where(Conversation.id == conversation_id))
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -120,11 +144,13 @@ async def get_conversation_messages(
     messages, has_more = await messaging_service.get_messages_page(
         db, conversation_id, limit=limit, before_id=before
     )
-    return ConversationMessages(
+    response = ConversationMessages(
         conversation_id=conversation_id,
         messages=messages,
         has_more=has_more,
     )
+    await set_json(cache_key, response.model_dump(mode="json"), settings.CACHE_MESSAGES_TTL_SECONDS)
+    return response
    
 
 @router.post(

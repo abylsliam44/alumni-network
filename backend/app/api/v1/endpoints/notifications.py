@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.cache import get_json, make_cache_key, set_json
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.notification import NotificationList, NotificationRead, NotificationMarkRead
@@ -29,15 +30,28 @@ async def list_notifications(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Get notifications for the current user."""
+    cache_key = make_cache_key(
+        "notifications",
+        "list",
+        user_id=current_user.id,
+        limit=limit,
+        unread_only=unread_only,
+    )
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return NotificationList.model_validate(cached)
+
     notifications = await notification_service.get_user_notifications(
         db, user_id=current_user.id, limit=limit, unread_only=unread_only
     )
     unread_count = await notification_service.get_unread_count(db, current_user.id)
     
-    return NotificationList(
+    response = NotificationList(
         notifications=[NotificationRead.model_validate(n) for n in notifications],
         unread_count=unread_count,
     )
+    await set_json(cache_key, response.model_dump(mode="json"), 20)
+    return response
 
 
 @router.get("/unread-count")
@@ -46,8 +60,15 @@ async def get_unread_count(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Get count of unread notifications."""
+    cache_key = make_cache_key("notifications", "unread-count", user_id=current_user.id)
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return cached
+
     count = await notification_service.get_unread_count(db, current_user.id)
-    return {"unread_count": count}
+    response = {"unread_count": count}
+    await set_json(cache_key, response, 10)
+    return response
 
 
 @router.post("/mark-read")

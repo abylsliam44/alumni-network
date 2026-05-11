@@ -50,6 +50,28 @@ async def _load_job(db: AsyncSession, job_id) -> ResumeProcessingJob | None:
     return result.scalars().first()
 
 
+async def claim_resume_job_by_id(db: AsyncSession, job_id) -> ResumeProcessingJob | None:
+    result = await db.execute(
+        select(ResumeProcessingJob)
+        .where(ResumeProcessingJob.id == job_id)
+        .with_for_update(skip_locked=True)
+    )
+    job = result.scalars().first()
+    if not job or job.status != ResumeJobStatus.QUEUED:
+        return None
+
+    job.status = ResumeJobStatus.RUNNING
+    job.attempts += 1
+    job.started_at = datetime.utcnow()
+
+    session = await db.get(ResumeImportSession, job.import_session_id)
+    if session:
+        session.processing_status = ResumeProcessingStatus.RUNNING
+
+    await db.commit()
+    return await _load_job(db, job.id)
+
+
 async def claim_next_resume_job(db: AsyncSession) -> ResumeProcessingJob | None:
     result = await db.execute(
         select(ResumeProcessingJob)
@@ -258,4 +280,3 @@ async def process_resume_job(db: AsyncSession, job: ResumeProcessingJob) -> Resu
         return await _complete_job(db, job)
     except Exception as exc:
         return await _fail_job(db, job, exc)
-

@@ -34,6 +34,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-celery:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
       interval: 10s
@@ -41,12 +45,12 @@ services:
       retries: 5
     restart: always
 
-  resume-worker:
+  celery-worker:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: alumni-resume-worker-prod
-    command: ["python", "-m", "app.workers.resume_worker"]
+    container_name: alumni-celery-worker-prod
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "resumes,opportunities,recommendations,default"]
     env_file:
       - .env.prod
     environment:
@@ -57,6 +61,29 @@ services:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis-celery:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    restart: always
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: alumni-celery-beat-prod
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
+    env_file:
+      - .env.prod
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - backend_uploads_prod:/app/uploads
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis-celery:
         condition: service_healthy
     restart: always
 
@@ -88,6 +115,34 @@ services:
       retries: 1
     restart: always
 
+  redis-cache:
+    image: redis:7-alpine
+    container_name: alumni-redis-cache-prod
+    command: sh -c 'redis-server --save "" --appendonly no --maxmemory ${REDIS_CACHE_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru'
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis-celery:
+    image: redis:7-alpine
+    container_name: alumni-redis-celery-prod
+    command: redis-server --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - redis_celery_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
   minio:
     image: minio/minio:latest
     container_name: alumni-minio-prod
@@ -112,3 +167,4 @@ volumes:
   backend_uploads_prod:
   qdrant_data_prod:
   minio_data_prod:
+  redis_celery_data_prod:

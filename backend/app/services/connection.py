@@ -8,9 +8,12 @@ from sqlalchemy import or_, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.cache import get_json, invalidate_namespaces, make_cache_key, set_json
+from app.core.config import settings
 from app.models.connection import Connection, ConnectionStatus
 from app.models.user import User
 from app.services import notification as notification_service
+from app.tasks.recommendations import dispatch_recommendations_prewarm
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +81,7 @@ async def create_request(
                 connection.id,
             )
     
+    await invalidate_namespaces("friends", "directory", "recommendations")
     return connection
 
 
@@ -113,6 +117,12 @@ async def respond_request(
                 connection.id,
             )
     
+    await invalidate_namespaces("friends", "directory", "recommendations")
+    try:
+        dispatch_recommendations_prewarm(connection.requester_id)
+        dispatch_recommendations_prewarm(connection.recipient_id)
+    except Exception:
+        pass
     return connection
 
 
@@ -127,6 +137,11 @@ async def list_connections(db: AsyncSession, user_id: uuid.UUID) -> list[Connect
 
 
 async def friend_ids_for_user(db: AsyncSession, user_id: uuid.UUID) -> List[uuid.UUID]:
+    cache_key = make_cache_key("friends", "ids", user_id=user_id)
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return [uuid.UUID(item) for item in cached]
+
     result = await db.execute(
         select(Connection).where(
             Connection.status == ConnectionStatus.ACCEPTED,
@@ -138,7 +153,9 @@ async def friend_ids_for_user(db: AsyncSession, user_id: uuid.UUID) -> List[uuid
     for conn in connections:
         other = conn.recipient_id if conn.requester_id == user_id else conn.requester_id
         ids.add(other)
-    return list(ids)
+    values = list(ids)
+    await set_json(cache_key, [str(item) for item in values], settings.CACHE_DEFAULT_TTL_SECONDS)
+    return values
 
 
 async def friend_users(db: AsyncSession, user_id: uuid.UUID) -> List[User]:

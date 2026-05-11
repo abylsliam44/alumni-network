@@ -30,6 +30,7 @@ from app.schemas.resume import (
     ResumeImportRead,
     ResumeUploadUrlResponse,
 )
+from app.tasks.resume import dispatch_resume_job
 
 router = APIRouter()
 
@@ -122,15 +123,22 @@ async def create_resume_import(
     db.add(import_session)
     await db.flush()
 
-    db.add(
-        ResumeProcessingJob(
-            import_session_id=import_session.id,
-            job_type=ResumeJobType.EXTRACT_TEXT,
-            status=ResumeJobStatus.QUEUED,
-            payload={"source": "resume_upload"},
-        )
+    job = ResumeProcessingJob(
+        import_session_id=import_session.id,
+        job_type=ResumeJobType.EXTRACT_TEXT,
+        status=ResumeJobStatus.QUEUED,
+        payload={"source": "resume_upload"},
     )
+    db.add(job)
     await db.commit()
+
+    try:
+        dispatch_resume_job(job.id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Resume processing queue is unavailable",
+        ) from exc
 
     result = await db.execute(
         select(ResumeImportSession)

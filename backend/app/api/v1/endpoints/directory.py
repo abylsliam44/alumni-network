@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.api import deps
+from app.core.cache import get_json, make_cache_key, set_json
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.profile import ProfileRead
@@ -36,6 +38,22 @@ async def list_users(
     Search and list users in the directory
     """
     skill_list = [s.strip() for s in skills.split(",")] if skills else None
+    cache_key = make_cache_key(
+        "directory",
+        viewer_id=current_user.id,
+        viewer_is_admin=current_user.is_admin,
+        query=query,
+        role=role,
+        is_mentor=is_mentor,
+        skills=skill_list,
+        location=location,
+        graduation_year=graduation_year,
+        page=page,
+        limit=limit,
+    )
+    cached = await get_json(cache_key)
+    if cached is not None:
+        return DirectoryResponse.model_validate(cached)
     
     users, total = await SearchService.search_users(
         db=db,
@@ -65,10 +83,12 @@ async def list_users(
     import math
     pages = math.ceil(total / limit)
     
-    return DirectoryResponse(
+    response = DirectoryResponse(
         items=items,
         total=total,
         page=page,
         limit=limit,
         pages=pages
     )
+    await set_json(cache_key, response.model_dump(mode="json"), settings.CACHE_DIRECTORY_TTL_SECONDS)
+    return response

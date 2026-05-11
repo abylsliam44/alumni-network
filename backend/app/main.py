@@ -1,15 +1,33 @@
 import os
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
 
+from contextlib import asynccontextmanager
+
 from app.api import ws
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.origins import is_allowed_origin
+from app.core.rate_limit import RateLimitExceeded, RateLimitUnavailable, check_rate_limit
+from app.core.redis import close_redis_clients
+from app.core.security import verify_token
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start WS pub/sub listener so broadcasts span uvicorn workers.
+    await ws.manager.start_pubsub()
+    try:
+        yield
+    finally:
+        await ws.manager.stop_pubsub()
+        await close_redis_clients()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -18,6 +36,7 @@ app = FastAPI(
     redoc_url="/redoc" if settings.ENABLE_OPENAPI else None,
     # Handle X-Forwarded-Proto from nginx for correct redirect URLs
     root_path="" if not os.getenv("ROOT_PATH") else os.getenv("ROOT_PATH"),
+    lifespan=lifespan,
 )
 
 # Mount static files
@@ -48,6 +67,73 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _client_identifier(request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return f"ip:{forwarded.split(',', 1)[0].strip()}"
+    if request.client and request.client.host:
+        return f"ip:{request.client.host}"
+    return "ip:unknown"
+
+
+def _user_or_ip_identifier(request) -> str:
+    token = request.cookies.get(settings.AUTH_ACCESS_COOKIE_NAME)
+    authorization = request.headers.get("authorization")
+    if not token and authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1]
+    if token:
+        try:
+            payload = verify_token(token)
+            subject = payload.get("sub")
+            if subject:
+                return f"user:{subject}"
+        except Exception:
+            pass
+    return _client_identifier(request)
+
+
+def _rate_limit_policy(path: str, method: str) -> Optional[tuple[str, int, str, bool]]:
+    if not path.startswith(settings.API_V1_STR):
+        return None
+
+    if path in {
+        f"{settings.API_V1_STR}/auth/login",
+        f"{settings.API_V1_STR}/auth/register",
+        f"{settings.API_V1_STR}/auth/refresh",
+    }:
+        return ("auth", settings.RATE_LIMIT_AUTH_PER_MINUTE, "ip", True)
+
+    if path.startswith(f"{settings.API_V1_STR}/ai") or path.startswith(
+        f"{settings.API_V1_STR}/recommendations"
+    ) or path.startswith(f"{settings.API_V1_STR}/opportunities"):
+        return ("ai", settings.RATE_LIMIT_AI_PER_MINUTE, "user", False)
+
+    if method == "POST" and path.startswith(f"{settings.API_V1_STR}/messages"):
+        return ("messages", settings.RATE_LIMIT_MESSAGES_PER_MINUTE, "user", False)
+
+    return ("api", settings.RATE_LIMIT_API_PER_MINUTE, "user", False)
+
+
+@app.middleware("http")
+async def redis_rate_limit_guard(request, call_next):
+    policy = _rate_limit_policy(request.url.path, request.method)
+    if policy:
+        bucket, limit, identifier_kind, fail_closed = policy
+        identifier = _client_identifier(request) if identifier_kind == "ip" else _user_or_ip_identifier(request)
+        try:
+            await check_rate_limit(bucket, identifier, limit, fail_closed=fail_closed)
+        except RateLimitExceeded as exc:
+            return JSONResponse(
+                {"detail": "Rate limit exceeded"},
+                status_code=429,
+                headers={"Retry-After": str(exc.retry_after)},
+            )
+        except RateLimitUnavailable:
+            return JSONResponse({"detail": "Rate limiter unavailable"}, status_code=503)
+
+    return await call_next(request)
 
 
 @app.middleware("http")
