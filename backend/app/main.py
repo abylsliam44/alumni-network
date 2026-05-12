@@ -57,7 +57,15 @@ default_cors_origins = [
     "http://0.0.0.0:3030",
 ]
 # Normalize env-provided origins and fall back to defaults when empty/blank
+<<<<<<< HEAD
+raw_env_origins = settings.BACKEND_CORS_ORIGINS
+if isinstance(raw_env_origins, str):
+    env_origins = [origin.strip() for origin in raw_env_origins.split(",") if origin.strip()]
+else:
+    env_origins = [str(origin) for origin in raw_env_origins if origin]
+=======
 env_origins = [origin for origin in settings.BACKEND_CORS_ORIGINS if origin]
+>>>>>>> origin/main
 allow_origins = env_origins or default_cors_origins
 
 app.add_middleware(

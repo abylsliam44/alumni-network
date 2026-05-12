@@ -1,8 +1,17 @@
 from typing import Any, Dict, List, Optional, Union
+<<<<<<< HEAD
+from pydantic import EmailStr, validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", env_ignore_empty=True)
+
+=======
 from pydantic import AnyHttpUrl, EmailStr, validator
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
+>>>>>>> origin/main
     PROJECT_NAME: str = "Alumni Social Network"
     API_V1_STR: str = "/api/v1"
     
@@ -64,7 +73,11 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     
     # CORS
+<<<<<<< HEAD
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = ""
+=======
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+>>>>>>> origin/main
 
     # Storage
     UPLOAD_DIR: str = "uploads"
@@ -91,15 +104,26 @@ class Settings(BaseSettings):
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+<<<<<<< HEAD
+        if v is None or v == "":
+            return ""
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",") if i.strip()]
+=======
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
+>>>>>>> origin/main
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
 
+<<<<<<< HEAD
+settings = Settings()
+=======
     class Config:
         case_sensitive = True
         env_file = ".env"
 
 settings = Settings()
 
+>>>>>>> origin/main

@@ -5,6 +5,10 @@ import { connectionsApi } from '../api/connections';
 import { mentorshipApi } from '../api/mentorship';
 import { eventsApi } from '../api/events';
 import { jobsApi } from '../api/jobs';
+<<<<<<< HEAD
+import { projectsApi } from '../api/projects';
+=======
+>>>>>>> origin/main
 import { messagesApi } from '../api/messages';
 import { recommendationsApi } from '../api/recommendations';
 import { profileApi } from '../api/profile';
@@ -47,6 +51,10 @@ const Dashboard = () => {
   const [myEventRegistrations, setMyEventRegistrations] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [recentJobs, setRecentJobs] = useState([]);
+<<<<<<< HEAD
+  const [recommendedProjects, setRecommendedProjects] = useState([]);
+=======
+>>>>>>> origin/main
   const [myJobApplications, setMyJobApplications] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
 
@@ -58,7 +66,11 @@ const Dashboard = () => {
         const [
           profileData, friendsData, connectionsData, conversationsData,
           mentorshipsData, incomingReqData, outgoingReqData,
+<<<<<<< HEAD
+          eventsData, myEventsData, jobsData, projectsData, myAppsData, recsData,
+=======
           eventsData, myEventsData, jobsData, myAppsData, recsData,
+>>>>>>> origin/main
         ] = await Promise.allSettled([
           profileApi.getMe(),
           connectionsApi.friends(),
@@ -70,6 +82,10 @@ const Dashboard = () => {
           eventsApi.list({ limit: 8, upcoming_only: true }),
           eventsApi.myRegistrations(),
           jobsApi.list({ limit: 6 }),
+<<<<<<< HEAD
+          projectsApi.recommended({ limit: 4 }),
+=======
+>>>>>>> origin/main
           jobsApi.myApplications(),
           recommendationsApi.getPeople(),
         ]);
@@ -94,6 +110,10 @@ const Dashboard = () => {
         if (eventsData.status === 'fulfilled') setUpcomingEvents(eventsData.value.items || eventsData.value || []);
         if (myEventsData.status === 'fulfilled') setMyEventRegistrations(myEventsData.value || []);
         if (jobsData.status === 'fulfilled') setRecentJobs(jobsData.value.items || jobsData.value || []);
+<<<<<<< HEAD
+        if (projectsData.status === 'fulfilled') setRecommendedProjects(projectsData.value.items || []);
+=======
+>>>>>>> origin/main
         if (myAppsData.status === 'fulfilled') setMyJobApplications(myAppsData.value || []);
         if (recsData.status === 'fulfilled') setRecommendations((recsData.value.items || []).slice(0, 4));
       } catch (err) {
@@ -159,6 +179,10 @@ const Dashboard = () => {
     { k: 'Connections', v: friends.length, sub: pendingConnections.length ? `${pendingConnections.length} pending` : 'in your network' },
     { k: 'Active mentorships', v: mentorships.filter((m) => m.status === 'ACTIVE').length, sub: incomingMentorRequests.length ? `${incomingMentorRequests.length} incoming` : 'no incoming requests', tone: 'blue' },
     { k: 'Job applications', v: myJobApplications.length, sub: myJobApplications.length ? `${myJobApplications.filter((a) => a.status === 'INTERVIEW' || a.status === 'SHORTLISTED').length} shortlisted` : 'browse open roles', tone: 'warm' },
+<<<<<<< HEAD
+    { k: 'Project matches', v: recommendedProjects.length, sub: recommendedProjects.length ? 'matched by your skills' : 'add skills to match', tone: 'blue' },
+=======
+>>>>>>> origin/main
   ];
 
   if (loading) {
@@ -207,7 +231,11 @@ const Dashboard = () => {
       )}
 
       {/* Stats */}
+<<<<<<< HEAD
+      <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 24 }}>
+=======
       <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 24 }}>
+>>>>>>> origin/main
         {stats.map((s) => (
           <div key={s.k} className="stat">
             <div className="stat-label">{s.k}</div>
@@ -347,10 +375,48 @@ const Dashboard = () => {
 
       {/* Bottom row */}
       <div className="dashboard-grid-2">
+<<<<<<< HEAD
+        <div className="panel blue-tint">
+          <div className="panel-head" style={{ borderBottomColor: 'var(--blue-line)' }}>
+            <div className="panel-head-title">
+              <NumCap n={4} />
+              <h3>Recommended projects</h3>
+            </div>
+            <Link to="/projects" className="btn sm ghost">Project board <Icon name="arrowR" size={12} /></Link>
+          </div>
+          <div className="panel-body flush">
+            {recommendedProjects.length === 0 ? (
+              <div className="empty-block">
+                <Icon name="bookmark" size={28} />
+                <h3>No project matches yet</h3>
+                <p>Add skills to your profile or browse the project board.</p>
+                <Link to="/projects" className="btn sm">Browse projects</Link>
+              </div>
+            ) : recommendedProjects.slice(0, 4).map((project) => (
+              <Link key={project.id} to={`/projects/${project.id}`} className="list-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 7, background: 'var(--bg-2)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', color: 'var(--ink-2)', fontFamily: 'var(--mono)', fontSize: 11 }}>
+                  {(project.title || '?').slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="h3" style={{ fontSize: 13 }}>{project.title}</div>
+                  <div className="mute" style={{ fontSize: 11.5 }}>{project.required_skills?.slice(0, 3).join(', ') || 'Open collaboration'}</div>
+                </div>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--blue)' }}>{project.match_score || 0}%</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <div className="panel-head-title">
+              <NumCap n={5} />
+=======
         <div className="panel">
           <div className="panel-head">
             <div className="panel-head-title">
               <NumCap n={4} />
+>>>>>>> origin/main
               <h3>Recent job postings</h3>
             </div>
             <Link to="/jobs" className="btn sm ghost">All jobs <Icon name="arrowR" size={12} /></Link>
@@ -384,7 +450,11 @@ const Dashboard = () => {
         <div className="panel warm-tint">
           <div className="panel-head" style={{ borderBottomColor: 'var(--warm-line)' }}>
             <div className="panel-head-title">
+<<<<<<< HEAD
+              <NumCap n={6} />
+=======
               <NumCap n={5} />
+>>>>>>> origin/main
               <h3>Quick actions</h3>
             </div>
           </div>
@@ -406,6 +476,13 @@ const Dashboard = () => {
                 <div className="icon"><Icon name="calendar" size={16} /></div>
                 <div className="label">Browse events</div>
               </Link>
+<<<<<<< HEAD
+              <Link to="/projects" className="qa-item">
+                <div className="icon"><Icon name="bookmark" size={16} /></div>
+                <div className="label">Project board</div>
+              </Link>
+=======
+>>>>>>> origin/main
               <Link to="/recommendations" className="qa-item">
                 <div className="icon"><Icon name="spark" size={16} /></div>
                 <div className="label">Recommendations</div>

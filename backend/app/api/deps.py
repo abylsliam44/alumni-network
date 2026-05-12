@@ -5,6 +5,7 @@ from jose import JWTError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+<<<<<<< HEAD
 
 from app.core import security
 from app.core.config import settings
@@ -12,6 +13,15 @@ from app.core.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.auth import TokenPayload
 
+=======
+
+from app.core import security
+from app.core.config import settings
+from app.core.database import get_db
+from app.models.user import User, UserRole
+from app.schemas.auth import TokenPayload
+
+>>>>>>> origin/main
 # Optional OAuth2 scheme - does not raise error if token missing
 optional_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
@@ -71,6 +81,7 @@ async def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+<<<<<<< HEAD
     
     result = await db.execute(select(User).where(User.id == token_data.sub))
     user = result.scalars().first()
@@ -109,11 +120,52 @@ def require_admin(
     return current_user
 
 
+=======
+    
+    result = await db.execute(select(User).where(User.id == token_data.sub))
+    user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+def require_roles(roles: list[UserRole]):
+    def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
+        if current_user.is_admin:
+            return current_user
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail="The user doesn't have enough privileges"
+            )
+        return current_user
+    return role_checker
+
+def require_admin(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required"
+        )
+    return current_user
+
+
+>>>>>>> origin/main
 async def get_current_user_optional(
     request: Request,
     db: AsyncSession = Depends(get_db),
     bearer_token: Optional[str] = Depends(optional_oauth2),
 ) -> Optional[User]:
+<<<<<<< HEAD
     """
     Get current user if token provided, otherwise return None.
     Useful for endpoints accessible to both authenticated and anonymous users.
@@ -121,3 +173,12 @@ async def get_current_user_optional(
     token = _request_token(request, bearer_token)
     return await get_user_from_token(db, token)
 
+=======
+    """
+    Get current user if token provided, otherwise return None.
+    Useful for endpoints accessible to both authenticated and anonymous users.
+    """
+    token = _request_token(request, bearer_token)
+    return await get_user_from_token(db, token)
+
+>>>>>>> origin/main

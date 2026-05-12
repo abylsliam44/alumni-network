@@ -4,6 +4,10 @@ import { profileApi } from '../api/profile';
 import { messagesApi } from '../api/messages';
 import { connectionsApi } from '../api/connections';
 import { mentorshipApi } from '../api/mentorship';
+<<<<<<< HEAD
+import { projectsApi } from '../api/projects';
+=======
+>>>>>>> origin/main
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/ui/Avatar';
 import Pill from '../components/ui/Pill';
@@ -43,6 +47,10 @@ const Profile = () => {
   const [connecting, setConnecting] = useState(false);
   const [notice, setNotice] = useState(null);
   const [activeTab, setActiveTab] = useState('about');
+<<<<<<< HEAD
+  const [profileProjects, setProfileProjects] = useState({ created_projects: [], joined_projects: [] });
+=======
+>>>>>>> origin/main
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
 
@@ -94,6 +102,15 @@ const Profile = () => {
       setLoading(true);
       const data = userId ? await profileApi.getUserProfile(userId) : await profileApi.getMe();
       setProfile(data);
+<<<<<<< HEAD
+      try {
+        const projects = await projectsApi.byUser(data.user_id);
+        setProfileProjects(projects || { created_projects: [], joined_projects: [] });
+      } catch (projectErr) {
+        console.error(projectErr);
+      }
+=======
+>>>>>>> origin/main
     } catch (err) {
       setError('Failed to load profile');
       console.error(err);
@@ -163,12 +180,21 @@ const Profile = () => {
   const careerRoles = profile.career_roles || [];
   const careerProjects = profile.career_projects || [];
   const careerPath = profile.career_path || [];
+<<<<<<< HEAD
+  const createdProjects = profileProjects.created_projects || [];
+  const joinedProjects = profileProjects.joined_projects || [];
+=======
+>>>>>>> origin/main
 
   const tabsList = [
     { k: 'about', label: 'About' },
     { k: 'experience', label: 'Experience', count: experience.length || null },
     { k: 'education', label: 'Education', count: education.length || null },
     { k: 'trajectory', label: 'Trajectory', count: careerPath.length || null },
+<<<<<<< HEAD
+    { k: 'projects', label: 'Projects', count: createdProjects.length + joinedProjects.length || null },
+=======
+>>>>>>> origin/main
   ];
 
   return (
@@ -482,6 +508,58 @@ const Profile = () => {
             )}
           </div>
         )}
+<<<<<<< HEAD
+
+        {activeTab === 'projects' && (
+          <div className="profile-about-grid">
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 12 }}>CREATED PROJECTS</div>
+              {createdProjects.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {createdProjects.map((project) => (
+                    <Link key={project.id} to={`/projects/${project.id}`} className="panel mobile-row-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 14, alignItems: 'center' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', fontFamily: 'var(--mono)', color: 'var(--ink-2)' }}>
+                        {(project.title || '?').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="h3">{project.title}</div>
+                        <div className="mute" style={{ fontSize: 12 }}>{project.short_description}</div>
+                      </div>
+                      <span className="mono" style={{ fontSize: 10, color: 'var(--blue)' }}>{project.match_score || 0}%</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-block">
+                  <Icon name="bookmark" size={28} />
+                  <h3>No created projects</h3>
+                  {isOwnProfile && <Link to="/projects/create" className="btn sm primary">Publish project</Link>}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 12 }}>JOINED PROJECTS</div>
+              {joinedProjects.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {joinedProjects.map((project) => (
+                    <Link key={project.id} to={`/projects/${project.id}`} className="panel" style={{ padding: 14, display: 'block' }}>
+                      <div className="h3">{project.title}</div>
+                      <div className="mute" style={{ fontSize: 12, marginTop: 4 }}>{project.creator?.name || 'Project team'}</div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-block">
+                  <Icon name="users" size={28} />
+                  <h3>No joined projects</h3>
+                  {isOwnProfile && <Link to="/projects" className="btn sm">Find projects</Link>}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+=======
+>>>>>>> origin/main
       </div>
 
       {showMentorshipModal && (
