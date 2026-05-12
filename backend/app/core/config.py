@@ -11,8 +11,11 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 20
+    # Budget per process. With WEB_CONCURRENCY=2 uvicorn workers + celery-worker
+    # + celery-beat + alembic on deploy, total potential connections must stay
+    # under Postgres `max_connections` (100 by default). 4 processes * (5 + 5) = 40.
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
     DB_POOL_TIMEOUT: int = 30
     DB_POOL_RECYCLE: int = 1800
     
