@@ -1,0 +1,192 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: alumni-postgres
+    env_file:
+      - .env
+    ports:
+      - "5543:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alumni_user} -d ${POSTGRES_DB:-alumni_db}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alumni-backend
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-celery:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alumni-celery-worker
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "resumes,opportunities,recommendations,default"]
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis-celery:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alumni-celery-beat
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis-celery:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: alumni-frontend
+    ports:
+      - "3030:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: alumni-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: [ "CMD", "true" ]
+      interval: 30s
+      timeout: 5s
+      retries: 1
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: alumni-redis-cache
+    command: sh -c 'redis-server --save "" --appendonly no --maxmemory ${REDIS_CACHE_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru'
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis-celery:
+    image: redis:7-alpine
+    container_name: alumni-redis-celery
+    command: redis-server --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - redis_celery_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: alumni-agent
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: alumni-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  qdrant_data:
+  minio_data:
+  redis_celery_data:

@@ -1,0 +1,215 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel duplicate PR runs; never cancel main runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────── BACKEND ─────────────────────────────
+  backend:
+    name: Backend · lint + test + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest pytest-asyncio httpx
+
+      - name: Lint (ruff)
+        working-directory: backend
+        run: ruff check .
+        continue-on-error: true   # warn-only until codebase is fully linted
+
+      - name: Test (pytest)
+        working-directory: backend
+        env:
+          # Lazy SQLAlchemy engine — no real DB connection during smoke tests.
+          DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          SECRET_KEY: ci-secret-key-not-for-prod
+        run: |
+          if find . -path ./venv -prune -o -name "test_*.py" -print -o -name "*_test.py" -print | grep -q .; then
+            pytest -q
+          else
+            echo "No test files found yet — skipping pytest. Add tests under backend/tests/."
+          fi
+
+      # The backend image pulls heavy ML deps (sentence-transformers → torch),
+      # which OOMs the default runner disk. Free ~30 GB of preinstalled junk first.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Verify Dockerfile builds
+        run: docker build -f backend/Dockerfile.prod -t alumni-backend:ci backend
+
+  # ───────────────────────────── FRONTEND ─────────────────────────────
+  frontend:
+    name: Frontend · lint + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          # No `cache: npm` because `npm ci` is currently disabled (lockfile
+          # drift — see Install dependencies step). Re-enable once the
+          # lockfile is regenerated locally and committed.
+
+      - name: Install dependencies
+        working-directory: frontend
+        # Use `npm install` (not `npm ci`) until the lockfile is regenerated:
+        # framer-motion / @emotion peers were added to package.json but never
+        # synced into package-lock.json. Locally run:
+        #   cd frontend && rm -rf node_modules package-lock.json && npm install
+        # then commit the new lockfile, then switch this back to `npm ci`.
+        run: npm install --no-audit --no-fund
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: npm run lint
+        continue-on-error: true   # warn-only until eslint is enforced
+
+      - name: Build (must pass)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Verify Dockerfile builds
+        run: docker build -f frontend/Dockerfile.prod -t alumni-frontend:ci frontend
+
+  # ───────────────────────────── COMPOSE VALIDATION ─────────────────────────────
+  compose:
+    name: Compose · syntax check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate prod compose
+        run: |
+          # stub env vars so $POSTGRES_USER etc. don't break interpolation
+          cat > .env.prod <<'EOF'
+          POSTGRES_USER=ci
+          POSTGRES_PASSWORD=ci
+          POSTGRES_DB=ci
+          MINIO_ACCESS_KEY=ci
+          MINIO_SECRET_KEY=ci
+          SECRET_KEY=ci
+          EOF
+          docker compose -f docker-compose.prod.yml config > /dev/null
+
+  # ───────────────────────────── SECURITY ─────────────────────────────
+  security:
+    name: Security · secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true   # warn-only
+
+  # ───────────────────────────── DEPLOY ─────────────────────────────
+  deploy:
+    name: Deploy · droplet
+    needs: [backend, frontend, compose, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+
+    # Deploys run one at a time; never cancel an in-flight deploy.
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+
+    steps:
+      - name: SSH into droplet and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: ${{ secrets.DROPLET_PORT || 22 }}
+          script_stop: true
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DROPLET_PROJECT_PATH }}"
+
+            echo "▶ Recording current commit (for rollback if needed)..."
+            CURRENT_SHA=$(git rev-parse HEAD)
+            echo "Current SHA: $CURRENT_SHA"
+
+            echo "▶ Fetching latest main..."
+            git fetch --all --prune
+            git reset --hard origin/main
+
+            echo "▶ Building & restarting containers..."
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            echo "▶ Waiting for backend health..."
+            HEALTHY=0
+            for i in $(seq 1 24); do
+              if docker compose -f docker-compose.prod.yml exec -T backend \
+                   curl -fsS http://localhost:8000/api/health > /dev/null 2>&1; then
+                echo "✅ Backend healthy (after ${i}x5s)"
+                HEALTHY=1
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$HEALTHY" -ne 1 ]; then
+              echo "❌ Backend health check failed — rolling back to $CURRENT_SHA"
+              git reset --hard "$CURRENT_SHA"
+              docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+              exit 1
+            fi
+
+            echo "▶ Pruning old images..."
+            docker image prune -f
+
+            echo "▶ Container status:"
+            docker compose -f docker-compose.prod.yml ps
