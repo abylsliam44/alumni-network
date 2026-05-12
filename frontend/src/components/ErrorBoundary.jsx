@@ -19,8 +19,8 @@ export default class ErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <ErrorScreen
-          title="Что-то пошло не так"
-          subtitle="Произошла неожиданная ошибка. Попробуйте обновить страницу."
+          title="Something went wrong"
+          subtitle="An unexpected error occurred. Try refreshing the page."
           onRetry={() => {
             this.setState({ hasError: false });
             window.location.reload();

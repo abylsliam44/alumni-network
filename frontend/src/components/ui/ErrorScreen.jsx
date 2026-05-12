@@ -69,8 +69,8 @@ function SatelliteIcon() {
 }
 
 export default function ErrorScreen({
-  title = 'Потеряли сигнал',
-  subtitle = 'Сервер временно недоступен. Попробуйте через несколько минут.',
+  title = 'Signal lost',
+  subtitle = 'The server is temporarily unavailable. Please try again in a few minutes.',
   onRetry,
   showContact = true,
 }) {
@@ -141,13 +141,13 @@ export default function ErrorScreen({
               onClick={onRetry}
               whileTap={{ scale: 0.97 }}
             >
-              Попробовать снова
+              Try again
             </motion.button>
           )}
 
           {showContact && (
             <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-3)' }}>
-              Если проблема не исчезает —{' '}
+              If the problem persists, contact us at{' '}
               <a
                 href="mailto:abylajslamzanov@gmail.com"
                 style={{ color: 'var(--blue)', textDecoration: 'none' }}
