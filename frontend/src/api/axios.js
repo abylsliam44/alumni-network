@@ -53,14 +53,14 @@ api.interceptors.response.use(
   }
 );
 
-// Network-level and server errors (no response, 502/503/504).
+// Full-screen error only when there is NO response at all (server unreachable /
+// DNS failure / nginx down). 5xx from a live server means a specific feature
+// failed — those are handled inline by each page component.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error.response?.status;
     const isNetworkDown = !error.response && error.message !== 'canceled';
-    const isServerError = status >= 502 && status <= 504;
-    if (isNetworkDown || isServerError) {
+    if (isNetworkDown) {
       emitNetworkError();
     }
     return Promise.reject(error);
