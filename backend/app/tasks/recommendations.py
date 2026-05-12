@@ -4,7 +4,7 @@ from uuid import UUID
 from app.core.cache import make_cache_key, set_json
 from app.core.celery_app import celery_app
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import TaskSessionLocal
 
 
 async def _prewarm_people_recommendations(user_id: str) -> dict:
@@ -12,7 +12,7 @@ async def _prewarm_people_recommendations(user_id: str) -> dict:
     # which only need this module to dispatch tasks.
     from app.ai.people_recommendations import run_people_recommendations_agent
 
-    async with AsyncSessionLocal() as db:
+    async with TaskSessionLocal() as db:
         response = await run_people_recommendations_agent(UUID(user_id), db)
         cache_key = make_cache_key("recommendations", user_id=user_id)
         await set_json(

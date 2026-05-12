@@ -7,14 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from app.core.cache import invalidate_namespaces
 from app.core.celery_app import celery_app
-from app.core.database import AsyncSessionLocal
+from app.core.database import TaskSessionLocal
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.services.opportunities import get_opportunity_generation_state, set_opportunity_generation_state
 
 
 async def _finalize_interest_generation(user_id: str, requested_interest: str, started_at: str) -> dict:
-    async with AsyncSessionLocal() as db:
+    async with TaskSessionLocal() as db:
         result = await db.execute(
             select(User)
             .options(selectinload(User.profile))

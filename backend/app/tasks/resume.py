@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.core.celery_app import celery_app
-from app.core.database import AsyncSessionLocal
+from app.core.database import TaskSessionLocal
 from app.models.resume import ResumeJobStatus, ResumeProcessingJob
 from app.services.resume_processing import claim_resume_job_by_id, process_resume_job
 
@@ -18,7 +18,7 @@ def dispatch_resume_job(job_id) -> None:
 
 
 async def dispatch_queued_resume_jobs_for_session(import_session_id) -> int:
-    async with AsyncSessionLocal() as db:
+    async with TaskSessionLocal() as db:
         result = await db.execute(
             select(ResumeProcessingJob.id)
             .where(
@@ -36,7 +36,7 @@ async def dispatch_queued_resume_jobs_for_session(import_session_id) -> int:
 
 async def dispatch_stale_queued_resume_jobs(older_than_seconds: int = 30, limit: int = 100) -> int:
     cutoff = datetime.utcnow() - timedelta(seconds=older_than_seconds)
-    async with AsyncSessionLocal() as db:
+    async with TaskSessionLocal() as db:
         result = await db.execute(
             select(ResumeProcessingJob.id)
             .where(
@@ -54,7 +54,7 @@ async def dispatch_stale_queued_resume_jobs(older_than_seconds: int = 30, limit:
 
 
 async def _process_resume_job(job_id: str) -> dict:
-    async with AsyncSessionLocal() as db:
+    async with TaskSessionLocal() as db:
         job_uuid = UUID(job_id)
         job = await claim_resume_job_by_id(db, job_uuid)
         if not job:

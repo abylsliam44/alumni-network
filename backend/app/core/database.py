@@ -1,6 +1,7 @@
 import os
 from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 from app.models.base import Base
 from app.core.config import settings
 
@@ -33,3 +34,17 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
+
+
+# Celery tasks call asyncio.run() for each job, which creates a new event loop
+# and closes it when done. A shared pool would leave asyncpg connections
+# attached to the closed loop, causing "Future attached to a different loop".
+# NullPool opens a fresh connection per session and discards it immediately —
+# nothing survives across asyncio.run() boundaries.
+_task_engine = create_async_engine(DATABASE_URL, poolclass=NullPool, echo=DEBUG)
+TaskSessionLocal = async_sessionmaker(
+    bind=_task_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+)
