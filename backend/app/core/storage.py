@@ -9,7 +9,6 @@ from botocore.exceptions import ClientError
 from fastapi import HTTPException, Request, UploadFile
 from pathlib import Path
 from app.core.config import settings
-<<<<<<< HEAD
 
 logger = logging.getLogger(__name__)
 
@@ -40,38 +39,6 @@ async def save_upload_file(file: UploadFile, sub_dir: str = "misc") -> str:
     # Save file
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-=======
-
-logger = logging.getLogger(__name__)
-
-# Use the configured upload directory, converting to Path object
-UPLOAD_DIR = Path(settings.UPLOAD_DIR).resolve()
-STATIC_URL_PREFIX = "/static"
-
-def init_storage():
-    if not UPLOAD_DIR.exists():
-        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-async def save_upload_file(file: UploadFile, sub_dir: str = "misc") -> str:
-    """
-    Legacy local file save. Prefer direct uploads to MinIO for new features.
-    """
-    init_storage()
-    
-    # Create sub-directory if needed
-    target_dir = UPLOAD_DIR / sub_dir
-    if not target_dir.exists():
-        target_dir.mkdir(parents=True, exist_ok=True)
-        
-    # Generate unique filename
-    file_ext = os.path.splitext(file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_ext}"
-    file_path = target_dir / unique_filename
-    
-    # Save file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
->>>>>>> origin/main
         
     return f"{STATIC_URL_PREFIX}/{sub_dir}/{unique_filename}"
 
@@ -116,11 +83,7 @@ def upload_bytes(
     except Exception as e:
         logger.error(f"Error uploading object to storage: {e}")
         raise HTTPException(status_code=500, detail="Could not upload file")
-<<<<<<< HEAD
 
-=======
-
->>>>>>> origin/main
 def get_s3_client(public: bool = False, public_endpoint: str | None = None):
     endpoint_url = (
         _public_storage_endpoint(public_endpoint)
@@ -245,7 +208,6 @@ def generate_presigned_url(
     prefix: str = "resumes",
     public_endpoint: str | None = None,
 ) -> dict:
-<<<<<<< HEAD
     """
     Generate a presigned URL for PUT object.
     Returns dictionary with 'url' and 'fields' (fields empty for PUT usually, or we use generate_presigned_post).
@@ -269,31 +231,6 @@ def generate_presigned_url(
     object_name = f"{normalized_prefix}/{uuid.uuid4()}/{file_name}"
     
     try:
-=======
-    """
-    Generate a presigned URL for PUT object.
-    Returns dictionary with 'url' and 'fields' (fields empty for PUT usually, or we use generate_presigned_post).
-    Here using generate_presigned_url for PUT.
-    """
-    if not bucket:
-        bucket = settings.MINIO_BUCKET
-
-    s3_client = get_s3_client()
-    
-    # Ensure bucket exists
-    try:
-        s3_client.head_bucket(Bucket=bucket)
-    except ClientError:
-        try:
-            s3_client.create_bucket(Bucket=bucket)
-        except Exception as e:
-            logger.error(f"Error creating bucket: {e}")
-
-    normalized_prefix = (prefix or "uploads").strip("/")
-    object_name = f"{normalized_prefix}/{uuid.uuid4()}/{file_name}"
-    
-    try:
->>>>>>> origin/main
         presign_client = get_s3_client(public=True, public_endpoint=public_endpoint)
         url = presign_client.generate_presigned_url(
             "put_object",

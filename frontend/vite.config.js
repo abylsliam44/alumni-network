@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -11,20 +10,6 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
-=======
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: '0.0.0.0',
-    port: 3000,
-    watch: {
-      usePolling: true,
-    },
->>>>>>> origin/main
     proxy: {
       '/api': {
         target: 'http://backend:8000',

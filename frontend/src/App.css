@@ -2709,7 +2709,6 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--b
     grid-template-columns: 1fr;
   }
 }
-<<<<<<< HEAD
 
 /* =============================================================================
    Project board
@@ -2951,5 +2950,3 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--b
     padding: 18px 16px;
   }
 }
-=======
->>>>>>> origin/main

@@ -12,10 +12,7 @@ const SEGMENT_LABEL = {
   mentorship: 'Mentorship',
   'become-mentor': 'Become a Mentor',
   jobs: 'Jobs',
-<<<<<<< HEAD
   projects: 'Projects',
-=======
->>>>>>> origin/main
   hiring: 'Hiring',
   applications: 'Applications',
   events: 'Events',
@@ -74,10 +71,7 @@ const AppShell = () => {
     { to: '/directory', label: user?.role === 'STUDENT' ? 'Mentors' : 'Directory', icon: 'users' },
     { to: '/mentorship', label: 'Mentorship', icon: 'graph' },
     { to: '/jobs', label: 'Jobs', icon: 'briefcase' },
-<<<<<<< HEAD
     { to: '/projects', label: 'Projects', icon: 'bookmark' },
-=======
->>>>>>> origin/main
     { to: '/jobs/applications', label: 'My Applications', icon: 'doc' },
     ...(showHiring ? [{ to: '/jobs/hiring', label: 'Hiring', icon: 'building' }] : []),
     { to: '/events', label: 'Events', icon: 'calendar' },

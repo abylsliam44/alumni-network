@@ -17,7 +17,6 @@ from .event import (
     EventType, EventFormat, EventStatus, RegistrationStatus, MaterialType
 )
 from .job import Job, JobApplication, JobChatMessage, JobInterview, JobInterviewStatus
-<<<<<<< HEAD
 from .project import (
     Project,
     ProjectApplication,
@@ -26,8 +25,6 @@ from .project import (
     ProjectRole,
     ProjectStage,
 )
-=======
->>>>>>> origin/main
 from .ai_chat import AiChatMessage
 from .notification import Notification, NotificationType
 from .resume import (

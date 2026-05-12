@@ -4,10 +4,7 @@ import { profileApi } from '../api/profile';
 import { messagesApi } from '../api/messages';
 import { connectionsApi } from '../api/connections';
 import { mentorshipApi } from '../api/mentorship';
-<<<<<<< HEAD
 import { projectsApi } from '../api/projects';
-=======
->>>>>>> origin/main
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/ui/Avatar';
 import Pill from '../components/ui/Pill';
@@ -47,10 +44,7 @@ const Profile = () => {
   const [connecting, setConnecting] = useState(false);
   const [notice, setNotice] = useState(null);
   const [activeTab, setActiveTab] = useState('about');
-<<<<<<< HEAD
   const [profileProjects, setProfileProjects] = useState({ created_projects: [], joined_projects: [] });
-=======
->>>>>>> origin/main
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
 
@@ -102,15 +96,12 @@ const Profile = () => {
       setLoading(true);
       const data = userId ? await profileApi.getUserProfile(userId) : await profileApi.getMe();
       setProfile(data);
-<<<<<<< HEAD
       try {
         const projects = await projectsApi.byUser(data.user_id);
         setProfileProjects(projects || { created_projects: [], joined_projects: [] });
       } catch (projectErr) {
         console.error(projectErr);
       }
-=======
->>>>>>> origin/main
     } catch (err) {
       setError('Failed to load profile');
       console.error(err);
@@ -180,21 +171,15 @@ const Profile = () => {
   const careerRoles = profile.career_roles || [];
   const careerProjects = profile.career_projects || [];
   const careerPath = profile.career_path || [];
-<<<<<<< HEAD
   const createdProjects = profileProjects.created_projects || [];
   const joinedProjects = profileProjects.joined_projects || [];
-=======
->>>>>>> origin/main
 
   const tabsList = [
     { k: 'about', label: 'About' },
     { k: 'experience', label: 'Experience', count: experience.length || null },
     { k: 'education', label: 'Education', count: education.length || null },
     { k: 'trajectory', label: 'Trajectory', count: careerPath.length || null },
-<<<<<<< HEAD
     { k: 'projects', label: 'Projects', count: createdProjects.length + joinedProjects.length || null },
-=======
->>>>>>> origin/main
   ];
 
   return (
@@ -508,7 +493,6 @@ const Profile = () => {
             )}
           </div>
         )}
-<<<<<<< HEAD
 
         {activeTab === 'projects' && (
           <div className="profile-about-grid">
@@ -558,8 +542,6 @@ const Profile = () => {
             </div>
           </div>
         )}
-=======
->>>>>>> origin/main
       </div>
 
       {showMentorshipModal && (
