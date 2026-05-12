@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +15,7 @@ from app.models.user import User
 from app.schemas.recommendations import PeopleRecommendationsResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/people", response_model=PeopleRecommendationsResponse)
@@ -27,14 +29,12 @@ async def get_people_recommendations(
         return PeopleRecommendationsResponse.model_validate(cached)
 
     try:
-        response = await run_people_recommendations_agent(current_user.id, db)
-        await set_json(
-            cache_key,
-            response.model_dump(mode="json"),
-            settings.CACHE_RECOMMENDATIONS_TTL_SECONDS,
-        )
-        return response
+        raw = await run_people_recommendations_agent(current_user.id, db)
+        result = PeopleRecommendationsResponse.model_validate(raw)
+        await set_json(cache_key, result.model_dump(mode="json"), settings.CACHE_RECOMMENDATIONS_TTL_SECONDS)
+        return result
     except Exception as exc:
+        logger.exception("Recommendations agent failed for user %s", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to generate recommendations right now",

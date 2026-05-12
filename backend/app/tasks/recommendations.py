@@ -12,14 +12,12 @@ async def _prewarm_people_recommendations(user_id: str) -> dict:
     # which only need this module to dispatch tasks.
     from app.ai.people_recommendations import run_people_recommendations_agent
 
+    from app.schemas.recommendations import PeopleRecommendationsResponse
     async with TaskSessionLocal() as db:
-        response = await run_people_recommendations_agent(UUID(user_id), db)
+        raw = await run_people_recommendations_agent(UUID(user_id), db)
+        result = PeopleRecommendationsResponse.model_validate(raw)
         cache_key = make_cache_key("recommendations", user_id=user_id)
-        await set_json(
-            cache_key,
-            response.model_dump(mode="json"),
-            settings.CACHE_RECOMMENDATIONS_TTL_SECONDS,
-        )
+        await set_json(cache_key, result.model_dump(mode="json"), settings.CACHE_RECOMMENDATIONS_TTL_SECONDS)
     return {"status": "cached", "user_id": user_id}
 
 
