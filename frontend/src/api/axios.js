@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+// Fires when the server is unreachable / 5xx — lets App.jsx show ErrorScreen.
+export const emitNetworkError = () =>
+  window.dispatchEvent(new CustomEvent('app:network-error'));
+
 const api = axios.create({
   // Use VITE_API_URL when set (direct backend connection).
   // Otherwise use empty baseURL - works with Vite proxy (dev) and nginx proxy (prod).
@@ -44,6 +48,20 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
       return Promise.reject(error);
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Network-level and server errors (no response, 502/503/504).
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const isNetworkDown = !error.response && error.message !== 'canceled';
+    const isServerError = status >= 502 && status <= 504;
+    if (isNetworkDown || isServerError) {
+      emitNetworkError();
     }
     return Promise.reject(error);
   }

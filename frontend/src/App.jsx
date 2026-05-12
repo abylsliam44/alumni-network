@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
+import ErrorBoundary from './components/ErrorBoundary';
+import ErrorScreen from './components/ui/ErrorScreen';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -35,10 +38,30 @@ import AppShell from './components/AppShell';
 import './App.css';
 
 function App() {
+  const [networkError, setNetworkError] = useState(false);
+
+  useEffect(() => {
+    const handle = () => setNetworkError(true);
+    window.addEventListener('app:network-error', handle);
+    return () => window.removeEventListener('app:network-error', handle);
+  }, []);
+
+  if (networkError) {
+    return (
+      <ErrorScreen
+        onRetry={() => {
+          setNetworkError(false);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <Router>
           <ScrollToTop />
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -81,9 +104,10 @@ function App() {
 
             <Route path="/" element={<Landing />} />
           </Routes>
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
+          </Router>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
