@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Dependencies
 node_modules/
 __pycache__/
@@ -45,6 +46,55 @@ uploads/*
 # Rules
 rules/
 
+=======
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.prod
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Docker
+.docker/
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Rules
+rules/
+
+>>>>>>> origin/main
 
 # Design assets / archives
 *.zip

@@ -6,10 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+<<<<<<< HEAD
 
 from app.api import deps
 from app.core.database import get_db
 from app.models.user import User, UserRole, UserProfile
+=======
+
+from app.api import deps
+from app.core.database import get_db
+from app.models.user import User, UserRole, UserProfile
+>>>>>>> origin/main
 from app.models.mentorship import (
     MentorFeedback,
     MentorshipPlan,
@@ -35,10 +42,17 @@ from app.schemas.mentorship import (
     MentorFeedbackCreate,
     MentorFeedbackRead,
 )
+<<<<<<< HEAD
 from app.api.v1.endpoints.profile import get_profile_data
 from app.schemas.profile import ProfileRead
 from app.services import notification as notification_service
 
+=======
+from app.api.v1.endpoints.profile import get_profile_data
+from app.schemas.profile import ProfileRead
+from app.services import notification as notification_service
+
+>>>>>>> origin/main
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -127,6 +141,7 @@ async def _populate_relationship(db: AsyncSession, relationship: MentorshipRelat
     if item.sessions:
         item.sessions = sorted(item.sessions, key=lambda session: session.scheduled_at or session.created_at)
     return item
+<<<<<<< HEAD
 
 @router.post("/become", response_model=ProfileRead)
 async def become_mentor(
@@ -181,6 +196,62 @@ async def send_mentorship_request(
         raise HTTPException(status_code=400, detail="Cannot request mentorship from yourself")
 
     # Ensure receiver is a mentor
+=======
+
+@router.post("/become", response_model=ProfileRead)
+async def become_mentor(
+    payload: BecomeMentorRequest,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    Allow an ALUMNI user to opt into mentor capabilities.
+    """
+    if current_user.role != UserRole.ALUMNI:
+        raise HTTPException(status_code=403, detail="Only alumni can become mentors.")
+    if current_user.is_mentor:
+        # Already a mentor; return profile
+        return await get_profile_data(current_user, db)
+    if not payload.consent_mentor:
+        raise HTTPException(status_code=400, detail="Consent is required to become a mentor.")
+
+    # Ensure profile exists
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.id == current_user.id)
+    )
+    user = result.scalars().first()
+    if user.profile is None:
+        user.profile = UserProfile(user_id=user.id)
+
+    user.is_mentor = True
+    user.profile.mentor_consent = True
+    user.profile.mentor_headline = payload.headline
+    user.profile.mentor_areas_of_help = payload.areas_of_help or []
+    user.profile.mentor_industries = payload.industries or []
+    user.profile.mentor_max_mentees = payload.max_mentees
+    user.profile.mentor_availability_note = payload.availability_note
+
+    db.add(user)
+    db.add(user.profile)
+    await db.commit()
+    await db.refresh(user)
+
+    return await get_profile_data(user, db)
+
+@router.post("/request", response_model=MentorshipRequestRead)
+async def send_mentorship_request(
+    request_in: MentorshipRequestCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Send a mentorship request.
+    """
+    if request_in.receiver_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot request mentorship from yourself")
+
+    # Ensure receiver is a mentor
+>>>>>>> origin/main
     receiver_result = await db.execute(
         select(User).options(selectinload(User.profile)).where(User.id == request_in.receiver_id)
     )
@@ -188,6 +259,7 @@ async def send_mentorship_request(
     if not receiver or receiver.role != UserRole.ALUMNI or not receiver.is_mentor:
         raise HTTPException(status_code=400, detail="Selected user is not available as a mentor")
     await _ensure_mentor_has_capacity(db, receiver)
+<<<<<<< HEAD
 
     # Check if request already exists (PENDING)
     stmt = select(MentorshipRequest).where(
@@ -203,17 +275,43 @@ async def send_mentorship_request(
     # Check if relationship already exists
     stmt = select(MentorshipRelationship).where(
         or_(
+=======
+
+    # Check if request already exists (PENDING)
+    stmt = select(MentorshipRequest).where(
+        MentorshipRequest.sender_id == current_user.id,
+        MentorshipRequest.receiver_id == request_in.receiver_id,
+        MentorshipRequest.status == MentorshipStatus.PENDING
+    )
+    result = await db.execute(stmt)
+    existing_request = result.scalars().first()
+    if existing_request:
+        raise HTTPException(status_code=400, detail="Pending request already exists")
+
+    # Check if relationship already exists
+    stmt = select(MentorshipRelationship).where(
+        or_(
+>>>>>>> origin/main
             and_(MentorshipRelationship.mentor_id == request_in.receiver_id, MentorshipRelationship.mentee_id == current_user.id),
             and_(MentorshipRelationship.mentor_id == current_user.id, MentorshipRelationship.mentee_id == request_in.receiver_id)
         ),
         MentorshipRelationship.status == MentorshipRelationshipStatus.ACTIVE,
     )
+<<<<<<< HEAD
     result = await db.execute(stmt)
     existing_rel = result.scalars().first()
     if existing_rel:
         raise HTTPException(status_code=400, detail="Mentorship relationship already exists")
 
     request = MentorshipRequest(
+=======
+    result = await db.execute(stmt)
+    existing_rel = result.scalars().first()
+    if existing_rel:
+        raise HTTPException(status_code=400, detail="Mentorship relationship already exists")
+
+    request = MentorshipRequest(
+>>>>>>> origin/main
         sender_id=current_user.id,
         receiver_id=request_in.receiver_id,
         message=request_in.message,
@@ -222,6 +320,7 @@ async def send_mentorship_request(
         preferred_format=request_in.preferred_format,
         status=MentorshipStatus.PENDING
     )
+<<<<<<< HEAD
     db.add(request)
     await db.commit()
     await db.refresh(request)
@@ -295,6 +394,81 @@ async def accept_request(
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
 
+=======
+    db.add(request)
+    await db.commit()
+    await db.refresh(request)
+    
+    # Create notification for the mentor
+    await notification_service.create_mentorship_request_notification(
+        db=db,
+        mentor_id=request.receiver_id,
+        requester=current_user,
+        request_id=request.id,
+    )
+    
+    return await _populate_request(db, request)
+
+@router.get("/requests/incoming", response_model=List[MentorshipRequestRead])
+async def get_incoming_requests(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+        raise HTTPException(status_code=403, detail="Only mentors can view incoming requests")
+
+    stmt = select(MentorshipRequest).where(
+        MentorshipRequest.receiver_id == current_user.id,
+        MentorshipRequest.status == MentorshipStatus.PENDING
+    ).order_by(MentorshipRequest.created_at.desc())
+    
+    result = await db.execute(stmt)
+    requests = result.scalars().all()
+    
+    response_items = []
+    for req in requests:
+        response_items.append(await _populate_request(db, req))
+        
+    return response_items
+
+@router.get("/requests/outgoing", response_model=List[MentorshipRequestRead])
+async def get_outgoing_requests(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    stmt = select(MentorshipRequest).where(
+        MentorshipRequest.sender_id == current_user.id
+    ).order_by(MentorshipRequest.created_at.desc())
+    
+    result = await db.execute(stmt)
+    requests = result.scalars().all()
+    
+    response_items = []
+    for req in requests:
+        response_items.append(await _populate_request(db, req))
+        
+    return response_items
+
+@router.put("/requests/{request_id}/accept", response_model=MentorshipRequestRead)
+async def accept_request(
+    request_id: UUID,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    stmt = select(MentorshipRequest).where(MentorshipRequest.id == request_id)
+    result = await db.execute(stmt)
+    request = result.scalars().first()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    if request.receiver_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    if request.status != MentorshipStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+
+>>>>>>> origin/main
     if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
         raise HTTPException(status_code=403, detail="Only mentors can accept requests")
     await _ensure_mentor_has_capacity(db, current_user)
@@ -336,6 +510,7 @@ async def accept_request(
     )
     db.add(plan)
     await db.commit()
+<<<<<<< HEAD
     
     # Create notification for the mentee
     await notification_service.create_mentorship_accepted_notification(
@@ -347,6 +522,19 @@ async def accept_request(
     
     return await _populate_request(db, request)
 
+=======
+    
+    # Create notification for the mentee
+    await notification_service.create_mentorship_accepted_notification(
+        db=db,
+        mentee_id=request.sender_id,
+        mentor=current_user,
+        relationship_id=relationship.id,
+    )
+    
+    return await _populate_request(db, request)
+
+>>>>>>> origin/main
 @router.put("/requests/{request_id}/decline", response_model=MentorshipRequestRead)
 async def decline_request(
     request_id: UUID,
@@ -354,6 +542,7 @@ async def decline_request(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
+<<<<<<< HEAD
     stmt = select(MentorshipRequest).where(MentorshipRequest.id == request_id)
     result = await db.execute(stmt)
     request = result.scalars().first()
@@ -367,6 +556,21 @@ async def decline_request(
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
 
+=======
+    stmt = select(MentorshipRequest).where(MentorshipRequest.id == request_id)
+    result = await db.execute(stmt)
+    request = result.scalars().first()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    if request.receiver_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    if request.status != MentorshipStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+
+>>>>>>> origin/main
     if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
         raise HTTPException(status_code=403, detail="Only mentors can decline requests")
 
@@ -378,6 +582,7 @@ async def decline_request(
     await db.refresh(request)
 
     return await _populate_request(db, request)
+<<<<<<< HEAD
 
 @router.put("/requests/{request_id}/cancel", response_model=MentorshipRequestRead)
 async def cancel_request(
@@ -399,6 +604,29 @@ async def cancel_request(
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
         
+=======
+
+@router.put("/requests/{request_id}/cancel", response_model=MentorshipRequestRead)
+async def cancel_request(
+    request_id: UUID,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Cancel an outgoing mentorship request (only by the sender)."""
+    stmt = select(MentorshipRequest).where(MentorshipRequest.id == request_id)
+    result = await db.execute(stmt)
+    request = result.scalars().first()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    if request.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized - only the sender can cancel")
+        
+    if request.status != MentorshipStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+        
+>>>>>>> origin/main
     request.status = MentorshipStatus.CANCELLED
     request.updated_at = datetime.utcnow()
     db.add(request)
@@ -406,14 +634,20 @@ async def cancel_request(
     await db.refresh(request)
 
     return await _populate_request(db, request)
+<<<<<<< HEAD
 
 @router.post("/relationships/{relationship_id}/feedback", response_model=MentorFeedbackRead)
+=======
+
+@router.post("/relationships/{relationship_id}/feedback", response_model=MentorFeedbackRead)
+>>>>>>> origin/main
 async def submit_feedback(
     relationship_id: UUID,
     feedback_in: MentorFeedbackCreate,
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
+<<<<<<< HEAD
     """Mentor submits a 5-star rating with comment for their mentee."""
     stmt = select(MentorshipRelationship).where(MentorshipRelationship.id == relationship_id)
     result = await db.execute(stmt)
@@ -425,10 +659,24 @@ async def submit_feedback(
         raise HTTPException(status_code=403, detail="Only the mentor can submit feedback")
 
     # Check if feedback already exists for this relationship
+=======
+    """Mentor submits a 5-star rating with comment for their mentee."""
+    stmt = select(MentorshipRelationship).where(MentorshipRelationship.id == relationship_id)
+    result = await db.execute(stmt)
+    rel = result.scalars().first()
+
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    if rel.mentor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the mentor can submit feedback")
+
+    # Check if feedback already exists for this relationship
+>>>>>>> origin/main
     existing_stmt = select(MentorFeedback).where(
         MentorFeedback.relationship_id == rel.id,
         MentorFeedback.mentor_id == current_user.id,
     )
+<<<<<<< HEAD
     existing_result = await db.execute(existing_stmt)
     existing = existing_result.scalars().first()
 
@@ -453,6 +701,32 @@ async def submit_feedback(
         await db.commit()
         await db.refresh(feedback)
 
+=======
+    existing_result = await db.execute(existing_stmt)
+    existing = existing_result.scalars().first()
+
+    if existing:
+        # Update existing feedback
+        existing.rating = feedback_in.rating
+        existing.comment = feedback_in.comment
+        existing.updated_at = datetime.utcnow()
+        db.add(existing)
+        await db.commit()
+        await db.refresh(existing)
+        feedback = existing
+    else:
+        feedback = MentorFeedback(
+            mentor_id=current_user.id,
+            mentee_id=rel.mentee_id,
+            relationship_id=rel.id,
+            rating=feedback_in.rating,
+            comment=feedback_in.comment,
+        )
+        db.add(feedback)
+        await db.commit()
+        await db.refresh(feedback)
+
+>>>>>>> origin/main
         try:
             await notification_service.create_mentor_feedback_notification(
                 db=db,
@@ -468,6 +742,7 @@ async def submit_feedback(
                 "Failed to create mentor feedback notification for feedback_id=%s",
                 feedback.id,
             )
+<<<<<<< HEAD
 
     item = MentorFeedbackRead.model_validate(feedback)
     # Populate mentor profile
@@ -480,11 +755,26 @@ async def submit_feedback(
 
 
 @router.get("/relationships/{relationship_id}/feedback", response_model=MentorFeedbackRead)
+=======
+
+    item = MentorFeedbackRead.model_validate(feedback)
+    # Populate mentor profile
+    mentor_user_stmt = select(User).options(selectinload(User.profile)).where(User.id == feedback.mentor_id)
+    mentor_result = await db.execute(mentor_user_stmt)
+    mentor_user = mentor_result.scalars().first()
+    if mentor_user:
+        item.mentor = await get_profile_data(mentor_user, db)
+    return item
+
+
+@router.get("/relationships/{relationship_id}/feedback", response_model=MentorFeedbackRead)
+>>>>>>> origin/main
 async def get_feedback(
     relationship_id: UUID,
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
+<<<<<<< HEAD
     """Get feedback for a specific mentorship relationship."""
     stmt = select(MentorshipRelationship).where(MentorshipRelationship.id == relationship_id)
     result = await db.execute(stmt)
@@ -537,6 +827,60 @@ async def get_received_feedback(
 async def get_relationships(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db)
+=======
+    """Get feedback for a specific mentorship relationship."""
+    stmt = select(MentorshipRelationship).where(MentorshipRelationship.id == relationship_id)
+    result = await db.execute(stmt)
+    rel = result.scalars().first()
+
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    if current_user.id not in (rel.mentor_id, rel.mentee_id):
+        raise HTTPException(status_code=403, detail="Not a participant of this relationship")
+
+    feedback_stmt = select(MentorFeedback).where(MentorFeedback.relationship_id == rel.id)
+    feedback_result = await db.execute(feedback_stmt)
+    feedback = feedback_result.scalars().first()
+
+    if not feedback:
+        raise HTTPException(status_code=404, detail="No feedback yet for this relationship")
+
+    item = MentorFeedbackRead.model_validate(feedback)
+    mentor_user_stmt = select(User).options(selectinload(User.profile)).where(User.id == feedback.mentor_id)
+    mentor_result = await db.execute(mentor_user_stmt)
+    mentor_user = mentor_result.scalars().first()
+    if mentor_user:
+        item.mentor = await get_profile_data(mentor_user, db)
+    return item
+
+
+@router.get("/feedback/received", response_model=List[MentorFeedbackRead])
+async def get_received_feedback(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Get all feedback received by the current user as a mentee."""
+    stmt = select(MentorFeedback).where(MentorFeedback.mentee_id == current_user.id).order_by(MentorFeedback.created_at.desc())
+    result = await db.execute(stmt)
+    feedbacks = result.scalars().all()
+
+    items = []
+    for fb in feedbacks:
+        item = MentorFeedbackRead.model_validate(fb)
+        mentor_user_stmt = select(User).options(selectinload(User.profile)).where(User.id == fb.mentor_id)
+        mentor_result = await db.execute(mentor_user_stmt)
+        mentor_user = mentor_result.scalars().first()
+        if mentor_user:
+            item.mentor = await get_profile_data(mentor_user, db)
+        items.append(item)
+    return items
+
+
+@router.get("/relationships", response_model=List[MentorshipRelationshipRead])
+async def get_relationships(
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+>>>>>>> origin/main
 ) -> Any:
     stmt = (
         select(MentorshipRelationship)
