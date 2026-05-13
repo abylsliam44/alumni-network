@@ -86,7 +86,7 @@ def upload_bytes(
 
 def get_s3_client(public: bool = False, public_endpoint: str | None = None):
     endpoint_url = (
-        _public_storage_endpoint(public_endpoint)
+        _presign_storage_endpoint(public_endpoint)
         if public
         else _normalize_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE)
     )
@@ -110,6 +110,27 @@ def _normalize_endpoint(endpoint: str, secure: bool = False) -> str:
 def _public_storage_endpoint(public_endpoint: str | None = None) -> str:
     public_endpoint = public_endpoint or settings.MINIO_PUBLIC_ENDPOINT or settings.MINIO_ENDPOINT
     return _normalize_endpoint(public_endpoint, settings.MINIO_SECURE)
+
+
+def _presign_storage_endpoint(public_endpoint: str | None = None) -> str:
+    public_endpoint = _public_storage_endpoint(public_endpoint)
+    parsed = urlparse(public_endpoint)
+    if parsed.path and parsed.path != "/":
+        return urlunparse(parsed._replace(path="", params="", query="", fragment=""))
+    return public_endpoint
+
+
+def _add_public_path_prefix(url: str, public_endpoint: str | None = None) -> str:
+    public = urlparse(_public_storage_endpoint(public_endpoint))
+    public_path = (public.path or "").rstrip("/")
+    if not public_path:
+        return url
+
+    parsed = urlparse(url)
+    path = parsed.path or "/"
+    if path == public_path or path.startswith(f"{public_path}/"):
+        return url
+    return urlunparse(parsed._replace(path=f"{public_path}/{path.lstrip('/')}"))
 
 
 def infer_public_storage_endpoint(request: Request) -> str:
@@ -179,7 +200,7 @@ def generate_presigned_download_url(
             Params=params,
             ExpiresIn=300,
         )
-        return url
+        return _add_public_path_prefix(url, public_endpoint)
     except Exception as e:
         logger.error(f"Error generating download URL: {e}")
         raise HTTPException(status_code=500, detail="Could not generate download URL")
@@ -241,6 +262,7 @@ def generate_presigned_url(
             },
             ExpiresIn=300,
         )
+        url = _add_public_path_prefix(url, public_endpoint)
 
         public_endpoint = _public_storage_endpoint(public_endpoint)
         final_url = f"{public_endpoint}/{bucket}/{object_name}"
