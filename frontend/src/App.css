@@ -1615,6 +1615,144 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--b
 .milestone.done .milestone-text { color: var(--ink-2); }
 .milestone.current .milestone-text-state { display: block; font-family: var(--mono); font-size: 9.5px; color: var(--blue); margin-top: 4px; }
 
+.mentor-workspace-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.mentor-workspace-sidebar {
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mentor-workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mentor-workspace-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.mentor-workspace-item:hover,
+.mentor-workspace-item.active {
+  border-color: var(--blue-line);
+  background: var(--blue-soft);
+}
+.mentor-workspace-item strong {
+  display: block;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mentor-workspace-item small {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.mentor-request-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.mentor-progress-strip {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--bg-2);
+  margin-bottom: 14px;
+}
+.mentor-progress-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.mentor-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+}
+.mentor-milestone-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.mentor-milestone {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  text-align: left;
+  padding: 9px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: var(--bg-2);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.mentor-milestone:hover { border-color: var(--blue-line); color: var(--ink); }
+.mentor-milestone.done { color: var(--ink); background: var(--ok-soft); border-color: rgba(109,179,140,0.28); }
+.mentor-milestone-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--ok);
+  background: var(--surface);
+}
+.mentor-milestone.done .mentor-milestone-check {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--bg);
+}
+.availability-slot-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(105px, 1fr) minmax(105px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .mentor-workspace-shell,
+  .mentor-request-grid {
+    grid-template-columns: 1fr;
+  }
+  .mentor-workspace-sidebar {
+    position: static;
+  }
+}
+@media (max-width: 620px) {
+  .mentor-progress-strip,
+  .availability-slot-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Quick actions grid */
 .qa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .qa-item {

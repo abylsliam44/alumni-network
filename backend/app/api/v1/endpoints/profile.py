@@ -307,6 +307,7 @@ async def get_profile_data(user: User, db: AsyncSession, viewer: User | None = N
         "mentor_industries": user.profile.mentor_industries or [],
         "mentor_max_mentees": user.profile.mentor_max_mentees,
         "mentor_availability_note": user.profile.mentor_availability_note,
+        "mentor_availability_slots": user.profile.mentor_availability_slots or [],
         "mentor_consent": user.profile.mentor_consent,
         "mentor_active_mentees": mentor_active_mentees,
         "mentor_capacity_status": mentor_capacity_status,

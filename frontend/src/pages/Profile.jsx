@@ -13,6 +13,9 @@ import Alert from '../components/ui/Alert';
 import SendRequestModal from '../components/mentorship/SendRequestModal';
 import { resolveUrl } from '../utils/image';
 
+const ROLE_LABEL = { STUDENT: 'Student', ALUMNI: 'Alumni', STAFF: 'Staff', HR: 'HR' };
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -162,6 +165,7 @@ const Profile = () => {
   const mentorIsFull = profile?.mentor_capacity_status === 'FULL';
   const mentorshipDisabled = mentorshipRequested || mentorIsFull;
   const mentorshipLabel = mentorIsFull ? 'Mentor full' : mentorshipRequested ? 'Request sent' : 'Request mentorship';
+  const mentorRoleLabel = `${ROLE_LABEL[profile.role] || profile.role} mentor`;
   const connectLabel = isConnected ? 'Connected' : isPendingOutgoing ? 'Request sent' : isPendingIncoming ? 'Accept request' : connecting ? 'Connecting…' : 'Connect';
 
   const skills = profile.skills || [];
@@ -224,7 +228,7 @@ const Profile = () => {
         <div style={{ paddingBottom: 8, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
             <h1 className="h2">{profile.name}</h1>
-            {profile.is_mentor && <Pill tone="blue" dot>Mentor · {mentorIsFull ? 'full' : 'accepting'}</Pill>}
+            {profile.is_mentor && <Pill tone="blue" dot>{mentorRoleLabel} - {mentorIsFull ? 'full' : 'accepting'}</Pill>}
             {profile.role === 'ALUMNI' && <Pill tone="warm">Alumni{profile.graduation_year ? ` · ${profile.graduation_year}` : ''}</Pill>}
             {profile.role === 'STUDENT' && <Pill>Student</Pill>}
             {profile.role === 'HR' && <Pill tone="blue">HR</Pill>}
@@ -342,10 +346,10 @@ const Profile = () => {
                   <div className="panel" style={{ padding: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                       <span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                        {profile.mentor_active_mentees || 0} / {profile.mentor_max_mentees || 0} ACTIVE
+                        {profile.mentor_max_mentees ? `${profile.mentor_active_mentees || 0} / ${profile.mentor_max_mentees} ACTIVE` : `${profile.mentor_active_mentees || 0} ACTIVE`}
                       </span>
                       <span className="mono" style={{ fontSize: 11, color: mentorIsFull ? 'var(--warm)' : 'var(--ok)' }}>
-                        {mentorIsFull ? 'FULL' : `${(profile.mentor_max_mentees || 0) - (profile.mentor_active_mentees || 0)} SLOTS OPEN`}
+                        {profile.mentor_max_mentees ? (mentorIsFull ? 'FULL' : `${profile.mentor_max_mentees - (profile.mentor_active_mentees || 0)} SLOTS OPEN`) : 'OPEN CAPACITY'}
                       </span>
                     </div>
                     {profile.mentor_max_mentees > 0 && (
@@ -365,6 +369,20 @@ const Profile = () => {
                     {profile.mentor_areas_of_help?.length > 0 && (
                       <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-2)' }}>
                         Helps with: <span style={{ color: 'var(--ink)' }}>{profile.mentor_areas_of_help.join(', ')}</span>
+                      </div>
+                    )}
+                    {profile.mentor_availability_note && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-2)' }}>
+                        Availability: <span style={{ color: 'var(--ink)' }}>{profile.mentor_availability_note}</span>
+                      </div>
+                    )}
+                    {profile.mentor_availability_slots?.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                        {profile.mentor_availability_slots.map((slot, i) => (
+                          <span key={slot.id || i} className="pill">
+                            {WEEKDAYS[slot.weekday] || 'Day'} {slot.start_time}-{slot.end_time}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

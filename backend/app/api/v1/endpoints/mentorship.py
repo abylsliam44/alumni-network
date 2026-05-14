@@ -1,5 +1,6 @@
 from typing import Any, List
 from datetime import datetime, timezone
+import uuid
 from uuid import UUID
 import logging
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.database import get_db
-from app.models.user import User, UserRole, UserProfile
+from app.models.user import User, UserProfile
 from app.models.mentorship import (
     MentorFeedback,
     MentorshipPlan,
@@ -21,6 +22,7 @@ from app.models.mentorship import (
     MentorshipStatus,
 )
 from app.schemas.mentorship import (
+    MentorshipMilestoneToggle,
     MentorshipPlanRead,
     MentorshipPlanUpsert,
     MentorshipRequestDecline,
@@ -34,9 +36,11 @@ from app.schemas.mentorship import (
     BecomeMentorRequest,
     MentorFeedbackCreate,
     MentorFeedbackRead,
+    normalize_milestones,
 )
 from app.api.v1.endpoints.profile import get_profile_data
 from app.schemas.profile import ProfileRead
+from app.core.cache import invalidate_namespaces
 from app.services import notification as notification_service
 
 router = APIRouter()
@@ -91,6 +95,28 @@ def _request_goal_text(request: MentorshipRequest) -> str | None:
     return goal_line or message or None
 
 
+def _milestones_from_goals(goals: list[str] | None) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": str(uuid.uuid4()),
+            "title": str(goal).strip(),
+            "completed": False,
+            "completed_at": None,
+        }
+        for goal in (goals or [])
+        if str(goal).strip()
+    ]
+
+
+def _milestones_for_storage(value: Any) -> list[dict[str, Any]]:
+    milestones = normalize_milestones(value)
+    for milestone in milestones:
+        completed_at = milestone.get("completed_at")
+        if isinstance(completed_at, datetime):
+            milestone["completed_at"] = completed_at.isoformat()
+    return milestones
+
+
 async def _populate_request(db: AsyncSession, request: MentorshipRequest) -> MentorshipRequestRead:
     item = MentorshipRequestRead.model_validate(request)
     item.sender = await _profile_for_user(db, request.sender_id)
@@ -135,13 +161,8 @@ async def become_mentor(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """
-    Allow an ALUMNI user to opt into mentor capabilities.
+    Allow any active user to opt into mentor capabilities.
     """
-    if current_user.role != UserRole.ALUMNI:
-        raise HTTPException(status_code=403, detail="Only alumni can become mentors.")
-    if current_user.is_mentor:
-        # Already a mentor; return profile
-        return await get_profile_data(current_user, db)
     if not payload.consent_mentor:
         raise HTTPException(status_code=400, detail="Consent is required to become a mentor.")
 
@@ -160,11 +181,15 @@ async def become_mentor(
     user.profile.mentor_industries = payload.industries or []
     user.profile.mentor_max_mentees = payload.max_mentees
     user.profile.mentor_availability_note = payload.availability_note
+    user.profile.mentor_availability_slots = [
+        slot.model_dump(mode="json") for slot in (payload.availability_slots or [])
+    ]
 
     db.add(user)
     db.add(user.profile)
     await db.commit()
     await db.refresh(user)
+    await invalidate_namespaces("profile", "directory", "recommendations")
 
     return await get_profile_data(user, db)
 
@@ -185,7 +210,7 @@ async def send_mentorship_request(
         select(User).options(selectinload(User.profile)).where(User.id == request_in.receiver_id)
     )
     receiver = receiver_result.scalars().first()
-    if not receiver or receiver.role != UserRole.ALUMNI or not receiver.is_mentor:
+    if not receiver or not receiver.is_active or not receiver.is_mentor:
         raise HTTPException(status_code=400, detail="Selected user is not available as a mentor")
     await _ensure_mentor_has_capacity(db, receiver)
 
@@ -220,6 +245,7 @@ async def send_mentorship_request(
         goals=request_in.goals or [],
         expected_duration=request_in.expected_duration,
         preferred_format=request_in.preferred_format,
+        meeting_frequency=request_in.meeting_frequency,
         status=MentorshipStatus.PENDING
     )
     db.add(request)
@@ -241,7 +267,7 @@ async def get_incoming_requests(
     current_user: User = Depends(deps.get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+    if not current_user.is_mentor:
         raise HTTPException(status_code=403, detail="Only mentors can view incoming requests")
 
     stmt = select(MentorshipRequest).where(
@@ -295,7 +321,7 @@ async def accept_request(
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
 
-    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+    if not current_user.is_mentor:
         raise HTTPException(status_code=403, detail="Only mentors can accept requests")
     await _ensure_mentor_has_capacity(db, current_user)
 
@@ -329,9 +355,9 @@ async def accept_request(
     plan = MentorshipPlan(
         relationship_id=relationship.id,
         goal=_request_goal_text(request),
-        milestones=request.goals or [],
+        milestones=_milestones_from_goals(request.goals),
         expected_duration=request.expected_duration,
-        meeting_frequency="To be agreed",
+        meeting_frequency=request.meeting_frequency or "To be agreed",
         next_step="Schedule the first mentorship session.",
     )
     db.add(plan)
@@ -367,7 +393,7 @@ async def decline_request(
     if request.status != MentorshipStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request is not pending")
 
-    if current_user.role != UserRole.ALUMNI or not current_user.is_mentor:
+    if not current_user.is_mentor:
         raise HTTPException(status_code=403, detail="Only mentors can decline requests")
 
     request.status = MentorshipStatus.DECLINED
@@ -605,7 +631,7 @@ async def upsert_plan(
         plan = MentorshipPlan(relationship_id=relationship.id)
 
     plan.goal = plan_in.goal
-    plan.milestones = plan_in.milestones or []
+    plan.milestones = _milestones_for_storage(plan_in.milestones)
     plan.meeting_frequency = plan_in.meeting_frequency
     plan.expected_duration = plan_in.expected_duration
     plan.notes = plan_in.notes
@@ -621,6 +647,33 @@ async def upsert_plan(
     await db.commit()
     await db.refresh(plan)
     return MentorshipPlanRead.model_validate(plan)
+
+
+@router.patch("/relationships/{relationship_id}/plan/milestones/{milestone_id}", response_model=MentorshipPlanRead)
+async def toggle_milestone(
+    relationship_id: UUID,
+    milestone_id: str,
+    milestone_in: MentorshipMilestoneToggle,
+    current_user: User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    relationship = await _get_relationship_for_participant(db, relationship_id, current_user)
+    if not relationship.plan:
+        raise HTTPException(status_code=404, detail="Mentorship plan not found")
+
+    milestones = _milestones_for_storage(relationship.plan.milestones or [])
+    target = next((item for item in milestones if item["id"] == milestone_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+
+    target["completed"] = milestone_in.completed
+    target["completed_at"] = datetime.utcnow().isoformat() if milestone_in.completed else None
+    relationship.plan.milestones = milestones
+    relationship.plan.updated_at = datetime.utcnow()
+    db.add(relationship.plan)
+    await db.commit()
+    await db.refresh(relationship.plan)
+    return MentorshipPlanRead.model_validate(relationship.plan)
 
 
 @router.get("/relationships/{relationship_id}/sessions", response_model=List[MentorshipSessionRead])

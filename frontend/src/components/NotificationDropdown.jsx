@@ -86,9 +86,10 @@ const NotificationDropdown = () => {
       case 'FRIEND_ACCEPTED':
         return '/friends';
       case 'MENTORSHIP_REQUEST':
-        return '/dashboard';
+        return '/mentorship';
       case 'MENTORSHIP_ACCEPTED':
-        return '/directory';
+      case 'MENTOR_FEEDBACK':
+        return '/mentorship';
       case 'NEW_MESSAGE':
         return notification.reference_id ? `/messages?chat=${notification.reference_id}` : '/messages';
       case 'EVENT_APPROVED':

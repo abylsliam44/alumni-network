@@ -38,6 +38,7 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel })
       <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
         <span className="pill">{request.expected_duration || 'Duration TBD'}</span>
         <span className="pill">{request.preferred_format || 'Format TBD'}</span>
+        <span className="pill">{request.meeting_frequency || 'Frequency TBD'}</span>
       </div>
 
       <div className="eyebrow" style={{ marginBottom: 6 }}>MESSAGE</div>
@@ -55,7 +56,7 @@ const MentorshipRequestCard = ({ request, type, onAccept, onDecline, onCancel })
       )}
 
       <div className="mono mute" style={{ fontSize: 10, marginTop: 12 }}>
-        SENT · {new Date(request.created_at).toLocaleDateString()}
+        SENT - {new Date(request.created_at).toLocaleDateString()}
       </div>
 
       {type === 'incoming' && request.status === 'PENDING' && (

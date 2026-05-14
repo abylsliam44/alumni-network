@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { messagesApi } from '../../api/messages';
 import { mentorshipApi } from '../../api/mentorship';
@@ -9,6 +9,20 @@ import Icon from '../ui/Icon';
 import { resolveUrl } from '../../utils/image';
 
 const STATUS_TONE = { ACTIVE: 'blue', COMPLETED: 'ok', PENDING: 'warm', PLANNED: 'blue', DONE: 'ok', CANCELLED: undefined };
+
+const normalizeMilestones = (items = []) => items
+  .map((item, index) => {
+    if (typeof item === 'string') {
+      return { id: `legacy-${index}-${item}`, title: item, completed: false, completed_at: null };
+    }
+    return {
+      id: item.id || `milestone-${index}`,
+      title: item.title || item.name || '',
+      completed: !!item.completed,
+      completed_at: item.completed_at || null,
+    };
+  })
+  .filter((item) => item.title);
 
 const StarDisplay = ({ rating }) => (
   <span style={{ color: 'var(--warm)', letterSpacing: 1 }}>
@@ -34,6 +48,12 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
   const isActive = relationship.status === 'ACTIVE';
   const plan = relationship.plan || {};
   const sessions = relationship.sessions || [];
+  const milestones = useMemo(() => normalizeMilestones(plan.milestones || []), [plan.milestones]);
+  const completedMilestones = milestones.filter((item) => item.completed).length;
+  const progress = milestones.length ? Math.round((completedMilestones / milestones.length) * 100) : 0;
+  const nextSession = sessions
+    .filter((session) => session.status === 'PLANNED')
+    .sort((a, b) => new Date(a.scheduled_at || a.created_at) - new Date(b.scheduled_at || b.created_at))[0];
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [existingFeedback, setExistingFeedback] = useState(null);
@@ -41,6 +61,7 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
   const [editingPlan, setEditingPlan] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const [sessionSaving, setSessionSaving] = useState(false);
+  const [milestoneSaving, setMilestoneSaving] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [planDraft, setPlanDraft] = useState({
     goal: '', milestones: '', meeting_frequency: '', expected_duration: '', notes: '', next_step: '',
@@ -58,13 +79,13 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
   useEffect(() => {
     setPlanDraft({
       goal: plan.goal || relationship.goals || '',
-      milestones: (plan.milestones || []).join(', '),
+      milestones: milestones.map((m) => m.title).join(', '),
       meeting_frequency: plan.meeting_frequency || '',
       expected_duration: plan.expected_duration || relationship.expected_duration || '',
       notes: plan.notes || '',
       next_step: plan.next_step || '',
     });
-  }, [relationship.id, relationship.goals, relationship.expected_duration, plan.goal, plan.meeting_frequency, plan.expected_duration, plan.notes, plan.next_step]);
+  }, [relationship.id, relationship.goals, relationship.expected_duration, plan.goal, plan.meeting_frequency, plan.expected_duration, plan.notes, plan.next_step, milestones]);
 
   const handleMessage = async () => {
     if (!otherUser?.user_id) return;
@@ -81,10 +102,14 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
 
   const handlePlanSubmit = async (e) => {
     e.preventDefault(); setSavingPlan(true); setActionError(null);
+    const titles = planDraft.milestones.split(',').map((s) => s.trim()).filter(Boolean);
     try {
       await mentorshipApi.updatePlan(relationship.id, {
         goal: planDraft.goal,
-        milestones: planDraft.milestones.split(',').map((s) => s.trim()).filter(Boolean),
+        milestones: titles.map((title) => {
+          const existing = milestones.find((item) => item.title.toLowerCase() === title.toLowerCase());
+          return existing || { title, completed: false, completed_at: null };
+        }),
         meeting_frequency: planDraft.meeting_frequency,
         expected_duration: planDraft.expected_duration,
         notes: planDraft.notes,
@@ -93,6 +118,15 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
       setEditingPlan(false); onChanged?.();
     } catch (err) { setActionError(err.response?.data?.detail || 'Failed to update plan'); }
     finally { setSavingPlan(false); }
+  };
+
+  const handleMilestoneToggle = async (milestone) => {
+    setMilestoneSaving(milestone.id); setActionError(null);
+    try {
+      await mentorshipApi.toggleMilestone(relationship.id, milestone.id, !milestone.completed);
+      onChanged?.();
+    } catch (err) { setActionError(err.response?.data?.detail || 'Failed to update milestone'); }
+    finally { setMilestoneSaving(null); }
   };
 
   const handleCreateSession = async (e) => {
@@ -141,7 +175,7 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
                 <Link to={`/profile/${otherUser?.user_id}`} style={{ color: 'var(--ink)' }}>{otherUser?.name}</Link>
               </h4>
               <div className="mute" style={{ fontSize: 12, marginTop: 2 }}>
-                {roleLabel} · {otherUser?.headline || otherUser?.role}
+                {roleLabel} - {otherUser?.headline || otherUser?.role}
               </div>
             </div>
           </div>
@@ -151,8 +185,32 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
           <span className="pill">{relationship.expected_duration || 'Duration TBD'}</span>
           <span className="pill">{relationship.preferred_format || 'Format TBD'}</span>
+          <span className="pill">{plan.meeting_frequency || 'Frequency TBD'}</span>
           <span className="pill">Started {new Date(relationship.created_at).toLocaleDateString()}</span>
         </div>
+
+        <div className="mentor-progress-strip">
+          <div>
+            <div className="eyebrow">PROGRESS</div>
+            <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+              {completedMilestones}/{milestones.length || 0} milestones
+            </div>
+          </div>
+          <div className="mentor-progress-bar">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <span className="mono" style={{ fontSize: 12, color: 'var(--blue)' }}>{progress}%</span>
+        </div>
+
+        {nextSession && (
+          <div className="panel blue-tint" style={{ padding: 12, marginBottom: 14 }}>
+            <div className="eyebrow" style={{ color: 'var(--blue)', marginBottom: 4 }}>NEXT SESSION</div>
+            <div className="h3" style={{ fontSize: 13 }}>{nextSession.topic}</div>
+            <div className="mute mono" style={{ fontSize: 10.5, marginTop: 2 }}>
+              {nextSession.scheduled_at ? new Date(nextSession.scheduled_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Time TBD'}
+            </div>
+          </div>
+        )}
 
         {relationship.goals && (
           <>
@@ -181,14 +239,27 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
               </div>
               <textarea rows="2" value={planDraft.next_step} onChange={(e) => setPlanDraft((p) => ({ ...p, next_step: e.target.value }))} placeholder="Next step" />
               <textarea rows="2" value={planDraft.notes} onChange={(e) => setPlanDraft((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes" />
-              <button type="submit" className="btn primary" disabled={savingPlan}>{savingPlan ? 'Saving…' : 'Save plan'}</button>
+              <button type="submit" className="btn primary" disabled={savingPlan}>{savingPlan ? 'Saving...' : 'Save plan'}</button>
             </form>
           ) : (
             <>
               <div style={{ fontSize: 13, color: 'var(--ink)' }}>{plan.goal || relationship.goals || 'Plan not finalized'}</div>
-              {(plan.milestones || []).length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                  {plan.milestones.map((m) => <span key={m} className="chip skill">{m}</span>)}
+              {milestones.length > 0 && (
+                <div className="mentor-milestone-list">
+                  {milestones.map((milestone) => (
+                    <button
+                      key={milestone.id}
+                      type="button"
+                      className={`mentor-milestone${milestone.completed ? ' done' : ''}`}
+                      onClick={() => handleMilestoneToggle(milestone)}
+                      disabled={milestoneSaving === milestone.id || !isActive}
+                    >
+                      <span className="mentor-milestone-check">
+                        {milestone.completed ? <Icon name="check" size={12} /> : null}
+                      </span>
+                      <span>{milestone.title}</span>
+                    </button>
+                  ))}
                 </div>
               )}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -203,7 +274,7 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
 
         <div style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 14, marginTop: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-            <div className="eyebrow">SESSIONS · {sessions.length}</div>
+            <div className="eyebrow">SESSIONS - {sessions.length}</div>
           </div>
 
           {sessions.length > 0 ? (
@@ -248,7 +319,7 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
                 <input value={sessionDraft.notes} onChange={(e) => setSessionDraft((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes" />
               </div>
               <button type="submit" className="btn primary" disabled={sessionSaving} style={{ alignSelf: 'flex-start' }}>
-                {sessionSaving ? 'Adding…' : 'Add session'}
+                {sessionSaving ? 'Adding...' : 'Add session'}
               </button>
             </form>
           )}
@@ -261,7 +332,7 @@ const MentorshipRelationshipCard = ({ relationship, currentUserId, onChanged }) 
               <StarDisplay rating={existingFeedback.rating} />
               <span className="mono" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{existingFeedback.rating}/5</span>
             </div>
-            {existingFeedback.comment && <div className="serif" style={{ marginTop: 8, fontSize: 13, color: 'var(--ink-2)' }}>"{existingFeedback.comment}"</div>}
+            {existingFeedback.comment && <div className="serif" style={{ marginTop: 8, fontSize: 13, color: 'var(--ink-2)' }}>{existingFeedback.comment}</div>}
           </div>
         )}
 

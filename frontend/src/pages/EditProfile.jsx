@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { profileApi } from '../api/profile';
 import Avatar from '../components/ui/Avatar';
 import Pill from '../components/ui/Pill';
@@ -9,6 +9,7 @@ import { resolveUrl } from '../utils/image';
 
 const emptyEdu = { school: '', degree: '', field_of_study: '', start_date: '', end_date: '', grade: '', current: false };
 const emptyExp = { company: '', position: '', location: '', start_date: '', end_date: '', description: '', current: false };
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const EditProfile = () => {
   const navigate = useNavigate();
@@ -23,9 +24,11 @@ const EditProfile = () => {
     graduation_year: '', availability: '', skills: '',
     education: [], experience: [],
     photo_url: null, cover_url: null,
+    is_mentor: false,
     mentor_consent: false, mentor_headline: '',
     mentor_areas_of_help: [], mentor_industries: [],
     mentor_max_mentees: '', mentor_availability_note: '',
+    mentor_availability_slots: [],
   });
   const [showEduModal, setShowEduModal] = useState(false);
   const [showExpModal, setShowExpModal] = useState(false);
@@ -40,9 +43,11 @@ const EditProfile = () => {
       const data = await profileApi.getMe();
       setFormData({
         ...data,
+        is_mentor: data.is_mentor || false,
         skills: data.skills ? data.skills.join(', ') : '',
         mentor_areas_of_help: data.mentor_areas_of_help || [],
         mentor_industries: data.mentor_industries || [],
+        mentor_availability_slots: data.mentor_availability_slots || [],
         education: data.education || [],
         experience: data.experience || [],
         graduation_year: data.graduation_year || '',
@@ -60,6 +65,32 @@ const EditProfile = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((p) => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const handleSlotChange = (index, field, value) => {
+    setFormData((p) => ({
+      ...p,
+      mentor_availability_slots: p.mentor_availability_slots.map((slot, i) => (
+        i === index ? { ...slot, [field]: field === 'weekday' ? Number(value) : value } : slot
+      )),
+    }));
+  };
+
+  const addSlot = () => {
+    setFormData((p) => ({
+      ...p,
+      mentor_availability_slots: [
+        ...p.mentor_availability_slots,
+        { id: `slot-${Date.now()}`, weekday: 0, start_time: '18:00', end_time: '19:00' },
+      ],
+    }));
+  };
+
+  const removeSlot = (index) => {
+    setFormData((p) => ({
+      ...p,
+      mentor_availability_slots: p.mentor_availability_slots.filter((_, i) => i !== index),
+    }));
   };
 
   const handlePhotoUpload = async (e, type) => {
@@ -295,16 +326,42 @@ const EditProfile = () => {
 
         {/* Mentor settings */}
         <div className="form-card">
-          <div className="form-card-head"><h3>Mentor settings</h3><p>Available to alumni who want to mentor.</p></div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
-            <input type="checkbox" name="mentor_consent" checked={!!formData.mentor_consent} onChange={handleChange} />
-            <span>I'm available to mentor students and recent graduates</span>
-          </label>
-          {formData.mentor_consent && (
+          <div className="form-card-head"><h3>Mentor settings</h3><p>Manage your active mentor profile.</p></div>
+          {!formData.is_mentor ? (
+            <div className="panel" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+              <div>
+                <div className="h3">Not active as a mentor yet</div>
+                <div className="mute" style={{ fontSize: 12, marginTop: 4 }}>Activate a mentor profile first, then edit availability and capacity here.</div>
+              </div>
+              <Link to="/become-mentor" className="btn sm primary">Become a mentor</Link>
+            </div>
+          ) : (
             <>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 13, marginBottom: 14 }}>
+                <input type="checkbox" name="mentor_consent" checked={!!formData.mentor_consent} onChange={handleChange} />
+                <span>I am available to receive mentorship requests</span>
+              </label>
               <div className="form-group" style={{ marginTop: 14 }}>
                 <label>Mentor headline</label>
                 <input name="mentor_headline" value={formData.mentor_headline} onChange={handleChange} placeholder="What you help with as a mentor" />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Areas of help</label>
+                  <input
+                    value={(formData.mentor_areas_of_help || []).join(', ')}
+                    onChange={(e) => setFormData((p) => ({ ...p, mentor_areas_of_help: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                    placeholder="DSA, resume review, roadmap"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Industries</label>
+                  <input
+                    value={(formData.mentor_industries || []).join(', ')}
+                    onChange={(e) => setFormData((p) => ({ ...p, mentor_industries: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                    placeholder="AI, fintech, olympiads"
+                  />
+                </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -316,13 +373,33 @@ const EditProfile = () => {
                   <input name="mentor_availability_note" value={formData.mentor_availability_note} onChange={handleChange} placeholder="e.g. 30min/week, evenings" />
                 </div>
               </div>
+              <div className="form-group">
+                <label>Availability slots</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(formData.mentor_availability_slots || []).map((slot, index) => (
+                    <div key={slot.id || index} className="availability-slot-row">
+                      <select value={slot.weekday} onChange={(e) => handleSlotChange(index, 'weekday', e.target.value)}>
+                        {WEEKDAYS.map((day, dayIndex) => <option key={day} value={dayIndex}>{day}</option>)}
+                      </select>
+                      <input type="time" value={slot.start_time} onChange={(e) => handleSlotChange(index, 'start_time', e.target.value)} />
+                      <input type="time" value={slot.end_time} onChange={(e) => handleSlotChange(index, 'end_time', e.target.value)} />
+                      <button type="button" className="btn sm ghost" onClick={() => removeSlot(index)}>
+                        <Icon name="trash" size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn sm" onClick={addSlot} style={{ alignSelf: 'flex-start' }}>
+                    <Icon name="plus" size={12} /> Add slot
+                  </button>
+                </div>
+              </div>
             </>
           )}
         </div>
 
         <div className="form-actions">
           <button type="button" className="btn ghost" onClick={() => navigate('/profile')}>Cancel</button>
-          <button type="submit" className="btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save profile'}</button>
+          <button type="submit" className="btn primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button>
         </div>
       </form>
 
@@ -344,7 +421,7 @@ const EditProfile = () => {
                 <div className="form-group"><label>End date</label><input type="date" value={currentEdu.end_date || ''} onChange={(e) => setCurrentEdu({ ...currentEdu, end_date: e.target.value })} disabled={currentEdu.current} /></div>
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
-                <input type="checkbox" checked={!!currentEdu.current} onChange={(e) => setCurrentEdu({ ...currentEdu, current: e.target.checked })} /> I'm currently studying here
+                <input type="checkbox" checked={!!currentEdu.current} onChange={(e) => setCurrentEdu({ ...currentEdu, current: e.target.checked })} /> I am currently studying here
               </label>
               <div className="form-group" style={{ marginTop: 12 }}><label>Grade / GPA</label><input value={currentEdu.grade || ''} onChange={(e) => setCurrentEdu({ ...currentEdu, grade: e.target.value })} /></div>
             </div>

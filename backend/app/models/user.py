@@ -63,6 +63,7 @@ class UserProfile(Base):
     mentor_industries: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     mentor_max_mentees: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     mentor_availability_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mentor_availability_slots: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     mentor_consent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     cover_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 

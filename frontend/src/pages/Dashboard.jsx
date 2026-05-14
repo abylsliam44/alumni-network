@@ -189,7 +189,7 @@ const Dashboard = () => {
               <>and <span style={{ color: 'var(--blue)' }}>{recommendations.length} new matches</span> this week.</>
             )}
             {!incomingMentorRequests.length && !recommendations.length && (
-              <span className="dim">Build your network · share what you're looking for.</span>
+              <span className="dim">Build your network - share what you are looking for.</span>
             )}
           </h1>
         </div>
@@ -203,9 +203,9 @@ const Dashboard = () => {
         <div className="panel blue-tint" style={{ padding: 14, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="pulse-dot" />
           <div style={{ flex: 1 }}>
-            <div className="eyebrow" style={{ color: 'var(--blue)', marginBottom: 4 }}>AQYLDYAI · ROADMAP</div>
+            <div className="eyebrow" style={{ color: 'var(--blue)', marginBottom: 4 }}>AQYLDYAI - ROADMAP</div>
             <div style={{ fontSize: 13, color: 'var(--ink)' }}>
-              Your roadmap and opportunities are being generated. You'll get a notification when ready.
+              Your roadmap and opportunities are being generated. You will get a notification when ready.
             </div>
           </div>
         </div>
@@ -240,20 +240,20 @@ const Dashboard = () => {
               <div className="empty-block">
                 <Icon name="graph" size={28} />
                 <h3>No incoming requests</h3>
-                <p>When students request mentorship, they'll show up here.</p>
+                <p>When students request mentorship, they will show up here.</p>
               </div>
             ) : (
               incomingMentorRequests.slice(0, 3).map((r) => (
                 <div key={r.id} className="list-row">
                   <Avatar
-                    src={resolveUrl(r.mentee?.photo_url)}
-                    name={r.mentee?.name}
+                    src={resolveUrl(r.sender?.photo_url)}
+                    name={r.sender?.name}
                     size="m"
                   />
                   <div style={{ minWidth: 0 }}>
                     <div className="h3" style={{ marginBottom: 2 }}>
-                      {r.mentee?.name}
-                      {r.mentee?.headline && <span className="mono" style={{ marginLeft: 8, fontSize: 10, color: 'var(--ink-3)' }}>{r.mentee.headline}</span>}
+                      {r.sender?.name}
+                      {r.sender?.headline && <span className="mono" style={{ marginLeft: 8, fontSize: 10, color: 'var(--ink-3)' }}>{r.sender.headline}</span>}
                     </div>
                     <div className="mute" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                       {r.goals || 'No goal specified'}
@@ -321,7 +321,7 @@ const Dashboard = () => {
               <div className="empty-block">
                 <Icon name="users" size={28} />
                 <h3>No recommendations yet</h3>
-                <p>Add skills and interests to your profile and we'll surface alumni you should meet.</p>
+                <p>Add skills and interests to your profile and we will surface alumni you should meet.</p>
                 <Link to="/profile/edit" className="btn sm">Complete profile</Link>
               </div>
             ) : (
@@ -406,7 +406,7 @@ const Dashboard = () => {
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div className="h3" style={{ fontSize: 13 }}>{job.title}</div>
-                    <div className="mute" style={{ fontSize: 11.5 }}>{job.company} · {job.location || 'Remote'}</div>
+                      <div className="mute" style={{ fontSize: 11.5 }}>{job.company} - {job.location || 'Remote'}</div>
                   </div>
                   <span className="mono mute" style={{ fontSize: 10 }}>
                     {job.employment_type ? job.employment_type.replaceAll('_', ' ').toLowerCase() : ''}

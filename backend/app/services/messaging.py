@@ -4,15 +4,51 @@ import uuid
 from datetime import datetime
 from typing import Optional, Tuple
 
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.cache import invalidate_namespaces
+from app.models.mentorship import MentorshipRelationship, MentorshipRelationshipStatus
 from app.models.message import Conversation, ConversationParticipant, Message
 from app.models.user import User
 from app.schemas.message import ConversationSummary, ConversationUser, MessageRead
 from app.services import connection as connection_service
+
+
+async def are_mentorship_participants(
+    db: AsyncSession, user_a: uuid.UUID, user_b: uuid.UUID
+) -> bool:
+    return bool(
+        await db.scalar(
+            select(MentorshipRelationship.id).where(
+                MentorshipRelationship.status.in_(
+                    [
+                        MentorshipRelationshipStatus.ACTIVE,
+                        MentorshipRelationshipStatus.COMPLETED,
+                    ]
+                ),
+                or_(
+                    and_(
+                        MentorshipRelationship.mentor_id == user_a,
+                        MentorshipRelationship.mentee_id == user_b,
+                    ),
+                    and_(
+                        MentorshipRelationship.mentor_id == user_b,
+                        MentorshipRelationship.mentee_id == user_a,
+                    ),
+                ),
+            )
+        )
+    )
+
+
+async def can_message_user(
+    db: AsyncSession, user_a: uuid.UUID, user_b: uuid.UUID
+) -> bool:
+    return await connection_service.are_friends(
+        db, user_a, user_b
+    ) or await are_mentorship_participants(db, user_a, user_b)
 
 
 async def find_conversation_between_users(
@@ -137,7 +173,6 @@ async def build_conversation_summary(
 async def list_conversations_for_user(
     db: AsyncSession, user_id: uuid.UUID
 ) -> list[ConversationSummary]:
-    friend_ids = set(await connection_service.friend_ids_for_user(db, user_id))
     result = await db.execute(
         select(Conversation)
         .join(ConversationParticipant)
@@ -153,7 +188,7 @@ async def list_conversations_for_user(
     summaries: list[ConversationSummary] = []
     for conversation in conversations:
         other = await conversation_other_user(conversation, user_id)
-        if not other or other.id not in friend_ids:
+        if not other or not await can_message_user(db, user_id, other.id):
             continue
         summaries.append(await build_conversation_summary(db, conversation, user_id))
     summaries.sort(

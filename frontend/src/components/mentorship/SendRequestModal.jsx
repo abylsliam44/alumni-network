@@ -3,12 +3,13 @@ import { mentorshipApi } from '../../api/mentorship';
 import Icon from '../ui/Icon';
 
 const GOAL_OPTIONS = [
-  'CV review',
-  'Interview prep',
-  'Career path',
-  'Portfolio',
-  'Networking',
-  'Research',
+  'DSA / Competitive Programming',
+  'Career Advice',
+  'Resume Review',
+  'Interview Prep',
+  'Technical Roadmap',
+  'Project Guidance',
+  'Research / Academia',
 ];
 
 const SendRequestModal = ({ receiver, onClose, onSuccess }) => {
@@ -16,6 +17,7 @@ const SendRequestModal = ({ receiver, onClose, onSuccess }) => {
   const [goals, setGoals] = useState([]);
   const [expectedDuration, setExpectedDuration] = useState('2-4 weeks');
   const [preferredFormat, setPreferredFormat] = useState('mixed');
+  const [meetingFrequency, setMeetingFrequency] = useState('weekly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const isFull = receiver?.mentor_capacity_status === 'FULL';
@@ -35,6 +37,7 @@ const SendRequestModal = ({ receiver, onClose, onSuccess }) => {
         goals,
         expected_duration: expectedDuration,
         preferred_format: preferredFormat,
+        meeting_frequency: meetingFrequency,
       });
       onSuccess(); onClose();
     } catch (err) {
@@ -97,12 +100,22 @@ const SendRequestModal = ({ receiver, onClose, onSuccess }) => {
             </div>
 
             <div className="form-group">
-              <label>Message</label>
+              <label>Preferred frequency</label>
+              <select value={meetingFrequency} onChange={(e) => setMeetingFrequency(e.target.value)}>
+                <option value="one-time">One focused session</option>
+                <option value="weekly">Weekly check-in</option>
+                <option value="biweekly">Every two weeks</option>
+                <option value="async">Async, as needed</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Short objective</label>
               <textarea
                 rows="4"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Introduce yourself and explain why this mentor is a good fit…"
+                placeholder="What do you want to improve, build, or prepare for?"
                 required
               />
             </div>
@@ -113,7 +126,7 @@ const SendRequestModal = ({ receiver, onClose, onSuccess }) => {
           <div className="modal-foot">
             <button type="button" className="btn ghost" onClick={onClose} disabled={loading}>Cancel</button>
             <button type="submit" className="btn primary" disabled={loading || isFull}>
-              {loading ? 'Sending…' : 'Send request'}
+              {loading ? 'Sending...' : 'Send request'}
             </button>
           </div>
         </form>

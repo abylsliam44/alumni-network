@@ -86,7 +86,7 @@ const AppShell = () => {
 
   const secondaryNav = [
     { to: '/profile/resume-import', label: 'Resume Import', icon: 'upload' },
-    ...(user?.role === 'ALUMNI' && !user?.is_mentor
+    ...(!user?.is_mentor
       ? [{ to: '/become-mentor', label: 'Become a Mentor', icon: 'graph' }]
       : []),
     { to: '/settings', label: 'Settings', icon: 'settings' },

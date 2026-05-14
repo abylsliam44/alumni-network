@@ -29,7 +29,6 @@ from app.schemas.message import (
 )
 from app.core import storage
 from app.services import messaging as messaging_service
-from app.services import connection as connection_service
 from app.services import notification as notification_service
 
 router = APIRouter()
@@ -139,8 +138,8 @@ async def get_conversation_messages(
         raise HTTPException(status_code=404, detail="Conversation not found")
     await _ensure_participant(db, conversation_id, current_user.id)
     other_id = await messaging_service.other_participant_id(db, conversation_id, current_user.id)
-    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
-        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+    if other_id and not await messaging_service.can_message_user(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends or mentorship participants")
     messages, has_more = await messaging_service.get_messages_page(
         db, conversation_id, limit=limit, before_id=before
     )
@@ -175,8 +174,8 @@ async def start_conversation(
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not await connection_service.are_friends(db, current_user.id, target_user.id):
-        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+    if not await messaging_service.can_message_user(db, current_user.id, target_user.id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends or mentorship participants")
 
     conversation = await messaging_service.get_or_create_conversation(
         db, current_user.id, payload.user_id
@@ -202,8 +201,8 @@ async def mark_conversation_read(
 
     await _ensure_participant(db, conversation_id, current_user.id)
     other_id = await messaging_service.other_participant_id(db, conversation_id, current_user.id)
-    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
-        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+    if other_id and not await messaging_service.can_message_user(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends or mentorship participants")
     updated, read_at = await messaging_service.mark_messages_read_up_to(
         db=db,
         conversation_id=conversation_id,
@@ -230,8 +229,8 @@ async def send_message(
 
     await _ensure_participant(db, conversation_id, current_user.id)
     other_id = await messaging_service.other_participant_id(db, conversation_id, current_user.id)
-    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
-        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+    if other_id and not await messaging_service.can_message_user(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends or mentorship participants")
 
     text = (payload.text or "").strip()
     if not text and not payload.attachment_url:
@@ -371,8 +370,8 @@ async def download_attachment(
 
     await _ensure_participant(db, message.conversation_id, current_user.id)
     other_id = await messaging_service.other_participant_id(db, message.conversation_id, current_user.id)
-    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
-        raise HTTPException(status_code=403, detail="Messaging allowed only between friends")
+    if other_id and not await messaging_service.can_message_user(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Messaging allowed only between friends or mentorship participants")
 
     stored = storage.get_object_stream(message.attachment_url)
     disposition_type = "attachment" if download else "inline"

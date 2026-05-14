@@ -17,7 +17,6 @@ from app.core.database import get_db
 from app.models.message import Conversation
 from app.models.user import User
 from app.schemas.message import MessageRead
-from app.services import connection as connection_service
 from app.services import messaging as messaging_service
 
 logger = logging.getLogger(__name__)
@@ -53,8 +52,8 @@ async def create_room(
         raise HTTPException(status_code=403, detail="Not a participant in this conversation")
 
     other_id = await messaging_service.other_participant_id(db, request.conversation_id, current_user.id)
-    if other_id and not await connection_service.are_friends(db, current_user.id, other_id):
-        raise HTTPException(status_code=403, detail="Video calls allowed only between friends")
+    if other_id and not await messaging_service.can_message_user(db, current_user.id, other_id):
+        raise HTTPException(status_code=403, detail="Video calls allowed only between friends or mentorship participants")
 
     room_name = generate_room_name(request.conversation_id)
     system_message_text = f"JOIN_VIDEO_CALL|{room_name}"

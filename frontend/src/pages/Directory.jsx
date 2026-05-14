@@ -33,7 +33,7 @@ const Directory = () => {
     try {
       const { mentor_only, ...rest } = filters;
       const params = { ...rest };
-      if (mentor_only) { params.role = 'ALUMNI'; params.is_mentor = true; }
+      if (mentor_only) { params.is_mentor = true; }
       const data = await directoryApi.getUsers(params);
       setUsers(data.items);
       setTotal(data.total);
@@ -103,12 +103,12 @@ const Directory = () => {
       <div className="page-head">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>
-            DIRECTORY · {total} MEMBERS
+            DIRECTORY - {total} MEMBERS
           </div>
           <h1 className="h1">Find your <i>people</i>.</h1>
         </div>
         <div className="page-head-actions">
-          <SearchInput value={filters.query} onChange={handleSearchChange} placeholder="Search by name, skill, company…" />
+          <SearchInput value={filters.query} onChange={handleSearchChange} placeholder="Search by name, skill, company..." />
           <button className="btn" onClick={() => setFiltersVisible(!filtersVisible)}>
             <Icon name="sliders" size={14} /> Filters
             {activeFiltersCount > 0 && <Pill tone="blue">{activeFiltersCount}</Pill>}
@@ -121,7 +121,7 @@ const Directory = () => {
       )}
 
       {loading ? (
-        <div className="loading-block">Indexing alumni · fetching profiles</div>
+        <div className="loading-block">Indexing alumni - fetching profiles</div>
       ) : users.length === 0 ? (
         <div className="empty-block">
           <Icon name="users" size={28} />

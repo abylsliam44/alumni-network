@@ -6,12 +6,15 @@ import Icon from '../components/ui/Icon';
 import Pill from '../components/ui/Pill';
 import Alert from '../components/ui/Alert';
 
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 const BecomeMentor = () => {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     headline: '', areas_of_help: '', industries: '',
-    max_mentees: '', availability_note: '', consent_mentor: false,
+    max_mentees: '', availability_note: '', availability_slots: [],
+    consent_mentor: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -22,6 +25,32 @@ const BecomeMentor = () => {
     setFormData((p) => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
   };
 
+  const handleSlotChange = (index, field, value) => {
+    setFormData((p) => ({
+      ...p,
+      availability_slots: p.availability_slots.map((slot, i) => (
+        i === index ? { ...slot, [field]: field === 'weekday' ? Number(value) : value } : slot
+      )),
+    }));
+  };
+
+  const addSlot = () => {
+    setFormData((p) => ({
+      ...p,
+      availability_slots: [
+        ...p.availability_slots,
+        { id: `slot-${Date.now()}`, weekday: 0, start_time: '18:00', end_time: '19:00' },
+      ],
+    }));
+  };
+
+  const removeSlot = (index) => {
+    setFormData((p) => ({
+      ...p,
+      availability_slots: p.availability_slots.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault(); setSubmitting(true); setError(null);
     const payload = {
@@ -30,6 +59,7 @@ const BecomeMentor = () => {
       industries: formData.industries.split(',').map((s) => s.trim()).filter(Boolean),
       max_mentees: formData.max_mentees ? Number(formData.max_mentees) : null,
       availability_note: formData.availability_note,
+      availability_slots: formData.availability_slots,
       consent_mentor: formData.consent_mentor,
     };
     try {
@@ -43,31 +73,13 @@ const BecomeMentor = () => {
     }
   };
 
-  if (user && user.role !== 'ALUMNI') {
-    return (
-      <div className="page">
-        <div className="page-head">
-          <div>
-            <div className="eyebrow" style={{ marginBottom: 10 }}>BECOME A MENTOR</div>
-            <h1 className="h1">Mentor profiles are <i>alumni-only</i>.</h1>
-          </div>
-        </div>
-        <div className="empty-block">
-          <Icon name="award" size={28} />
-          <h3>Mentor activation is limited to alumni accounts</h3>
-          <p>This page is reserved for alumni who want to open mentorship availability. Students can browse mentors and send requests directly.</p>
-        </div>
-      </div>
-    );
-  }
-
   if (user?.is_mentor) {
     return (
       <div className="page">
         <div className="page-head">
           <div>
-            <div className="eyebrow" style={{ marginBottom: 10 }}>MENTOR · ACTIVE</div>
-            <h1 className="h1">You're already a <i>mentor</i>.</h1>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>MENTOR - ACTIVE</div>
+            <h1 className="h1">You are already a <i>mentor</i>.</h1>
           </div>
         </div>
         <div className="panel activation-status-grid" style={{ padding: 24, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 16, alignItems: 'center' }}>
@@ -91,7 +103,7 @@ const BecomeMentor = () => {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="eyebrow" style={{ marginBottom: 10 }}>MENTORSHIP · ACTIVATION</div>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>MENTORSHIP - ACTIVATION</div>
           <h1 className="h1">Become a <i>mentor</i>,<br />on your terms.</h1>
         </div>
       </div>
@@ -102,7 +114,7 @@ const BecomeMentor = () => {
             <Pill tone="blue" dot><Icon name="spark" size={11} /> ACTIVATION</Pill>
             <h2 className="h2" style={{ margin: '12px 0 8px' }}>Turn your alumni experience into <i>practical guidance</i>.</h2>
             <p className="dim" style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
-              Add a clear headline, define how you can help, and tell students what kind of conversations they can expect.
+              Add a clear headline, define how you can help, and show a few windows when students can reasonably reach you.
             </p>
           </div>
 
@@ -110,7 +122,7 @@ const BecomeMentor = () => {
           {[
             { icon: 'graph', title: 'Clear positioning', body: 'Students instantly see your focus, industries, and the kinds of questions you handle.' },
             { icon: 'users', title: 'Qualified requests', body: 'Your mentor profile attracts people who actually need your expertise.' },
-            { icon: 'award', title: 'Controlled capacity', body: 'Set your own mentee limit and availability note so expectations stay realistic.' },
+            { icon: 'award', title: 'Controlled capacity', body: 'Set your own mentee limit and simple availability so expectations stay realistic.' },
           ].map((b) => (
             <div key={b.title} className="panel" style={{ padding: 14, marginBottom: 10, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ width: 32, height: 32, borderRadius: 7, background: 'var(--blue-soft)', border: '1px solid var(--blue-line)', color: 'var(--blue)', display: 'grid', placeItems: 'center' }}>
@@ -131,7 +143,7 @@ const BecomeMentor = () => {
           </div>
 
           {error && <Alert type="error">{error}</Alert>}
-          {success && <Alert type="success">Mentor profile activated. Redirecting…</Alert>}
+          {success && <Alert type="success">Mentor profile activated. Redirecting...</Alert>}
 
           <div className="form-group">
             <label>Mentor headline</label>
@@ -164,17 +176,38 @@ const BecomeMentor = () => {
             />
           </div>
 
+          <div className="form-group">
+            <label>Availability slots</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {formData.availability_slots.map((slot, index) => (
+                <div key={slot.id || index} className="availability-slot-row">
+                  <select value={slot.weekday} onChange={(e) => handleSlotChange(index, 'weekday', e.target.value)}>
+                    {WEEKDAYS.map((day, dayIndex) => <option key={day} value={dayIndex}>{day}</option>)}
+                  </select>
+                  <input type="time" value={slot.start_time} onChange={(e) => handleSlotChange(index, 'start_time', e.target.value)} />
+                  <input type="time" value={slot.end_time} onChange={(e) => handleSlotChange(index, 'end_time', e.target.value)} />
+                  <button type="button" className="btn sm ghost" onClick={() => removeSlot(index)}>
+                    <Icon name="trash" size={12} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="btn sm" onClick={addSlot} style={{ alignSelf: 'flex-start' }}>
+                <Icon name="plus" size={12} /> Add slot
+              </button>
+            </div>
+          </div>
+
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 14, background: 'var(--bg-2)', border: '1px solid var(--line-soft)', borderRadius: 8, fontFamily: 'var(--sans)', textTransform: 'none', letterSpacing: 0, fontSize: 12.5 }}>
             <input type="checkbox" name="consent_mentor" checked={formData.consent_mentor} onChange={handleChange} required style={{ marginTop: 2 }} />
             <div>
               <div style={{ fontWeight: 500, color: 'var(--ink)' }}>I agree to be listed as a mentor.</div>
-              <div className="mute" style={{ marginTop: 2 }}>I'm willing to receive mentorship requests and have my profile shown in the directory.</div>
+              <div className="mute" style={{ marginTop: 2 }}>I am willing to receive mentorship requests and have my profile shown in the directory.</div>
             </div>
           </label>
 
           <div className="form-actions">
             <button type="submit" className="btn primary" disabled={submitting}>
-              {submitting ? 'Activating…' : 'Activate mentor profile'}
+              {submitting ? 'Activating...' : 'Activate mentor profile'}
             </button>
           </div>
         </form>

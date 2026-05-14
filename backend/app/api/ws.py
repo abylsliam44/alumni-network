@@ -368,8 +368,8 @@ async def chat_socket(websocket: WebSocket) -> None:
                     other_id = next((pid for pid in participants if pid != user.id), None)
                     if other_id:
                         async with AsyncSessionLocal() as db:
-                            if not await connection_service.are_friends(db=db, user_a=user.id, user_b=other_id):
-                                await websocket.send_json({"type": "error", "payload": {"message": "Messaging allowed only between friends"}})
+                            if not await messaging_service.can_message_user(db, user.id, other_id):
+                                await websocket.send_json({"type": "error", "payload": {"message": "Messaging allowed only between friends or mentorship participants"}})
                                 continue
                     message = await _store_message_with_attachment(
                         conversation_id=conversation_id,
@@ -438,7 +438,7 @@ async def chat_socket(websocket: WebSocket) -> None:
                     if not await messaging_service.ensure_participant(db, conversation_uuid, user.id):
                         continue
                     other_id = await messaging_service.other_participant_id(db, conversation_uuid, user.id)
-                    if other_id and not await connection_service.are_friends(db, user.id, other_id):
+                    if other_id and not await messaging_service.can_message_user(db, user.id, other_id):
                         continue
                     updated, read_at = await messaging_service.mark_messages_read_up_to(
                         db,

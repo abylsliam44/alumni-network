@@ -36,6 +36,7 @@ class MentorshipRequest(Base):
     goals: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     expected_duration: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     preferred_format: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    meeting_frequency: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     decline_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=datetime.utcnow, nullable=True)

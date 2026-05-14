@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class EducationItem(BaseModel):
     school: str
@@ -43,6 +43,36 @@ class OpportunityGenerationRead(BaseModel):
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
 
+
+class MentorAvailabilitySlot(BaseModel):
+    id: Optional[str] = None
+    weekday: int
+    start_time: str
+    end_time: str
+
+    @field_validator("weekday")
+    @classmethod
+    def valid_weekday(cls, value: int) -> int:
+        if value < 0 or value > 6:
+            raise ValueError("weekday must be between 0 and 6")
+        return value
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def valid_time(cls, value: str) -> str:
+        parts = value.split(":")
+        if len(parts) != 2:
+            raise ValueError("time must use HH:MM format")
+        hour, minute = parts
+        if not (hour.isdigit() and minute.isdigit()):
+            raise ValueError("time must use HH:MM format")
+        hour_i = int(hour)
+        minute_i = int(minute)
+        if hour_i < 0 or hour_i > 23 or minute_i < 0 or minute_i > 59:
+            raise ValueError("time must use HH:MM format")
+        return f"{hour_i:02d}:{minute_i:02d}"
+
+
 class ProfileBase(BaseModel):
     headline: Optional[str] = None
     location: Optional[str] = None
@@ -64,6 +94,7 @@ class ProfileBase(BaseModel):
     mentor_industries: List[str] = []
     mentor_max_mentees: Optional[int] = None
     mentor_availability_note: Optional[str] = None
+    mentor_availability_slots: List[MentorAvailabilitySlot] = Field(default_factory=list)
     mentor_consent: bool = False
 
 class ProfileUpdate(ProfileBase):
