@@ -68,6 +68,20 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: Union[str, List[str]] = ""
 
+    # Video calls / Jitsi
+    JITSI_DOMAIN: str = "meet.jit.si"
+    JITSI_APP_ID: Optional[str] = None
+    JITSI_EXTERNAL_API_URL: Optional[str] = None
+    JITSI_JWT_SIGNING_KEY: Optional[str] = None
+    JITSI_JWT_SIGNING_KEY_FILE: Optional[str] = None
+    JITSI_JWT_ALGORITHM: Optional[str] = None
+    JITSI_JWT_KEY_ID: Optional[str] = None
+    JITSI_JWT_ISSUER: Optional[str] = None
+    JITSI_JWT_SUBJECT: Optional[str] = None
+    JITSI_JWT_AUDIENCE: str = "jitsi"
+    JITSI_JWT_ROOM_CLAIM: Optional[str] = None
+    JITSI_JWT_EXPIRE_MINUTES: int = 60
+
     # Storage
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024

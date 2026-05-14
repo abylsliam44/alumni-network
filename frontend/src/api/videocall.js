@@ -11,4 +11,10 @@ export const videocallApi = {
         });
         return data;
     },
+    getConfig: async (roomName) => {
+        const { data } = await api.get('/api/v1/videocall/config', {
+            params: { room_name: roomName },
+        });
+        return data;
+    },
 };

@@ -1,23 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
+import { videocallApi } from '../api/videocall';
 
 const JITSI_DOMAIN = 'meet.jit.si';
-const JITSI_SCRIPT_SRC = 'https://meet.jit.si/external_api.js';
 
-let jitsiScriptPromise = null;
+const jitsiScriptPromises = new Map();
 
-const loadJitsiScript = () => {
+const normalizeJitsiDomain = (value) => {
+  const raw = String(value || JITSI_DOMAIN).trim();
+  try {
+    const url = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+    return url.host || JITSI_DOMAIN;
+  } catch {
+    return raw.replace(/^https?:\/\//, '').split('/')[0] || JITSI_DOMAIN;
+  }
+};
+
+const defaultScriptSrc = (domain) => `https://${normalizeJitsiDomain(domain)}/external_api.js`;
+
+const loadJitsiScript = (scriptSrc) => {
   if (window.JitsiMeetExternalAPI) {
     return Promise.resolve();
   }
 
-  if (jitsiScriptPromise) {
-    return jitsiScriptPromise;
+  if (jitsiScriptPromises.has(scriptSrc)) {
+    return jitsiScriptPromises.get(scriptSrc);
   }
 
-  const existingScript = document.querySelector(`script[src="${JITSI_SCRIPT_SRC}"]`);
+  const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
 
-  jitsiScriptPromise = new Promise((resolve, reject) => {
+  const scriptPromise = new Promise((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
+      jitsiScriptPromises.delete(scriptSrc);
       reject(new Error('Jitsi script loading timed out'));
     }, 10000);
 
@@ -29,7 +42,7 @@ const loadJitsiScript = () => {
 
     const handleError = () => {
       window.clearTimeout(timeoutId);
-      jitsiScriptPromise = null;
+      jitsiScriptPromises.delete(scriptSrc);
       reject(new Error('Failed to load Jitsi Meet'));
     };
 
@@ -46,7 +59,7 @@ const loadJitsiScript = () => {
     }
 
     const script = document.createElement('script');
-    script.src = JITSI_SCRIPT_SRC;
+    script.src = scriptSrc;
     script.async = true;
     script.setAttribute('data-jitsi-external-api', 'true');
     script.addEventListener('load', () => {
@@ -57,7 +70,8 @@ const loadJitsiScript = () => {
     document.body.appendChild(script);
   });
 
-  return jitsiScriptPromise;
+  jitsiScriptPromises.set(scriptSrc, scriptPromise);
+  return scriptPromise;
 };
 
 export const normalizeJitsiRoomName = (value) => {
@@ -108,8 +122,19 @@ const JitsiMeet = ({ roomName, displayName = 'Guest', email = '', onReadyToClose
     setLoading(true);
     setError('');
 
-    loadJitsiScript()
-      .then(() => {
+    videocallApi.getConfig(safeRoomName)
+      .then((config) => {
+        const domain = normalizeJitsiDomain(config?.domain);
+        const scriptSrc = config?.external_api_url || defaultScriptSrc(domain);
+        const configuredRoomName = config?.room_name || safeRoomName;
+
+        return loadJitsiScript(scriptSrc).then(() => ({
+          domain,
+          roomName: configuredRoomName,
+          jwt: config?.jwt,
+        }));
+      })
+      .then((config) => {
         if (cancelled) return;
 
         if (!window.JitsiMeetExternalAPI) {
@@ -126,8 +151,8 @@ const JitsiMeet = ({ roomName, displayName = 'Guest', email = '', onReadyToClose
           userInfo.email = email;
         }
 
-        const api = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
-          roomName: safeRoomName,
+        const apiOptions = {
+          roomName: config.roomName,
           parentNode: container,
           width: '100%',
           height: '100%',
@@ -140,15 +165,33 @@ const JitsiMeet = ({ roomName, displayName = 'Guest', email = '', onReadyToClose
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
           },
-        });
+        };
+
+        if (config.jwt) {
+          apiOptions.jwt = config.jwt;
+        }
+
+        const api = new window.JitsiMeetExternalAPI(config.domain, apiOptions);
 
         apiRef.current = api;
         setLoading(false);
 
-        if (typeof api.addListener === 'function') {
-          api.addListener('videoConferenceJoined', () => setLoading(false));
-          api.addListener('readyToClose', () => onReadyToClose?.());
-          api.addListener('videoConferenceLeft', () => onReadyToClose?.());
+        const addApiListener = typeof api.addListener === 'function'
+          ? api.addListener.bind(api)
+          : typeof api.addEventListener === 'function'
+            ? api.addEventListener.bind(api)
+            : null;
+
+        if (addApiListener) {
+          addApiListener('videoConferenceJoined', () => setLoading(false));
+          addApiListener('readyToClose', () => onReadyToClose?.());
+          addApiListener('videoConferenceLeft', () => onReadyToClose?.());
+          addApiListener('errorOccurred', (event) => {
+            const errorName = String(event?.name || event?.type || event?.error || '');
+            if (errorName.toLowerCase().includes('auth')) {
+              setError('Jitsi authentication failed. Check video provider credentials.');
+            }
+          });
         }
       })
       .catch((err) => {
