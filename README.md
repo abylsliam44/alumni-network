@@ -30,6 +30,7 @@ A full-stack alumni engagement platform for AITU students, alumni, mentors, univ
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Security Notes](#security-notes)
+- [License](#license)
 
 ## Visual Overview
 
@@ -397,4 +398,4 @@ The default `meet.jit.si` domain may require the first room moderator to authent
 
 ## License
 
-No license file is currently included. Add a license before distributing or publishing the project as open source.
+This project is distributed under the MIT License. See [LICENSE](LICENSE) for the full license text.
