@@ -385,9 +385,7 @@ const Messages = () => {
               >
                 <div style={{ position: 'relative' }}>
                   <Avatar src={resolveUrl(u?.photo_url)} name={u?.name || 'Conversation'} size="m" />
-                  {isOnline && (
-                    <span style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: 'var(--ok)', border: '2px solid var(--bg)' }} />
-                  )}
+                  {isOnline && <span className="messages-presence-dot" />}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div className="name">{u?.name || 'Conversation'}</div>
@@ -423,17 +421,18 @@ const Messages = () => {
                   {otherPresenceLabel.toUpperCase()}
                 </div>
               </div>
-              <button className="iconbtn" onClick={startVideoCall} disabled={!canMessage || isStartingCall} title="Start video call">
+              <button type="button" className="messages-video-action" onClick={startVideoCall} disabled={!canMessage || isStartingCall} title="Start video call">
                 <Icon name="video" size={16} />
+                <span>{isStartingCall ? 'Starting…' : 'Video call'}</span>
               </button>
-              <button className="iconbtn" onClick={() => otherUser && navigate(`/profile/${otherUser.id}`)} title="View profile">
+              <button type="button" className="iconbtn" onClick={() => otherUser && navigate(`/profile/${otherUser.id}`)} title="View profile">
                 <Icon name="user" size={16} />
               </button>
             </div>
 
             <div className="messages-thread-scroll">
               {grouped.map((g, i) => g.type === 'date' ? (
-                <div key={`d-${i}`} className="mono mute" style={{ alignSelf: 'center', fontSize: 10, padding: '8px 0' }}>{g.date.toUpperCase()}</div>
+                <div key={`d-${i}`} className="messages-date-separator">{g.date.toUpperCase()}</div>
               ) : (
                 <Bubble key={g.data.id} msg={g.data} isMine={g.data.sender_id === user?.id} onJoinCall={joinVideoCall} />
               ))}
@@ -446,7 +445,7 @@ const Messages = () => {
                   type="file" ref={attachmentInputRef} accept={ATTACHMENT_ACCEPT}
                   style={{ display: 'none' }} onChange={handleAttachmentSelect}
                 />
-                <button className="iconbtn" onClick={() => attachmentInputRef.current?.click()} title="Attach file">
+                <button type="button" className="iconbtn" onClick={() => attachmentInputRef.current?.click()} title="Attach file">
                   <Icon name="paperclip" size={16} />
                 </button>
                 <textarea
@@ -461,14 +460,14 @@ const Messages = () => {
                   }}
                   placeholder="Type a message…"
                 />
-                <button className="btn primary" onClick={handleSend} disabled={!canSendMessage || uploadingAttachment}>
+                <button type="button" className="btn primary" onClick={handleSend} disabled={!canSendMessage || uploadingAttachment}>
                   <Icon name="send" size={14} />
                 </button>
                 {selectedAttachment && (
-                  <div style={{ position: 'absolute', bottom: 70, left: 56, right: 56, padding: 10, background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="messages-attachment-preview">
                     <Icon name="paperclip" size={14} />
                     <span style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedAttachment.name}</span>
-                    <button className="iconbtn" onClick={clearAttachment}><Icon name="close" size={12} /></button>
+                    <button type="button" className="iconbtn" onClick={clearAttachment}><Icon name="close" size={12} /></button>
                   </div>
                 )}
               </div>
@@ -488,12 +487,20 @@ const Bubble = ({ msg, isMine, onJoinCall }) => {
   if (msg.text?.startsWith('JOIN_VIDEO_CALL|')) {
     const room = msg.text.split('|')[1];
     return (
-      <div className={`messages-bubble ${isMine ? 'out' : 'in'}`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="video" size={14} />
-          <strong>Video call</strong>
+      <div className={`messages-bubble messages-call-bubble ${isMine ? 'out' : 'in'}`}>
+        <div className="messages-call-icon">
+          <Icon name="video" size={18} />
         </div>
-        <button className="btn sm primary" onClick={() => onJoinCall(room)}>Join call</button>
+        <div className="messages-call-copy">
+          <div className="messages-call-kicker">Live room</div>
+          <strong>Video call</strong>
+          <span>{isMine ? 'You shared a call invite.' : 'Call invite is ready.'}</span>
+        </div>
+        <div className="messages-call-actions">
+          <button type="button" className="btn sm primary" onClick={() => onJoinCall(room)}>
+            Join call <Icon name="arrowR" size={12} />
+          </button>
+        </div>
       </div>
     );
   }
