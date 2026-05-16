@@ -5,13 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.ai.people_recommendations import upsert_user_embedding
 from app.core import security
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User, UserProfile, UserRole
 from app.schemas.auth import AuthResponse, RegisterRequest, Token
 from app.schemas.user import UserRead
+from app.tasks.recommendations import dispatch_recommendations_prewarm
 
 router = APIRouter()
 
@@ -118,12 +118,10 @@ async def register(
     db.add(profile)
     await db.commit()
     await db.refresh(user)
-    # Ensure profile attributes are loaded before embedding and never block signup
+
     try:
-        await db.refresh(profile)
-        await upsert_user_embedding(user, profile)
+        dispatch_recommendations_prewarm(user.id)
     except Exception:
-        # Vector store/embedding failures should not prevent registration
         pass
 
     access_token = security.create_access_token(user.id)

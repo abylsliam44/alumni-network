@@ -277,7 +277,7 @@ const ResumeImport = () => {
   const renderStatus = (status) => <Pill tone={statusTone(status)} dot>{status}</Pill>;
 
   return (
-    <div className="page">
+    <div className="page form-page form-page-wide">
       <div className="page-head">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>RESUME IMPORT · WORKFLOW</div>

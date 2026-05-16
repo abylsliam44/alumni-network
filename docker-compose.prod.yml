@@ -50,7 +50,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     container_name: alumni-celery-worker-prod
-    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "resumes,opportunities,recommendations,default"]
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "resumes,opportunities,recommendations,default", "--concurrency=${CELERY_WORKER_CONCURRENCY:-1}"]
     env_file:
       - .env.prod
     environment:

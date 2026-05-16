@@ -54,8 +54,8 @@ const JobCreate = () => {
   }
 
   return (
-    <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+    <div className="page form-page">
+      <div className="form-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
         <Link to="/jobs" style={{ color: 'var(--ink-3)' }}>JOBS</Link>
         <span>/</span>
         <span style={{ color: 'var(--ink-2)' }}>NEW POSTING</span>

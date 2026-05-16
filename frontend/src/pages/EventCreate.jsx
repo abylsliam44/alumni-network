@@ -73,7 +73,7 @@ const EventCreate = () => {
   };
 
   return (
-    <div className="page">
+    <div className="page form-page">
       <div className="page-head">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>EVENTS · NEW</div>

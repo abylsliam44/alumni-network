@@ -39,7 +39,7 @@ const ProjectEdit = () => {
 
   if (loading) return <div className="page"><div className="loading-block">Loading project...</div></div>;
   if (!project) return (
-    <div className="page">
+    <div className="page form-page">
       <div className="empty-block">
         <Icon name="alert" size={28} />
         <h3>Project not found</h3>

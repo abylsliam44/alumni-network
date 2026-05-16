@@ -22,7 +22,7 @@ const ProjectCreate = () => {
   };
 
   return (
-    <div className="page">
+    <div className="page form-page">
       <div className="project-breadcrumb"><Link to="/projects">PROJECTS</Link><span>/</span><span>CREATE</span></div>
       <div className="page-head">
         <div>

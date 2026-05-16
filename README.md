@@ -19,6 +19,7 @@ A full-stack alumni engagement platform for AITU students, alumni, mentors, univ
 
 - [Visual Overview](#visual-overview)
 - [Features](#features)
+- [Technical Documentation](#technical-documentation)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -67,6 +68,10 @@ flowchart LR
 - AI features for chat, knowledge base upload, resume extraction, opportunity generation, people recommendations, and vector search.
 - Video calls through configurable Jitsi or JaaS settings.
 - Docker Compose development and production stacks with PostgreSQL, Redis, Celery, Qdrant, MinIO, FastAPI, React, and Nginx.
+
+## Technical Documentation
+
+For a detailed Russian-language technical reference covering architecture, data models, REST and WebSocket APIs, permissions, background jobs, caching, storage, deployment, and every implemented feature, see [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md).
 
 ## Architecture
 

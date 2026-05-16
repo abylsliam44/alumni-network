@@ -100,7 +100,7 @@ const BecomeMentor = () => {
   }
 
   return (
-    <div className="page">
+    <div className="page form-page form-page-wide">
       <div className="page-head">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>MENTORSHIP - ACTIVATION</div>

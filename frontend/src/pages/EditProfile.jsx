@@ -162,7 +162,7 @@ const EditProfile = () => {
   if (loading) return <div className="page"><div className="loading-block">Loading…</div></div>;
 
   return (
-    <div className="page">
+    <div className="page form-page">
       <div className="page-head">
         <div>
           <div className="eyebrow" style={{ marginBottom: 10 }}>EDIT · IDENTITY</div>

@@ -6,7 +6,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.ai.people_recommendations import upsert_user_embedding
 from app.core.cache import get_json, invalidate_namespaces, make_cache_key, set_json
 from app.core.config import settings
 from app.core.database import get_db
@@ -394,8 +393,6 @@ async def update_own_profile(
     )
     user = result.scalars().first()
 
-    # Keep embeddings fresh for recommendations
-    await upsert_user_embedding(user, user.profile)
     await _invalidate_profile_related(current_user.id)
     
     return await get_profile_data(user, db, viewer=current_user)
