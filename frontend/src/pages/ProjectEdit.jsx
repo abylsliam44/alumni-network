@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { projectsApi } from '../api/projects';
+import { formatProjectError, projectsApi } from '../api/projects';
 import ProjectForm from '../components/projects/ProjectForm';
 import Icon from '../components/ui/Icon';
 
@@ -31,7 +31,7 @@ const ProjectEdit = () => {
       const updated = await projectsApi.update(projectId, payload);
       navigate(`/projects/${updated.id}`);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to update project');
+      setError(formatProjectError(err, 'Failed to update project'));
     } finally {
       setSubmitting(false);
     }
@@ -57,7 +57,7 @@ const ProjectEdit = () => {
           <h1 className="h1">Keep the project signal sharp.</h1>
         </div>
       </div>
-      {error && <div className="panel" style={{ padding: 14, marginBottom: 16, color: 'var(--err)' }}>{error}</div>}
+      {error && <div className="panel" style={{ padding: 14, marginBottom: 16, color: 'var(--err)', whiteSpace: 'pre-line' }}>{error}</div>}
       <ProjectForm initialProject={project} onSubmit={handleSubmit} submitting={submitting} />
     </div>
   );

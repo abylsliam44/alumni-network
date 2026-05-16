@@ -31,12 +31,18 @@ def _user_skills(user: Optional[User]) -> list[str]:
     return user.profile.skills or []
 
 
-def _project_payload(project: Project, user: Optional[User], applications_count: int = 0) -> ProjectRead:
+def _project_payload(
+    project: Project,
+    user: Optional[User],
+    applications_count: int = 0,
+    has_applied: bool = False,
+) -> ProjectRead:
     data = ProjectRead.model_validate(project).model_dump()
     skills = _user_skills(user)
     data["applications_count"] = applications_count
     data["match_score"] = calculate_match_score(skills, project.required_skills)
     data["matched_skills"] = matched_skills(skills, project.required_skills)
+    data["has_applied"] = has_applied
     return ProjectRead(**data)
 
 
@@ -49,6 +55,18 @@ async def _application_count_map(db: AsyncSession, project_ids: list[UUID]) -> d
         .group_by(ProjectApplication.project_id)
     )
     return {project_id: count for project_id, count in result.all()}
+
+
+async def _applied_project_ids(db: AsyncSession, project_ids: list[UUID], user: Optional[User]) -> set[UUID]:
+    if not project_ids or not user:
+        return set()
+    result = await db.execute(
+        select(ProjectApplication.project_id).where(
+            ProjectApplication.project_id.in_(project_ids),
+            ProjectApplication.applicant_id == user.id,
+        )
+    )
+    return set(result.scalars().all())
 
 
 async def _get_project(db: AsyncSession, project_id: UUID) -> Project:
@@ -98,9 +116,14 @@ async def recommended_projects(
     )
     result = await db.execute(stmt)
     projects = result.scalars().all()
-    counts = await _application_count_map(db, [project.id for project in projects])
+    project_ids = [project.id for project in projects]
+    counts = await _application_count_map(db, project_ids)
+    applied_ids = await _applied_project_ids(db, project_ids, current_user)
     ranked = sorted(
-        [_project_payload(project, current_user, counts.get(project.id, 0)) for project in projects],
+        [
+            _project_payload(project, current_user, counts.get(project.id, 0), project.id in applied_ids)
+            for project in projects
+        ],
         key=lambda item: (item.match_score, item.created_at),
         reverse=True,
     )[:limit]
@@ -129,10 +152,18 @@ async def user_projects(
     created_projects = created_result.scalars().all()
     joined_projects = joined_result.scalars().all()
     projects = created_projects + joined_projects
-    counts = await _application_count_map(db, [project.id for project in projects])
+    project_ids = [project.id for project in projects]
+    counts = await _application_count_map(db, project_ids)
+    applied_ids = await _applied_project_ids(db, project_ids, current_user)
     return UserProjectsRead(
-        created_projects=[_project_payload(project, current_user, counts.get(project.id, 0)) for project in created_projects],
-        joined_projects=[_project_payload(project, current_user, counts.get(project.id, 0)) for project in joined_projects],
+        created_projects=[
+            _project_payload(project, current_user, counts.get(project.id, 0), project.id in applied_ids)
+            for project in created_projects
+        ],
+        joined_projects=[
+            _project_payload(project, current_user, counts.get(project.id, 0), project.id in applied_ids)
+            for project in joined_projects
+        ],
     )
 
 
@@ -203,8 +234,13 @@ async def list_projects(
     stmt = stmt.offset((page - 1) * limit).limit(limit)
     result = await db.execute(stmt)
     projects = result.scalars().all()
-    counts = await _application_count_map(db, [project.id for project in projects])
-    items = [_project_payload(project, current_user, counts.get(project.id, 0)) for project in projects]
+    project_ids = [project.id for project in projects]
+    counts = await _application_count_map(db, project_ids)
+    applied_ids = await _applied_project_ids(db, project_ids, current_user)
+    items = [
+        _project_payload(project, current_user, counts.get(project.id, 0), project.id in applied_ids)
+        for project in projects
+    ]
     if sort == "match" and current_user:
         items = sorted(items, key=lambda item: (item.match_score, item.created_at), reverse=True)
 
@@ -233,7 +269,8 @@ async def get_project(
 ) -> Any:
     project = await _get_project(db, project_id)
     counts = await _application_count_map(db, [project.id])
-    return _project_payload(project, current_user, counts.get(project.id, 0))
+    applied_ids = await _applied_project_ids(db, [project.id], current_user)
+    return _project_payload(project, current_user, counts.get(project.id, 0), project.id in applied_ids)
 
 
 @router.put("/{project_id}", response_model=ProjectRead)
@@ -251,7 +288,8 @@ async def update_project(
     await db.refresh(project)
     project = await _get_project(db, project.id)
     counts = await _application_count_map(db, [project.id])
-    return _project_payload(project, current_user, counts.get(project.id, 0))
+    applied_ids = await _applied_project_ids(db, [project.id], current_user)
+    return _project_payload(project, current_user, counts.get(project.id, 0), project.id in applied_ids)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

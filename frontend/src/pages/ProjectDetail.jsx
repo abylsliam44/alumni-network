@@ -24,14 +24,20 @@ const ProjectDetail = () => {
   const [showApply, setShowApply] = useState(false);
 
   const isOwner = user?.id && project?.created_by_user_id === user.id;
+  const hasApplied = Boolean(project?.has_applied);
 
   const loadProject = async () => {
     setLoading(true);
     try {
       const data = await projectsApi.get(projectId);
       setProject(data);
-      const relatedData = await projectsApi.list({ category: data.category, limit: 4 });
-      setRelated((relatedData.items || []).filter((item) => item.id !== data.id).slice(0, 3));
+      try {
+        const relatedData = await projectsApi.list({ category: data.category, limit: 4 });
+        setRelated((relatedData.items || []).filter((item) => item.id !== data.id).slice(0, 3));
+      } catch (relatedError) {
+        console.error(relatedError);
+        setRelated([]);
+      }
     } catch (err) {
       setNotice({ type: 'error', message: err.response?.data?.detail || 'Failed to load project' });
     } finally {
@@ -116,9 +122,14 @@ const ProjectDetail = () => {
           <p className="dim" style={{ margin: '14px 0 0', maxWidth: 760, lineHeight: 1.6 }}>{project.short_description}</p>
         </div>
         <div className="mobile-full-actions project-detail-actions">
-          {!isOwner && (
+          {!isOwner && !hasApplied && (
             <button className="btn primary lg" onClick={() => setShowApply(true)}>
               <Icon name="send" size={14} /> Apply to join
+            </button>
+          )}
+          {!isOwner && hasApplied && (
+            <button className="btn lg" disabled>
+              <Icon name="check" size={14} /> Application sent
             </button>
           )}
           {isOwner && (

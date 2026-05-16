@@ -104,6 +104,7 @@ class ProjectRead(ProjectBase):
     applications_count: int = 0
     match_score: int = 0
     matched_skills: List[str] = []
+    has_applied: bool = False
     creator: Optional[ProjectCreatorRead] = None
 
     class Config:

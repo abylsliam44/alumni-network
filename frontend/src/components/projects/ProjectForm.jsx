@@ -74,15 +74,15 @@ const ProjectForm = ({ initialProject, onSubmit, submitting }) => {
       <div className="panel" style={{ padding: 18 }}>
         <div className="form-group">
           <label>Title</label>
-          <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="AI study planner, campus marketplace..." required />
+          <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="AI study planner, campus marketplace..." minLength={3} maxLength={180} required />
         </div>
         <div className="form-group">
           <label>Short description</label>
-          <textarea rows={3} value={form.short_description} onChange={(e) => set('short_description', e.target.value)} maxLength={320} required />
+          <textarea rows={3} value={form.short_description} onChange={(e) => set('short_description', e.target.value)} minLength={10} maxLength={320} required />
         </div>
         <div className="form-group">
           <label>Full description</label>
-          <textarea rows={8} value={form.full_description} onChange={(e) => set('full_description', e.target.value)} required />
+          <textarea rows={8} value={form.full_description} onChange={(e) => set('full_description', e.target.value)} minLength={20} required />
         </div>
         <div className="form-row">
           <div className="form-group">

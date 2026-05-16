@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { projectsApi } from '../api/projects';
+import { formatProjectError, projectsApi } from '../api/projects';
 import ProjectForm from '../components/projects/ProjectForm';
 
 const ProjectCreate = () => {
@@ -15,7 +15,7 @@ const ProjectCreate = () => {
       const project = await projectsApi.create(payload);
       navigate(`/projects/${project.id}`);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create project');
+      setError(formatProjectError(err, 'Failed to create project'));
     } finally {
       setSubmitting(false);
     }
@@ -30,7 +30,7 @@ const ProjectCreate = () => {
           <h1 className="h1">Publish a project and find your team.</h1>
         </div>
       </div>
-      {error && <div className="panel" style={{ padding: 14, marginBottom: 16, color: 'var(--err)' }}>{error}</div>}
+      {error && <div className="panel" style={{ padding: 14, marginBottom: 16, color: 'var(--err)', whiteSpace: 'pre-line' }}>{error}</div>}
       <ProjectForm onSubmit={handleSubmit} submitting={submitting} />
     </div>
   );

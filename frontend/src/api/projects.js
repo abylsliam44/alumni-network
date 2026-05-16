@@ -1,5 +1,21 @@
 import api from './axios';
 
+const formatFieldName = (loc = []) => {
+  const field = Array.isArray(loc) ? loc.filter((part) => part !== 'body').join('.') : '';
+  return field.replaceAll('_', ' ') || 'Field';
+};
+
+export const formatProjectError = (err, fallback = 'Project request failed') => {
+  const detail = err.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => `${formatFieldName(item.loc)}: ${item.msg}`)
+      .join('\n');
+  }
+  if (typeof detail === 'string') return detail;
+  return fallback;
+};
+
 export const projectsApi = {
   async list(params = {}) {
     const { data } = await api.get('/api/v1/projects', { params });

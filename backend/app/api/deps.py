@@ -5,6 +5,7 @@ from jose import JWTError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core import security
 from app.core.config import settings
@@ -44,7 +45,7 @@ async def get_user_from_token(db: AsyncSession, token: Optional[str]) -> Optiona
     except (JWTError, ValidationError):
         return None
 
-    result = await db.execute(select(User).where(User.id == token_data.sub))
+    result = await db.execute(select(User).options(selectinload(User.profile)).where(User.id == token_data.sub))
     user = result.scalars().first()
     if not user or not user.is_active:
         return None
@@ -72,7 +73,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    result = await db.execute(select(User).where(User.id == token_data.sub))
+    result = await db.execute(select(User).options(selectinload(User.profile)).where(User.id == token_data.sub))
     user = result.scalars().first()
     
     if not user:
