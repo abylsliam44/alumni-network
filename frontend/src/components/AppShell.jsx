@@ -106,7 +106,10 @@ const AppShell = () => {
     <div className="app-shell">
       <aside className="rail">
         <Link to="/dashboard" className="rail-mark" aria-label="Alumni Networking Platform">
-          <AituGlyph size={22} color="var(--bg)" accent="var(--blue-2)" />
+          <span className="rail-mark-glyph">
+            <AituGlyph size={22} color="var(--bg)" accent="var(--blue-2)" />
+          </span>
+          <span className="rail-mark-label">Alumni Network</span>
         </Link>
 
         {primaryNav.map((item) => (
@@ -117,6 +120,7 @@ const AppShell = () => {
             title={item.label}
           >
             <Icon name={item.icon} />
+            <span className="rail-label">{item.label}</span>
           </NavLink>
         ))}
 
@@ -131,6 +135,7 @@ const AppShell = () => {
             title={item.label}
           >
             <Icon name={item.icon} />
+            <span className="rail-label">{item.label}</span>
           </NavLink>
         ))}
         <button
@@ -138,12 +143,13 @@ const AppShell = () => {
           className="rail-btn"
           onClick={handleLogout}
           title="Logout"
-          style={{ background: 'transparent', border: 'none' }}
         >
           <Icon name="logout" />
+          <span className="rail-label">Logout</span>
         </button>
         <Link to="/profile" className="rail-avatar" title={user?.name || 'Profile'}>
-          {initials(user?.name)}
+          <span className="rail-avatar-badge">{initials(user?.name)}</span>
+          <span className="rail-label">Profile</span>
         </Link>
       </aside>
 

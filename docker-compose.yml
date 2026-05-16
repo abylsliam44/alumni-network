@@ -34,7 +34,7 @@ services:
       postgres:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
       minio:
         condition: service_healthy
       redis-cache:
@@ -116,11 +116,6 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: [ "CMD", "true" ]
-      interval: 30s
-      timeout: 5s
-      retries: 1
 
   redis-cache:
     image: redis:7-alpine

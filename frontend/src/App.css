@@ -593,10 +593,12 @@ input[type="radio"]:checked::after {
   border-right: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 14px 0;
+  align-items: stretch;
+  padding: 14px 10px;
   gap: 4px;
   z-index: 10;
+  overflow-x: hidden;
+  transition: width 0.18s ease, flex-basis 0.18s ease, box-shadow 0.18s ease;
 }
 .rail-mark {
   width: 36px;
@@ -604,24 +606,55 @@ input[type="radio"]:checked::after {
   border-radius: 8px;
   background: var(--ink);
   color: var(--bg);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0;
   margin-bottom: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  flex: 0 0 36px;
+  margin-inline: auto;
+  transition: width 0.18s ease, margin 0.18s ease, padding 0.18s ease, background 0.15s;
 }
-.rail-divider { width: 22px; height: 1px; background: var(--line); margin: 8px 0; }
+.rail-mark-glyph {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+}
+.rail-mark-label {
+  color: var(--bg);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.rail-divider { width: 22px; height: 1px; background: var(--line); margin: 8px auto; transition: width 0.18s ease, margin 0.18s ease; }
 .rail-btn {
-  width: 36px; height: 36px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
   border-radius: 8px;
-  display: grid; place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--ink-3);
   cursor: pointer;
+  font-family: var(--sans);
   position: relative;
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  overflow: hidden;
+  margin-inline: auto;
+  transition: color 0.15s, background 0.15s, width 0.18s ease, margin 0.18s ease;
 }
 .rail-btn:hover { color: var(--ink-2); background: var(--surface); }
 .rail-btn.active { color: var(--ink); background: var(--surface-2); }
@@ -633,21 +666,93 @@ input[type="radio"]:checked::after {
   background: var(--blue);
   border-radius: 2px;
 }
-.rail-btn svg { width: 18px; height: 18px; stroke-width: 1.5; }
+.rail-btn svg { width: 18px; height: 18px; stroke-width: 1.5; flex: 0 0 18px; }
+.rail-label {
+  min-width: 0;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-6px);
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: currentColor;
+  transition: opacity 0.14s ease, transform 0.14s ease, max-width 0.18s ease;
+}
 .rail-spacer { flex: 1; }
 .rail-avatar {
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--warm), #b8845c);
-  display: grid; place-items: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 3px;
   font-family: var(--mono);
   font-size: 10px;
-  color: #2a1f15;
+  color: var(--ink-3);
   font-weight: 700;
   margin-top: 6px;
+  margin-inline: auto;
   text-decoration: none;
   border: none;
   cursor: pointer;
+  overflow: hidden;
+  transition: width 0.18s ease, margin 0.18s ease, background 0.15s, color 0.15s;
+}
+.rail-avatar:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+.rail-avatar-badge {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--warm), #b8845c);
+  display: grid;
+  place-items: center;
+  color: #2a1f15;
+}
+
+@media (min-width: 761px) {
+  .rail:hover,
+  .rail:focus-within {
+    width: 218px;
+    flex-basis: 218px;
+    box-shadow: 18px 0 36px rgba(0, 0, 0, 0.18);
+  }
+
+  .rail:hover .rail-mark,
+  .rail:focus-within .rail-mark,
+  .rail:hover .rail-btn,
+  .rail:focus-within .rail-btn,
+  .rail:hover .rail-avatar,
+  .rail:focus-within .rail-avatar {
+    width: 100%;
+    margin-inline: 0;
+  }
+
+  .rail:hover .rail-mark,
+  .rail:focus-within .rail-mark {
+    padding-right: 12px;
+  }
+
+  .rail:hover .rail-divider,
+  .rail:focus-within .rail-divider {
+    width: 100%;
+    margin-inline: 0;
+  }
+
+  .rail:hover .rail-label,
+  .rail:focus-within .rail-label,
+  .rail:hover .rail-mark-label,
+  .rail:focus-within .rail-mark-label {
+    max-width: 150px;
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Stage (main area) */
