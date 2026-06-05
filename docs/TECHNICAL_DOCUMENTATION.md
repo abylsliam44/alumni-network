@@ -1058,7 +1058,7 @@ Text extraction:
 
 Structured extraction:
 
-- OpenAI model `gpt-4o-mini`, JSON object response;
+- OpenAI model is configured through `OPENAI_RESUME_MODEL` and defaults to `gpt-5.4`, JSON object response;
 - if OpenAI is not configured or returns an error/invalid JSON, fallback extracts name, graduation year, and skills with simple heuristics;
 - all fields include confidence/requires_review.
 
@@ -1622,6 +1622,9 @@ MINIO_BUCKET=alumni-files
 AI:
 
 - `OPENAI_API_KEY` is used for OpenAI AI chat, structured resume extraction, and LLM-polished recommendations;
+- `OPENAI_CHAT_MODEL` defaults to `gpt-5.4-mini` for user-facing RAG chat;
+- `OPENAI_RESUME_MODEL` defaults to `gpt-5.4` for higher-accuracy structured resume extraction;
+- `OPENAI_RECOMMENDATIONS_MODEL` defaults to `gpt-5.4-nano` for low-cost short recommendation rationales;
 - `GOOGLE_AI_API_KEY` is used as fallback for AI chat;
 - without keys, base features work, but AI endpoints return configuration errors or fallback extraction.
 

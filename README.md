@@ -214,6 +214,9 @@ Start from `.env.example`. Do not commit real `.env` or `.env.prod` files.
 | Variable | Purpose |
 | --- | --- |
 | `OPENAI_API_KEY` | Resume extraction and OpenAI-backed recommendation/AI features |
+| `OPENAI_CHAT_MODEL` | OpenAI model for `/ai/chat`; defaults to `gpt-5.4-mini` |
+| `OPENAI_RESUME_MODEL` | OpenAI model for structured resume extraction; defaults to `gpt-5.4` |
+| `OPENAI_RECOMMENDATIONS_MODEL` | OpenAI model for short recommendation rationale polishing; defaults to `gpt-5.4-nano` |
 | `GOOGLE_AI_API_KEY` | Google Gemini-backed AI chat fallback |
 | `BACKEND_CORS_ORIGINS` | Comma-separated production frontend origins |
 | `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAMESITE`, `AUTH_COOKIE_DOMAIN` | Cookie behavior for local HTTP vs production HTTPS |
@@ -379,6 +382,7 @@ Inside Docker, `DATABASE_URL` must use `postgres` as the host. Use `localhost` o
 ### AI endpoints return configuration errors
 
 Set `OPENAI_API_KEY` and/or `GOOGLE_AI_API_KEY`. Basic authentication, profiles, directory, jobs, projects, events, and messaging do not require AI keys.
+OpenAI model defaults are split by workload: `OPENAI_CHAT_MODEL=gpt-5.4-mini`, `OPENAI_RESUME_MODEL=gpt-5.4`, and `OPENAI_RECOMMENDATIONS_MODEL=gpt-5.4-nano`.
 
 ### CORS or cookie issues in production
 

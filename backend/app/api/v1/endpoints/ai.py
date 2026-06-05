@@ -231,10 +231,10 @@ async def chat_ai(
         logger.info("AI chat using OpenAI provider")
         try:
             resp = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=settings.OPENAI_CHAT_MODEL,
                 messages=prompt,
                 temperature=0.3,  # Lower for more factual responses
-                max_tokens=1500,  # Increased for detailed RAG responses
+                max_completion_tokens=1500,  # Enough room for detailed RAG responses
             )
             choice = resp.choices[0].message
             content = choice.content

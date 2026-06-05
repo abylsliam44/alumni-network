@@ -283,7 +283,7 @@ Resume text:
 
     def _run() -> tuple[dict[str, Any], dict[str, Any], str, str]:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=settings.OPENAI_RESUME_MODEL,
             temperature=0.1,
             response_format={"type": "json_object"},
             messages=[
@@ -296,7 +296,7 @@ Resume text:
         )
         content = response.choices[0].message.content or "{}"
         draft = json.loads(content)
-        return draft, _collect_field_confidences(draft), "gpt-4o-mini", "v1"
+        return draft, _collect_field_confidences(draft), settings.OPENAI_RESUME_MODEL, "v1"
 
     try:
         return await asyncio.to_thread(_run)

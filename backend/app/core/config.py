@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     INSTANCE_ID: Optional[str] = None
     GOOGLE_AI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+    OPENAI_CHAT_MODEL: str = "gpt-5.4-mini"
+    OPENAI_RESUME_MODEL: str = "gpt-5.4"
+    OPENAI_RECOMMENDATIONS_MODEL: str = "gpt-5.4-nano"
 
     # Redis / Celery
     REDIS_CACHE_URL: str = "redis://redis-cache:6379/0"

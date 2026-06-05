@@ -20,8 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from langchain_core.runnables import RunnableLambda, RunnableSequence
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from openai import OpenAI, OpenAIError
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from sqlalchemy import select
@@ -34,7 +33,7 @@ from app.models.user import User, UserProfile, UserRole
 COLLECTION_NAME = "users"
 _embedding_model = None
 _qdrant_client: Optional[QdrantClient] = None
-_chat_model: Optional[ChatOpenAI] = None
+_openai_client: Optional[OpenAI] = None
 MIN_PROFILE_COMPLETENESS = 0.35
 VECTOR_SEARCH_LIMIT = 60
 MAX_RETURNED_ITEMS = 20
@@ -66,21 +65,14 @@ def _get_qdrant_client() -> QdrantClient:
     return _qdrant_client
 
 
-def _get_chat_model() -> Optional[ChatOpenAI]:
-    global _chat_model
-    if _chat_model:
-        return _chat_model
-
+def _get_openai_client() -> Optional[OpenAI]:
+    global _openai_client
     if not settings.OPENAI_API_KEY:
         return None
 
-    _chat_model = ChatOpenAI(
-        model="gpt-4o-mini",
-        openai_api_key=settings.OPENAI_API_KEY,
-        temperature=0.25,
-        max_tokens=200,
-    )
-    return _chat_model
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    return _openai_client
 
 
 def _as_list(value: Any) -> List[Any]:
@@ -368,35 +360,18 @@ async def _enrich_reasons_with_llm(
     """
     if not items:
         return items
-    chat = _get_chat_model()
-    if not chat:
+    client = _get_openai_client()
+    if not client:
         return items
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                (
-                    "You generate concise mentorship/job fit rationales for an alumni network. "
-                    "Use ONLY the provided facts; do not invent any details. "
-                    "Rules:\n"
-                    "- Start with overlap of skills/interests; mention experience/industry if relevant.\n"
-                    "- Add availability or location only if explicitly listed.\n"
-                    "- One sentence per candidate, 12–24 words, confident and specific.\n"
-                    "- Never add companies/titles/skills not present in the candidate context."
-                ),
-            ),
-            (
-                "user",
-                (
-                    "Current user summary: {current_summary}\n"
-                    "Current user interests: {current_interests}\n"
-                    "Candidates (one per line):\n"
-                    "{candidates}\n"
-                    "Return one line per candidate in the same order, no numbering."
-                ),
-            ),
-        ]
+    system_prompt = (
+        "You generate concise mentorship/job fit rationales for an alumni network. "
+        "Use ONLY the provided facts; do not invent any details. "
+        "Rules:\n"
+        "- Start with overlap of skills/interests; mention experience/industry if relevant.\n"
+        "- Add availability or location only if explicitly listed.\n"
+        "- One sentence per candidate, 12-24 words, confident and specific.\n"
+        "- Never add companies/titles/skills not present in the candidate context."
     )
 
     def _candidate_line(it: Dict[str, Any]) -> str:
@@ -412,23 +387,36 @@ async def _enrich_reasons_with_llm(
         )
 
     candidates_block = "\n".join([_candidate_line(it) for it in items])
+    user_prompt = (
+        f"Current user summary: {profile_summary or 'AITU community member'}\n"
+        "Current user interests: "
+        f"{', '.join(current.get('career_focus') or current.get('career_interests') or [])}\n"
+        "Candidates (one per line):\n"
+        f"{candidates_block}\n"
+        "Return one line per candidate in the same order, no numbering."
+    )
 
     try:
-        chain = prompt | chat
-        resp = await chain.ainvoke(
-            {
-                "current_summary": profile_summary or "AITU community member",
-                "current_interests": ", ".join(
-                    current.get("career_focus") or current.get("career_interests") or []
-                ),
-                "candidates": candidates_block,
-            }
-        )
-        lines = [ln.strip("- ").strip() for ln in resp.content.split("\n") if ln.strip()]
+        def _run() -> str:
+            response = client.chat.completions.create(
+                model=settings.OPENAI_RECOMMENDATIONS_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.25,
+                max_completion_tokens=200,
+            )
+            return response.choices[0].message.content or ""
+
+        content = await asyncio.to_thread(_run)
+        lines = [ln.strip("- ").strip() for ln in content.split("\n") if ln.strip()]
         if lines:
             for idx, line in enumerate(lines):
                 if idx < len(items) and line:
                     items[idx]["reason_short"] = line
+    except OpenAIError as exc:
+        logger.info("People recommendation reason LLM polish skipped: %s", exc)
     except Exception:
         # On any failure, return original reasons
         return items
@@ -863,4 +851,3 @@ async def run_people_recommendations_agent(
         "generated_at": datetime.utcnow().isoformat(),
         "items": items,
     }
-
