@@ -98,3 +98,6 @@ rules/
 
 # Design assets / archives
 *.zip
+
+# Local academic environment
+.env.academic

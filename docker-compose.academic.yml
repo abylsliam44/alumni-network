@@ -1,0 +1,35 @@
+name: alumni-academic
+services:
+  mongo:
+    image: mongo:7.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - academic_mongo:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"mongo:27017\"}]}); 0 }' | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.academic
+    env_file: .env.academic
+    ports:
+      - "127.0.0.1:8011:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_ACADEMIC_NOSQL_MODE: "true"
+    ports:
+      - "127.0.0.1:3031:3000"
+    depends_on:
+      - backend
+volumes:
+  academic_mongo:

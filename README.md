@@ -408,3 +408,7 @@ The default `meet.jit.si` domain may require the first room moderator to authent
 ## License
 
 This project is distributed under the MIT License. See [LICENSE](LICENSE) for the full license text.
+
+### Учебный режим MongoDB (в разработке)
+
+Отдельное локальное окружение и текущий статус описаны в [docs/academic/SETUP.md](docs/academic/SETUP.md) и [docs/academic/VALIDATION.md](docs/academic/VALIDATION.md).

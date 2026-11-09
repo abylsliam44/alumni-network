@@ -10,45 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 
-class ProjectCategory(str, enum.Enum):
-    STARTUP = "STARTUP"
-    PET_PROJECT = "PET_PROJECT"
-    AI_ML = "AI_ML"
-    MOBILE_APP = "MOBILE_APP"
-    WEB_PLATFORM = "WEB_PLATFORM"
-    SAAS = "SAAS"
-    UNIVERSITY_PROJECT = "UNIVERSITY_PROJECT"
-    HACKATHON = "HACKATHON"
-    RESEARCH = "RESEARCH"
-    OPEN_SOURCE = "OPEN_SOURCE"
-
-
-class ProjectRole(str, enum.Enum):
-    FRONTEND_DEVELOPER = "FRONTEND_DEVELOPER"
-    BACKEND_DEVELOPER = "BACKEND_DEVELOPER"
-    FULLSTACK_DEVELOPER = "FULLSTACK_DEVELOPER"
-    UI_UX_DESIGNER = "UI_UX_DESIGNER"
-    PRODUCT_MANAGER = "PRODUCT_MANAGER"
-    ML_ENGINEER = "ML_ENGINEER"
-    MOBILE_DEVELOPER = "MOBILE_DEVELOPER"
-    DEVOPS_ENGINEER = "DEVOPS_ENGINEER"
-    MARKETING = "MARKETING"
-    CO_FOUNDER = "CO_FOUNDER"
-
-
-class ProjectStage(str, enum.Enum):
-    IDEA = "IDEA"
-    VALIDATION = "VALIDATION"
-    MVP = "MVP"
-    IN_PROGRESS = "IN_PROGRESS"
-    SCALING = "SCALING"
-
-
-class ProjectApplicationStatus(str, enum.Enum):
-    SUBMITTED = "SUBMITTED"
-    REVIEWED = "REVIEWED"
-    ACCEPTED = "ACCEPTED"
-    REJECTED = "REJECTED"
+from app.domain.project_enums import ProjectApplicationStatus, ProjectCategory, ProjectRole, ProjectStage
 
 
 class Project(Base):

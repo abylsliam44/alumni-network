@@ -1,0 +1,1288 @@
+{
+  "environment": {
+    "platform": "Linux-6.12.54-linuxkit-aarch64-with-glibc2.41",
+    "python": "3.11.18",
+    "mongo": "7.0.45",
+    "projects": 10000,
+    "users": 1000,
+    "interactions": 100000,
+    "measurement": "synchronous driver queries within backend container; excludes HTTP and UI"
+  },
+  "before_indexes": {
+    "catalog": {
+      "p95_ms": 6.32,
+      "median_ms": 6.01,
+      "runs": 100,
+      "warmup": 10
+    },
+    "category": {
+      "p95_ms": 3.97,
+      "median_ms": 3.71,
+      "runs": 100,
+      "warmup": 10
+    },
+    "skills": {
+      "p95_ms": 0.32,
+      "median_ms": 0.26,
+      "runs": 100,
+      "warmup": 10
+    },
+    "history": {
+      "p95_ms": 27.92,
+      "median_ms": 26.67,
+      "runs": 100,
+      "warmup": 10
+    },
+    "recommendations": {
+      "p95_ms": 20.19,
+      "median_ms": 18.56,
+      "runs": 100,
+      "warmup": 10
+    },
+    "explain_recommendations": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "alumni_academic_benchmark.projects",
+              "indexFilterSet": false,
+              "parsedQuery": {
+                "deleted_at": {
+                  "$eq": null
+                }
+              },
+              "queryHash": "AB8EDFD9",
+              "planCacheKey": "AB8EDFD9",
+              "optimizationTimeMillis": 0,
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "winningPlan": {
+                "stage": "COLLSCAN",
+                "filter": {
+                  "deleted_at": {
+                    "$eq": null
+                  }
+                },
+                "direction": "forward"
+              },
+              "rejectedPlans": []
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 10000,
+              "executionTimeMillis": 18,
+              "totalKeysExamined": 0,
+              "totalDocsExamined": 10000,
+              "executionStages": {
+                "stage": "COLLSCAN",
+                "filter": {
+                  "deleted_at": {
+                    "$eq": null
+                  }
+                },
+                "nReturned": 10000,
+                "executionTimeMillisEstimate": 0,
+                "works": 10001,
+                "advanced": 10000,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 11,
+                "restoreState": 11,
+                "isEOF": 1,
+                "direction": "forward",
+                "docsExamined": 10000
+              }
+            }
+          },
+          "nReturned": 10000,
+          "executionTimeMillisEstimate": 4
+        },
+        {
+          "$set": {
+            "match_score": {
+              "$round": [
+                {
+                  "$multiply": [
+                    {
+                      "$const": 100
+                    },
+                    {
+                      "$add": [
+                        {
+                          "$multiply": [
+                            {
+                              "$const": 0.7
+                            },
+                            {
+                              "$cond": [
+                                {
+                                  "$gt": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 0
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$divide": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$setIntersection": [
+                                            {
+                                              "$ifNull": [
+                                                "$required_skills_normalized",
+                                                {
+                                                  "$const": []
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "$const": [
+                                                "python",
+                                                "fastapi"
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$multiply": [
+                            {
+                              "$const": 0.2
+                            },
+                            {
+                              "$cond": [
+                                {
+                                  "$in": [
+                                    "$category",
+                                    {
+                                      "$const": [
+                                        "AI_ML"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 1
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$multiply": [
+                            {
+                              "$const": 0.1
+                            },
+                            {
+                              "$cond": [
+                                {
+                                  "$gt": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 0
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$divide": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$setIntersection": [
+                                            {
+                                              "$ifNull": [
+                                                "$tags_normalized",
+                                                {
+                                                  "$const": []
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "$const": [
+                                                "education"
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$const": 0
+                }
+              ]
+            }
+          },
+          "nReturned": 10000,
+          "executionTimeMillisEstimate": 17
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "match_score": -1,
+              "created_at": -1,
+              "_id": 1
+            },
+            "limit": 20
+          },
+          "totalDataSizeSortedBytesEstimate": 14540,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 20,
+          "executionTimeMillisEstimate": 17
+        }
+      ],
+      "serverInfo": {
+        "host": "91bdd4af7feb",
+        "port": 27017,
+        "version": "7.0.45",
+        "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFrameworkControl": "forceClassicEngine"
+      },
+      "command": {
+        "aggregate": "projects",
+        "pipeline": [
+          {
+            "$match": {
+              "deleted_at": null
+            }
+          },
+          {
+            "$set": {
+              "match_score": {
+                "$round": [
+                  {
+                    "$multiply": [
+                      100,
+                      {
+                        "$add": [
+                          {
+                            "$multiply": [
+                              0.7,
+                              {
+                                "$cond": [
+                                  {
+                                    "$gt": [
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            []
+                                          ]
+                                        }
+                                      },
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "$divide": [
+                                      {
+                                        "$size": {
+                                          "$setIntersection": [
+                                            [
+                                              "python",
+                                              "fastapi"
+                                            ],
+                                            {
+                                              "$ifNull": [
+                                                "$required_skills_normalized",
+                                                []
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            []
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "$multiply": [
+                              0.2,
+                              {
+                                "$cond": [
+                                  {
+                                    "$in": [
+                                      "$category",
+                                      [
+                                        "AI_ML"
+                                      ]
+                                    ]
+                                  },
+                                  1,
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "$multiply": [
+                              0.1,
+                              {
+                                "$cond": [
+                                  {
+                                    "$gt": [
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            []
+                                          ]
+                                        }
+                                      },
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "$divide": [
+                                      {
+                                        "$size": {
+                                          "$setIntersection": [
+                                            [
+                                              "education"
+                                            ],
+                                            {
+                                              "$ifNull": [
+                                                "$tags_normalized",
+                                                []
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            []
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  0
+                ]
+              }
+            }
+          },
+          {
+            "$sort": {
+              "match_score": -1,
+              "created_at": -1,
+              "_id": 1
+            }
+          },
+          {
+            "$limit": 20
+          }
+        ],
+        "cursor": {},
+        "$db": "alumni_academic_benchmark"
+      },
+      "ok": 1.0,
+      "$clusterTime": {
+        "clusterTime": "Timestamp(1794052293, 4)",
+        "signature": {
+          "hash": "b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'",
+          "keyId": 0
+        }
+      },
+      "operationTime": "Timestamp(1794052293, 4)"
+    },
+    "explain_catalog": {
+      "winningPlan": {
+        "stage": "SORT",
+        "sortPattern": {
+          "created_at": -1,
+          "_id": 1
+        },
+        "memLimit": 104857600,
+        "limitAmount": 20,
+        "type": "simple",
+        "inputStage": {
+          "stage": "COLLSCAN",
+          "filter": {
+            "deleted_at": {
+              "$eq": null
+            }
+          },
+          "direction": "forward"
+        }
+      },
+      "nReturned": 20,
+      "totalDocsExamined": 10000,
+      "totalKeysExamined": 0
+    },
+    "explain_history": {
+      "winningPlan": {
+        "stage": "SORT",
+        "sortPattern": {
+          "created_at": -1,
+          "_id": -1
+        },
+        "memLimit": 104857600,
+        "limitAmount": 20,
+        "type": "simple",
+        "inputStage": {
+          "stage": "COLLSCAN",
+          "filter": {
+            "user_id": {
+              "$eq": "1be5a33b-43e9-5bc5-9e0b-0bdffe3c54ce"
+            }
+          },
+          "direction": "forward"
+        }
+      },
+      "nReturned": 20,
+      "totalDocsExamined": 100000,
+      "totalKeysExamined": 0
+    }
+  },
+  "after_indexes": {
+    "catalog": {
+      "p95_ms": 0.35,
+      "median_ms": 0.26,
+      "runs": 100,
+      "warmup": 10
+    },
+    "category": {
+      "p95_ms": 0.34,
+      "median_ms": 0.29,
+      "runs": 100,
+      "warmup": 10
+    },
+    "skills": {
+      "p95_ms": 0.4,
+      "median_ms": 0.28,
+      "runs": 100,
+      "warmup": 10
+    },
+    "history": {
+      "p95_ms": 0.32,
+      "median_ms": 0.26,
+      "runs": 100,
+      "warmup": 10
+    },
+    "recommendations": {
+      "p95_ms": 26.62,
+      "median_ms": 23.69,
+      "runs": 100,
+      "warmup": 10
+    },
+    "explain_recommendations": {
+      "explainVersion": "1",
+      "stages": [
+        {
+          "$cursor": {
+            "queryPlanner": {
+              "namespace": "alumni_academic_benchmark.projects",
+              "indexFilterSet": false,
+              "parsedQuery": {
+                "deleted_at": {
+                  "$eq": null
+                }
+              },
+              "queryHash": "AB8EDFD9",
+              "planCacheKey": "38ADEA0E",
+              "optimizationTimeMillis": 0,
+              "maxIndexedOrSolutionsReached": false,
+              "maxIndexedAndSolutionsReached": false,
+              "maxScansToExplodeReached": false,
+              "winningPlan": {
+                "stage": "FETCH",
+                "filter": {
+                  "deleted_at": {
+                    "$eq": null
+                  }
+                },
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "deleted_at": 1,
+                    "created_at": -1,
+                    "_id": 1
+                  },
+                  "indexName": "deleted_at_1_created_at_-1__id_1",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "deleted_at": [],
+                    "created_at": [],
+                    "_id": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "deleted_at": [
+                      "[undefined, undefined]",
+                      "[null, null]"
+                    ],
+                    "created_at": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "_id": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              },
+              "rejectedPlans": [
+                {
+                  "stage": "FETCH",
+                  "filter": {
+                    "deleted_at": {
+                      "$eq": null
+                    }
+                  },
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "keyPattern": {
+                      "deleted_at": 1,
+                      "category": 1,
+                      "created_at": -1,
+                      "_id": 1
+                    },
+                    "indexName": "deleted_at_1_category_1_created_at_-1__id_1",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "deleted_at": [],
+                      "category": [],
+                      "created_at": [],
+                      "_id": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "deleted_at": [
+                        "[undefined, undefined]",
+                        "[null, null]"
+                      ],
+                      "category": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "created_at": [
+                        "[MaxKey, MinKey]"
+                      ],
+                      "_id": [
+                        "[MinKey, MaxKey]"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "executionStats": {
+              "executionSuccess": true,
+              "nReturned": 10000,
+              "executionTimeMillis": 23,
+              "totalKeysExamined": 10000,
+              "totalDocsExamined": 10000,
+              "executionStages": {
+                "stage": "FETCH",
+                "filter": {
+                  "deleted_at": {
+                    "$eq": null
+                  }
+                },
+                "nReturned": 10000,
+                "executionTimeMillisEstimate": 0,
+                "works": 10001,
+                "advanced": 10000,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 11,
+                "restoreState": 11,
+                "isEOF": 1,
+                "docsExamined": 10000,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 10000,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 10001,
+                  "advanced": 10000,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 11,
+                  "restoreState": 11,
+                  "isEOF": 1,
+                  "keyPattern": {
+                    "deleted_at": 1,
+                    "created_at": -1,
+                    "_id": 1
+                  },
+                  "indexName": "deleted_at_1_created_at_-1__id_1",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "deleted_at": [],
+                    "created_at": [],
+                    "_id": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "deleted_at": [
+                      "[undefined, undefined]",
+                      "[null, null]"
+                    ],
+                    "created_at": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "_id": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 10000,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "nReturned": 10000,
+          "executionTimeMillisEstimate": 8
+        },
+        {
+          "$set": {
+            "match_score": {
+              "$round": [
+                {
+                  "$multiply": [
+                    {
+                      "$const": 100
+                    },
+                    {
+                      "$add": [
+                        {
+                          "$multiply": [
+                            {
+                              "$const": 0.7
+                            },
+                            {
+                              "$cond": [
+                                {
+                                  "$gt": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 0
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$divide": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$setIntersection": [
+                                            {
+                                              "$ifNull": [
+                                                "$required_skills_normalized",
+                                                {
+                                                  "$const": []
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "$const": [
+                                                "python",
+                                                "fastapi"
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$multiply": [
+                            {
+                              "$const": 0.2
+                            },
+                            {
+                              "$cond": [
+                                {
+                                  "$in": [
+                                    "$category",
+                                    {
+                                      "$const": [
+                                        "AI_ML"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 1
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$multiply": [
+                            {
+                              "$const": 0.1
+                            },
+                            {
+                              "$cond": [
+                                {
+                                  "$gt": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 0
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$divide": [
+                                    {
+                                      "$size": [
+                                        {
+                                          "$setIntersection": [
+                                            {
+                                              "$ifNull": [
+                                                "$tags_normalized",
+                                                {
+                                                  "$const": []
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "$const": [
+                                                "education"
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$size": [
+                                        {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            {
+                                              "$const": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$const": 0
+                }
+              ]
+            }
+          },
+          "nReturned": 10000,
+          "executionTimeMillisEstimate": 18
+        },
+        {
+          "$sort": {
+            "sortKey": {
+              "match_score": -1,
+              "created_at": -1,
+              "_id": 1
+            },
+            "limit": 20
+          },
+          "totalDataSizeSortedBytesEstimate": 14540,
+          "usedDisk": false,
+          "spills": 0,
+          "spilledDataStorageSize": 0,
+          "nReturned": 20,
+          "executionTimeMillisEstimate": 18
+        }
+      ],
+      "serverInfo": {
+        "host": "91bdd4af7feb",
+        "port": 27017,
+        "version": "7.0.45",
+        "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFrameworkControl": "forceClassicEngine"
+      },
+      "command": {
+        "aggregate": "projects",
+        "pipeline": [
+          {
+            "$match": {
+              "deleted_at": null
+            }
+          },
+          {
+            "$set": {
+              "match_score": {
+                "$round": [
+                  {
+                    "$multiply": [
+                      100,
+                      {
+                        "$add": [
+                          {
+                            "$multiply": [
+                              0.7,
+                              {
+                                "$cond": [
+                                  {
+                                    "$gt": [
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            []
+                                          ]
+                                        }
+                                      },
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "$divide": [
+                                      {
+                                        "$size": {
+                                          "$setIntersection": [
+                                            [
+                                              "python",
+                                              "fastapi"
+                                            ],
+                                            {
+                                              "$ifNull": [
+                                                "$required_skills_normalized",
+                                                []
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$required_skills_normalized",
+                                            []
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "$multiply": [
+                              0.2,
+                              {
+                                "$cond": [
+                                  {
+                                    "$in": [
+                                      "$category",
+                                      [
+                                        "AI_ML"
+                                      ]
+                                    ]
+                                  },
+                                  1,
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "$multiply": [
+                              0.1,
+                              {
+                                "$cond": [
+                                  {
+                                    "$gt": [
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            []
+                                          ]
+                                        }
+                                      },
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "$divide": [
+                                      {
+                                        "$size": {
+                                          "$setIntersection": [
+                                            [
+                                              "education"
+                                            ],
+                                            {
+                                              "$ifNull": [
+                                                "$tags_normalized",
+                                                []
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "$size": {
+                                          "$ifNull": [
+                                            "$tags_normalized",
+                                            []
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  0
+                ]
+              }
+            }
+          },
+          {
+            "$sort": {
+              "match_score": -1,
+              "created_at": -1,
+              "_id": 1
+            }
+          },
+          {
+            "$limit": 20
+          }
+        ],
+        "cursor": {},
+        "$db": "alumni_academic_benchmark"
+      },
+      "ok": 1.0,
+      "$clusterTime": {
+        "clusterTime": "Timestamp(1794052303, 4)",
+        "signature": {
+          "hash": "b'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'",
+          "keyId": 0
+        }
+      },
+      "operationTime": "Timestamp(1794052303, 4)"
+    },
+    "explain_catalog": {
+      "winningPlan": {
+        "stage": "LIMIT",
+        "limitAmount": 20,
+        "inputStage": {
+          "stage": "FETCH",
+          "filter": {
+            "deleted_at": {
+              "$eq": null
+            }
+          },
+          "inputStage": {
+            "stage": "SORT_MERGE",
+            "sortPattern": {
+              "created_at": -1,
+              "_id": 1
+            },
+            "inputStages": [
+              {
+                "stage": "IXSCAN",
+                "keyPattern": {
+                  "deleted_at": 1,
+                  "created_at": -1,
+                  "_id": 1
+                },
+                "indexName": "deleted_at_1_created_at_-1__id_1",
+                "isMultiKey": false,
+                "multiKeyPaths": {
+                  "deleted_at": [],
+                  "created_at": [],
+                  "_id": []
+                },
+                "isUnique": false,
+                "isSparse": false,
+                "isPartial": false,
+                "indexVersion": 2,
+                "direction": "forward",
+                "indexBounds": {
+                  "deleted_at": [
+                    "[undefined, undefined]"
+                  ],
+                  "created_at": [
+                    "[MaxKey, MinKey]"
+                  ],
+                  "_id": [
+                    "[MinKey, MaxKey]"
+                  ]
+                }
+              },
+              {
+                "stage": "IXSCAN",
+                "keyPattern": {
+                  "deleted_at": 1,
+                  "created_at": -1,
+                  "_id": 1
+                },
+                "indexName": "deleted_at_1_created_at_-1__id_1",
+                "isMultiKey": false,
+                "multiKeyPaths": {
+                  "deleted_at": [],
+                  "created_at": [],
+                  "_id": []
+                },
+                "isUnique": false,
+                "isSparse": false,
+                "isPartial": false,
+                "indexVersion": 2,
+                "direction": "forward",
+                "indexBounds": {
+                  "deleted_at": [
+                    "[null, null]"
+                  ],
+                  "created_at": [
+                    "[MaxKey, MinKey]"
+                  ],
+                  "_id": [
+                    "[MinKey, MaxKey]"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "nReturned": 20,
+      "totalDocsExamined": 20,
+      "totalKeysExamined": 20
+    },
+    "explain_history": {
+      "winningPlan": {
+        "stage": "LIMIT",
+        "limitAmount": 20,
+        "inputStage": {
+          "stage": "FETCH",
+          "inputStage": {
+            "stage": "IXSCAN",
+            "keyPattern": {
+              "user_id": 1,
+              "created_at": -1,
+              "_id": -1
+            },
+            "indexName": "user_id_1_created_at_-1__id_-1",
+            "isMultiKey": false,
+            "multiKeyPaths": {
+              "user_id": [],
+              "created_at": [],
+              "_id": []
+            },
+            "isUnique": false,
+            "isSparse": false,
+            "isPartial": false,
+            "indexVersion": 2,
+            "direction": "forward",
+            "indexBounds": {
+              "user_id": [
+                "[\"1be5a33b-43e9-5bc5-9e0b-0bdffe3c54ce\", \"1be5a33b-43e9-5bc5-9e0b-0bdffe3c54ce\"]"
+              ],
+              "created_at": [
+                "[MaxKey, MinKey]"
+              ],
+              "_id": [
+                "[MaxKey, MinKey]"
+              ]
+            }
+          }
+        }
+      },
+      "nReturned": 20,
+      "totalDocsExamined": 20,
+      "totalKeysExamined": 20
+    }
+  }
+}

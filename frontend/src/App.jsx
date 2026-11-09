@@ -40,8 +40,14 @@ import BecomeMentor from './pages/BecomeMentor';
 import Friends from './pages/Friends';
 import AppShell from './components/AppShell';
 import './App.css';
+import Academic from './Academic';
 
 function App() {
+  if (import.meta.env.VITE_ACADEMIC_NOSQL_MODE === 'true') return <Academic />;
+  return <MainApp />;
+}
+
+function MainApp() {
   const [networkError, setNetworkError] = useState(false);
 
   useEffect(() => {
