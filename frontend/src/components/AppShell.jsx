@@ -72,6 +72,12 @@ const AppShell = () => {
     { to: '/mentorship', label: 'Mentorship', icon: 'graph' },
     { to: '/jobs', label: 'Jobs', icon: 'briefcase' },
     { to: '/projects', label: 'Projects', icon: 'bookmark' },
+    ...(import.meta.env.VITE_INTEGRATED_PROJECTS_MODE === 'true' ? [
+      { to: '/project-recommendations', label: 'Project matches', icon: 'spark' },
+      { to: '/project-saved', label: 'Saved projects', icon: 'heart' },
+      { to: '/project-history', label: 'Project activity', icon: 'doc' },
+      { to: '/project-preferences', label: 'Project preferences', icon: 'sliders' },
+    ] : []),
     { to: '/jobs/applications', label: 'My Applications', icon: 'doc' },
     ...(showHiring ? [{ to: '/jobs/hiring', label: 'Hiring', icon: 'building' }] : []),
     { to: '/events', label: 'Events', icon: 'calendar' },

@@ -15,7 +15,7 @@ from passlib.context import CryptContext
 from pymongo.errors import DuplicateKeyError
 from starlette.responses import JSONResponse
 from app.academic.db import client, db, create_indexes
-from app.academic.schemas import Application, Interaction, ProfileUpdate, Project, Register, clean
+from app.academic.schemas import Application, Interaction, ProfileUpdate, Project, ProjectPreferences, Register, clean
 from app.domain.project_enums import ProjectCategory, ProjectRole
 
 SECRET = os.environ['SECRET_KEY']
@@ -50,7 +50,7 @@ async def ready():
     try:
         await db.command('ping')
         status = await db.command('hello')
-        if not status.get('isWritablePrimary') or status.get('setName') != 'rs0':
+        if not status.get('isWritablePrimary') or not status.get('setName'):
             raise ValueError('replica set not ready')
         return {'status': 'ready'}
     except Exception:
@@ -65,6 +65,9 @@ def cookies(response, user_id):
     response.set_cookie('refresh_token', token(user_id, 'refresh'), httponly=True, samesite='lax', max_age=604800, path='/')
 
 async def get_user(request: Request, optional=False):
+    if os.environ.get('INTEGRATED_PROJECTS_MODE', '').lower() == 'true':
+        from app.integrated.identity import integrated_user
+        return await integrated_user(request, optional)
     value = request.cookies.get('access_token')
     auth = request.headers.get('authorization', '')
     if not value and auth.lower().startswith('bearer '):
@@ -384,3 +387,21 @@ async def history(item_id: Optional[UUID] = None, event_type: Optional[str] = No
     total = await db.interactions.count_documents(filters)
     items = await db.interactions.find(filters).sort([('created_at', -1), ('_id', -1)]).skip((page-1)*limit).limit(limit).to_list(limit)
     return {'items': [{**{k: v for k, v in item.items() if k not in ('_id', 'schema_version', 'user_id')}, 'id': item['_id']} for item in items], 'total': total, 'page': page, 'limit': limit, 'pages': max(1, math.ceil(total/limit))}
+
+
+@app.get('/api/v1/project-preferences')
+async def project_preferences(user=Depends(current_user)):
+    profile = user.get('profile', {})
+    return {'skills': profile.get('skills', []),
+            'career_interests': profile.get('career_interests', []),
+            'preferred_project_categories': profile.get('preferred_project_categories', [])}
+
+
+@app.put('/api/v1/project-preferences')
+async def update_project_preferences(body: ProjectPreferences, user=Depends(current_user)):
+    await db.users.update_one({'_id': user['_id']}, {'$set': {
+        'profile.career_interests': body.career_interests,
+        'profile.preferred_project_categories': body.preferred_project_categories,
+        'updated_at': now(),
+    }})
+    return await project_preferences(await db.users.find_one({'_id': user['_id']}))

@@ -1,0 +1,6 @@
+-r requirements.txt
+motor==3.6.0
+# Celery 5.4 with redis-py 5 requires a compatible Kombu release.
+kombu==5.5.4
+# Compatible with the version of sentence-transformers in requirements.txt.
+transformers==4.57.6

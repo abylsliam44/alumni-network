@@ -412,3 +412,7 @@ This project is distributed under the MIT License. See [LICENSE](LICENSE) for th
 ### Учебный режим MongoDB (в разработке)
 
 Отдельное локальное окружение и текущий статус описаны в [docs/academic/SETUP.md](docs/academic/SETUP.md) и [docs/academic/VALIDATION.md](docs/academic/VALIDATION.md).
+
+### Полная платформа с MongoDB-проектами (локальная демонстрация)
+
+Интегрированный интерфейс, единый вход, настройки и команды запуска описаны в [docs/academic/INTEGRATED_SETUP_RU.md](docs/academic/INTEGRATED_SETUP_RU.md).

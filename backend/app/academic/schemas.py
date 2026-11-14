@@ -105,3 +105,20 @@ class Interaction(Strict):
         if (self.event_type == 'RATE') != (self.rating is not None):
             raise ValueError('rating is required only for RATE')
         return self
+
+
+class ProjectPreferences(Strict):
+    career_interests: list[str] = Field(default_factory=list, max_length=100)
+    preferred_project_categories: list[ProjectCategory] = Field(default_factory=list, max_length=10)
+
+    @field_validator('career_interests')
+    @classmethod
+    def normalize_interests(cls, values):
+        if any(len(value.strip()) > 80 for value in values):
+            raise ValueError('Elements must not exceed 80 characters')
+        return clean(values)
+
+    @field_validator('preferred_project_categories')
+    @classmethod
+    def unique_categories(cls, values):
+        return list(dict.fromkeys(values))

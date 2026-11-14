@@ -377,7 +377,7 @@ const Dashboard = () => {
                   <div className="h3" style={{ fontSize: 13 }}>{project.title}</div>
                   <div className="mute" style={{ fontSize: 11.5 }}>{project.required_skills?.slice(0, 3).join(', ') || 'Open collaboration'}</div>
                 </div>
-                <span className="mono" style={{ fontSize: 10, color: 'var(--blue)' }}>{project.match_score || 0}%</span>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--blue)' }}>{project.match_score || 0}{import.meta.env.VITE_INTEGRATED_PROJECTS_MODE === 'true' ? ' баллов' : '%'}</span>
               </Link>
             ))}
           </div>

@@ -22,11 +22,18 @@ from app.core.security import verify_token
 async def lifespan(app: FastAPI):
     # Start WS pub/sub listener so broadcasts span uvicorn workers.
     await ws.manager.start_pubsub()
+    if os.getenv("INTEGRATED_PROJECTS_MODE", "").lower() == "true":
+        from app.academic.db import create_indexes, db
+        await db.command("ping")
+        await create_indexes()
     try:
         yield
     finally:
         await ws.manager.stop_pubsub()
         await close_redis_clients()
+        if os.getenv("INTEGRATED_PROJECTS_MODE", "").lower() == "true":
+            from app.academic.db import client
+            client.close()
 
 
 app = FastAPI(
@@ -150,6 +157,18 @@ async def csrf_origin_guard(request, call_next):
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+if os.getenv("INTEGRATED_PROJECTS_MODE", "").lower() == "true":
+    from fastapi.routing import APIRoute
+    from app.academic.main import app as project_app
+    app.router.routes.extend(
+        route for route in project_app.router.routes
+        if isinstance(route, APIRoute) and (
+            route.path.startswith(f"{settings.API_V1_STR}/projects")
+            or route.path.startswith(f"{settings.API_V1_STR}/interactions")
+            or route.path == f"{settings.API_V1_STR}/project-preferences"
+            or route.path == "/api/health/ready"
+        )
+    )
 app.include_router(ws.router)
 
 

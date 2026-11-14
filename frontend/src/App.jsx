@@ -40,11 +40,30 @@ import BecomeMentor from './pages/BecomeMentor';
 import Friends from './pages/Friends';
 import AppShell from './components/AppShell';
 import './App.css';
-import Academic from './Academic';
+import Academic, { AcademicProjects, AcademicProjectForm, AcademicProjectDetail, AcademicHistory } from './Academic';
+import { useAuth } from './context/AuthContext';
+import IntegratedProjectPreferences from './IntegratedProjectPreferences';
 
 function App() {
   if (import.meta.env.VITE_ACADEMIC_NOSQL_MODE === 'true') return <Academic />;
   return <MainApp />;
+}
+
+const integratedProjects = import.meta.env.VITE_INTEGRATED_PROJECTS_MODE === 'true';
+
+function IntegratedProjectPage({ kind = '' }) {
+  const { user } = useAuth();
+  return <div className="academic-app integrated-academic"><div className="academic-stage"><main className="academic-content"><AcademicProjects user={user} kind={kind} /></main></div></div>;
+}
+function IntegratedProjectDetail() {
+  const { user } = useAuth();
+  return <div className="academic-app integrated-academic"><div className="academic-stage"><main className="academic-content"><AcademicProjectDetail user={user} /></main></div></div>;
+}
+function IntegratedProjectForm({ edit = false }) {
+  return <div className="academic-app integrated-academic"><div className="academic-stage"><main className="academic-content"><AcademicProjectForm edit={edit} /></main></div></div>;
+}
+function IntegratedProjectHistory() {
+  return <div className="academic-app integrated-academic"><div className="academic-stage"><main className="academic-content"><AcademicHistory /></main></div></div>;
 }
 
 function MainApp() {
@@ -95,10 +114,14 @@ function MainApp() {
               <Route path="/jobs/applications" element={<MyApplications />} />
               <Route path="/jobs/create" element={<JobCreate />} />
               <Route path="/jobs/:jobId" element={<JobDetail />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/create" element={<ProjectCreate />} />
-              <Route path="/projects/edit/:projectId" element={<ProjectEdit />} />
-              <Route path="/projects/:projectId" element={<ProjectDetail />} />
+              <Route path="/projects" element={integratedProjects ? <IntegratedProjectPage /> : <Projects />} />
+              <Route path="/projects/create" element={integratedProjects ? <IntegratedProjectForm /> : <ProjectCreate />} />
+              {integratedProjects ? <Route path="/projects/edit/:id" element={<IntegratedProjectForm edit />} /> : <Route path="/projects/edit/:projectId" element={<ProjectEdit />} />}
+              {integratedProjects ? <Route path="/projects/:id" element={<IntegratedProjectDetail />} /> : <Route path="/projects/:projectId" element={<ProjectDetail />} />}
+              {integratedProjects && <Route path="/project-recommendations" element={<IntegratedProjectPage kind="recommended" />} />}
+              {integratedProjects && <Route path="/project-saved" element={<IntegratedProjectPage kind="saved" />} />}
+              {integratedProjects && <Route path="/project-history" element={<IntegratedProjectHistory />} />}
+              {integratedProjects && <Route path="/project-preferences" element={<IntegratedProjectPreferences />} />}
               <Route path="/events/admin" element={<EventsAdmin />} />
               <Route path="/events" element={<Events />} />
               <Route path="/events/create" element={<EventCreate />} />
